@@ -1,0 +1,36 @@
+name: Unzip source
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract ZIP to repo root
+        run: |
+          if [ ! -f azlan-world-chat-source.zip ]; then echo "No ZIP to extract"; exit 0; fi
+          unzip -o azlan-world-chat-source.zip
+          rm azlan-world-chat-source.zip
+          if [ ! -f server.js ]; then
+            for d in */; do
+              if [ -f "$d/server.js" ]; then
+                shopt -s dotglob
+                mv "$d"* ./
+                rmdir "$d" || true
+                break
+              fi
+            done
+          fi
+          ls -la
+          test -f server.js && test -f package.json && test -f index.html
+      - name: Commit extracted files
+        run: |
+          git config user.name "azlanworldchat"
+          git config user.email "alidhuddi60@gmail.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Extract AZLAN WORLD CHAT source files"
+          git push
