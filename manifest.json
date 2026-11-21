@@ -1,0 +1,30 @@
+{
+  "background_color": "#1e0b3d",
+  "description": "AZLAN WORLD CHAT \u2014 voice rooms, gifts, VIP, friends. Original work.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "192x192",
+      "src": "icons/icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any",
+      "sizes": "512x512",
+      "src": "icons/icon-512.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "icons/icon-512.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "AZLAN WORLD CHAT",
+  "short_name": "Azlan World",
+  "start_url": "index.html",
+  "theme_color": "#1e0b3d",
+  "scope": "./"
+}

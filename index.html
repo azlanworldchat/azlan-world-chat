@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1e0b3d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AZLAN WORLD CHAT">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>AZLAN WORLD CHAT</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="bg3d" aria-hidden="true"></div>
+<div id="entranceFx" class="hidden" aria-hidden="true"></div>
+<div id="giftFx" class="hidden" aria-hidden="true"></div>
+<div id="giftFx3d" class="hidden" aria-hidden="true"></div>
+<div id="broadcastBar" class="hidden"></div>
+
+<!-- ============ AUTH SCREEN ============ -->
+<section id="authScreen" class="screen auth-light">
+  <button class="guest-pill" onclick="guestLogin()"><img class="ic" src="assets/icons/users.svg" alt=""> Guest Mode</button>
+  <div class="logo-wrap">
+    <div class="orbit">
+      <img src="icons/icon-512.png" alt="AZLAN WORLD CHAT logo" class="app-logo orbit-center">
+      <span class="orbit-chip oc1"><img class="ic" src="assets/icons/mic.svg" alt=""></span>
+      <span class="orbit-chip oc2"><img class="ic" src="assets/icons/game.svg" alt=""></span>
+      <span class="orbit-chip oc3"><img class="ic" src="assets/icons/gift.svg" alt=""></span>
+      <span class="orbit-chip oc4"><img class="ic" src="assets/icons/coin.svg" alt=""></span>
+      <span class="orbit-chip oc5"><img class="ic" src="assets/icons/lucky.svg" alt=""></span>
+      <span class="orbit-chip oc6"><img class="ic" src="assets/icons/users.svg" alt=""></span>
+    </div>
+    <h1 class="auth-title">AZLAN WORLD CHAT</h1>
+    <p class="auth-tag">Voice &bull; Rooms &bull; Gifts &bull; Friends</p>
+  </div>
+  <button class="btn-google" onclick="socialLogin('google')"><span class="g-badge">G</span> Google</button>
+  <button class="btn-fb" onclick="socialLogin('facebook')"><span class="f-badge">f</span> Facebook</button>
+  <div class="or-divider"><span></span> or <span></span></div>
+  <div class="auth-social-row">
+    <div class="social-col">
+      <span class="last-login-badge">Last Login</span>
+      <button class="social-circle email-circle" onclick="showAuth('login')" title="Log in with email"><svg viewBox="0 0 24 24" width="26" height="26"><rect x="2" y="5" width="20" height="14" rx="2" fill="#fff"/><path d="M3 7 L12 13 L21 7" fill="none" stroke="#00a99d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <span class="social-label">Email</span>
+    </div>
+    <div class="social-col">
+      <span class="last-login-badge" style="visibility:hidden">Last Login</span>
+      <button class="social-circle dots-circle" onclick="showAuth('register')" title="More ways to join">&middot;&middot;&middot;</button>
+      <span class="social-label">More</span>
+    </div>
+  </div>
+  <div class="card auth-card">
+    <div class="tabs-mini">
+      <button id="tabLogin" class="mini-tab active" onclick="showAuth('login')">Log In</button>
+      <button id="tabRegister" class="mini-tab" onclick="showAuth('register')">Register</button>
+    </div>
+    <form id="loginForm" onsubmit="doLogin(event)">
+      <input id="loginEmail" type="email" placeholder="Email" required>
+      <input id="loginPass" type="password" placeholder="Password" required>
+      <button class="btn gold" type="submit">Log In</button>
+    </form>
+    <form id="registerForm" class="hidden" onsubmit="doRegister(event)">
+      <input id="regName" type="text" placeholder="Your name" required>
+      <input id="regEmail" type="email" placeholder="Email" required>
+      <input id="regPass" type="password" placeholder="Password (6+ characters)" required>
+      <input id="regInvite" type="text" placeholder="Invite code (optional)">
+      <button class="btn gold" type="submit">Create Account &mdash; get 1,000,000 coins</button>
+    </form>
+    <p id="authMsg" class="msg"></p>
+  </div>
+  <button class="btn owner-btn" onclick="ownerEnter()"><img class="ic" src="assets/icons/crown.svg" alt=""> Owner Portal &mdash; Enter Directly (Azlan, no login)</button>
+  <p class="tiny">Owner account: owner@azlanworld.chat &mdash; change the default password after first entry.</p>
+  <p class="auth-terms">By continuing, you agree to AZLAN WORLD CHAT&apos;s Terms of Service and Privacy Policy.</p>
+</section>
+
+<!-- ============ MAIN APP ============ -->
+<section id="appScreen" class="screen hidden">
+  <header class="topbar">
+    <div class="brand"><img src="icons/icon-192.png" class="brand-icon" alt=""><span>AZLAN WORLD CHAT</span></div>
+    <div class="top-actions">
+      <button class="icon-btn" onclick="showNotifications()" title="Notifications"><img class="ic" src="assets/icons/bell.svg" alt=""><span id="notifDot" class="dot hidden"></span></button>
+      <button class="icon-btn" onclick="openOwner()" title="Owner Portal"><img class="ic" src="assets/icons/crown.svg" alt=""></button>
+    </div>
+  </header>
+  <div id="announce" class="announce hidden"></div>
+
+  <!-- PARTY -->
+  <div id="tab-party" class="tab-page">
+    <div id="honorBanner"></div>
+    <div class="room-hero">
+      <h2>Voice Rooms</h2>
+      <button class="btn gold" onclick="createRoomPrompt()">+ Create Room</button>
+    </div>
+    <input id="roomSearch" placeholder="<img class="ic" src="assets/icons/search.svg" alt=""> Search rooms..." oninput="searchRooms()">
+    <div id="roomList" class="room-list"></div>
+  </div>
+
+  <!-- ROOM VIEW -->
+  <div id="roomView" class="tab-page hidden">
+    <button class="btn ghost" onclick="leaveRoom()">&larr; Leave room</button>
+    <div class="room-stage">
+      <h2 id="roomName">Room</h2>
+      <p id="roomMeta" class="muted"></p>
+      <div id="micGrid" class="mic-grid"></div>
+      <p id="micConnNote" class="tiny"></p>
+      <div id="onlineUsers" class="online-list"></div>
+      <div class="room-controls">
+        <button class="btn" id="micBtn" onclick="toggleMic()"><img class="ic" src="assets/icons/mic.svg" alt=""> Mic: ON</button>
+        <button class="btn" onclick="startVoiceNote()"><img class="ic" src="assets/icons/mic.svg" alt=""> Voice Message</button>
+        <select id="voiceEffect" title="Voice effect">
+          <option value="normal">Voice: Normal</option>
+          <option value="deep">Voice: Deep</option>
+          <option value="robot">Voice: Robot</option>
+          <option value="echo">Voice: Echo</option>
+        </select>
+        <button class="btn" onclick="playRoomMusic()"><img class="ic" src="assets/icons/music.svg" alt=""> Music</button>
+        <input type="file" id="musicFile" accept="audio/*" class="hidden" onchange="uploadRoomMusic(event)">
+        <button class="btn" onclick="showGiftPanel()"><img class="ic" src="assets/icons/gift.svg" alt=""> Send Gift</button>
+        <button class="btn" onclick="openMicStyles()"><img class="ic" src="assets/icons/mic.svg" alt=""> Mic Style</button>
+        <button class="btn" onclick="openMicWaves()"><img class="ic" src="assets/icons/wave.svg" alt=""> Mic Wave</button>
+      </div>
+      <div id="voiceNotes"></div>
+      <div id="roomChat" class="chat-box"></div>
+      <div class="chat-input">
+        <input id="chatText" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendRoomChat()">
+        <button class="btn gold" onclick="sendRoomChat()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DISCOVER -->
+  <div id="tab-discover" class="tab-page hidden">
+    <h2>Discover &mdash; Moments</h2>
+    <div class="card">
+      <textarea id="momentText" placeholder="Share a moment..." rows="2"></textarea>
+      <button class="btn gold" onclick="postMoment()">Post Moment</button>
+    </div>
+    <div id="momentList"></div>
+  </div>
+
+  <!-- MESSAGES -->
+  <div id="tab-messages" class="tab-page hidden">
+    <h2>Messages</h2>
+    <div id="inboxList"></div>
+    <div id="chatThread" class="hidden">
+      <button class="btn ghost" onclick="closeThread()">&larr; Back</button>
+      <h3 id="threadName"></h3>
+      <div id="threadBox" class="chat-box"></div>
+      <div class="chat-input">
+        <input id="dmText" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendDM()">
+        <button class="btn gold" onclick="sendDM()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRIENDS / SEARCH -->
+  <div id="tab-friends" class="tab-page hidden">
+    <h2>Friends &amp; Search</h2>
+    <input id="userSearch" placeholder="<img class="ic" src="assets/icons/search.svg" alt=""> Search by name or ID..." oninput="searchUsers()">
+    <div id="userList"></div>
+    <h3>Rankings</h3>
+    <div class="tabs-mini">
+      <button class="mini-tab active" onclick="loadRankings('wealth',this)">Wealth</button>
+      <button class="mini-tab" onclick="loadRankings('charm',this)">Charm</button>
+      <button class="mini-tab" onclick="loadRankings('rooms',this)">Rooms</button>
+    </div>
+    <div id="rankList"></div>
+  </div>
+
+  <!-- ME -->
+  <div id="tab-me" class="tab-page hidden">
+    <div class="profile-card">
+      <div id="myAvatar" class="avatar">A</div>
+      <h2 id="myName">&mdash;</h2>
+      <p id="myUid" class="muted"></p>
+      <p id="myVipBadge"></p>
+      <p id="myBio" class="muted"></p>
+      <div class="stats-row">
+        <div><b id="statCoins">0</b><span>Coins</span></div>
+        <div><b id="statDiamonds">0</b><span>Diamonds</span></div>
+        <div><b id="statCharm">0</b><span>Charm</span></div>
+        <div><b id="statWealth">0</b><span>Wealth</span></div>
+      </div>
+    </div>
+    <div class="grid-btns">
+      <button class="btn" onclick="openWallet()"><img class="ic" src="assets/icons/wallet.svg" alt=""> Wallet</button>
+      <button class="btn" onclick="openVipClub()"><img class="ic" src="assets/icons/crown.svg" alt=""> VIP Club</button>
+      <button class="btn" onclick="openShop()"><img class="ic" src="assets/icons/shop.svg" alt=""> Premium Shop</button>
+      <button class="btn" onclick="openFamilies()"><img class="ic" src="assets/icons/family.svg" alt=""> Families</button>
+      <button class="btn" onclick="openCP()"><img class="ic" src="assets/icons/cp.svg" alt=""> CP</button>
+      <button class="btn" onclick="doDaily()"><img class="ic" src="assets/icons/gift.svg" alt=""> Daily Sign-In</button>
+      <button class="btn" onclick="openLucky()"><img class="ic" src="assets/icons/target.svg" alt=""> Lucky Draw</button>
+      <button class="btn" onclick="openInvite()"><img class="ic" src="assets/icons/invite.svg" alt=""> Invite &amp; Earn</button>
+      <button class="btn" onclick="openAI()"><img class="ic" src="assets/icons/ai.svg" alt=""> AI Assistant</button>
+      <button class="btn" onclick="openFeedback()"><img class="ic" src="assets/icons/chat.svg" alt=""> Feedback</button>
+      <button class="btn" onclick="openSettings()"><img class="ic" src="assets/icons/settings.svg" alt=""> Settings</button>
+      <button class="btn" onclick="openAchievements()"><img class="ic" src="assets/icons/trophy.svg" alt=""> Achievements</button>
+      <button class="btn" onclick="openBadges()"><img class="ic" src="assets/icons/medal.svg" alt=""> Badges</button>
+      <button class="btn" onclick="openWealthLevels()"><img class="ic" src="assets/icons/coin.svg" alt=""> Wealth Levels</button>
+      <button class="btn" onclick="openEvents()"><img class="ic" src="assets/icons/party.svg" alt=""> Events</button>
+      <button class="btn" onclick="openProfile()"><img class="ic" src="assets/icons/me.svg" alt=""> My Profile</button>
+      <button class="btn" onclick="openLanguage()"><img class="ic" src="assets/icons/globe.svg" alt=""> Language</button>
+      <button class="btn" onclick="openLegalMenu()"><img class="ic" src="assets/icons/legal.svg" alt=""> Legal &amp; About</button>
+      <button class="btn danger" onclick="logout()">Log Out</button>
+    </div>
+    <div id="mePanel"></div>
+  </div>
+
+  <!-- OWNER PORTAL -->
+  <div id="tab-owner" class="tab-page hidden">
+    <h2><img class="ic" src="assets/icons/crown.svg" alt=""> Owner Portal &mdash; Azlan</h2>
+    <p class="muted">Master wallet: <b id="masterWallet">Unlimited</b></p>
+    <div class="grid-btns">
+      <button class="btn gold" onclick="ownerStats()"><img class="ic" src="assets/icons/chart.svg" alt=""> Dashboard</button>
+      <button class="btn" onclick="ownerRecharges()"><img class="ic" src="assets/icons/card.svg" alt=""> Recharges to Approve</button>
+      <button class="btn" onclick="ownerAudit()"><img class="ic" src="assets/icons/legal.svg" alt=""> Audit Log</button>
+      <button class="btn gold" onclick="openOwnerControls()"><img class="ic" src="assets/icons/control.svg" alt=""> Total Control</button>
+    </div>
+    <div class="card">
+      <h3>Give / Take Coins</h3>
+      <input id="ocUser" placeholder="User ID">
+      <input id="ocAmount" type="number" placeholder="Amount (+ give / - take)">
+      <button class="btn gold" onclick="ownerGiveCoins()">Apply</button>
+    </div>
+    <div class="card">
+      <h3>Set VIP / SVIP / Unique ID</h3>
+      <input id="ovUser" placeholder="User ID">
+      <input id="ovVip" type="number" min="0" max="7" placeholder="VIP 0-7">
+      <label><input type="checkbox" id="ovSvip"> SVIP</label>
+      <button class="btn gold" onclick="ownerSetVip()">Set VIP</button>
+      <input id="ouUser" placeholder="User ID">
+      <input id="ouNew" placeholder="New unique ID">
+      <button class="btn gold" onclick="ownerSetUid()">Set Unique ID</button>
+    </div>
+    <div class="card">
+      <h3>Ban User / Device</h3>
+      <input id="obUser" placeholder="User ID">
+      <input id="obDevice" placeholder="Device ID (optional)">
+      <button class="btn danger" onclick="ownerBan(false)">Ban</button>
+      <button class="btn" onclick="ownerBan(true)">Unban</button>
+    </div>
+    <div class="card">
+      <h3>Master Wallet</h3>
+      <input id="mwValue" placeholder="Unlimited or a number">
+      <button class="btn gold" onclick="ownerSetWallet()">Set</button>
+    </div>
+    <div class="card">
+      <h3>Announcement &amp; Settings</h3>
+      <input id="annText" placeholder="Announcement text">
+      <button class="btn gold" onclick="ownerSetAnnouncement()">Publish Announcement</button>
+    </div>
+    <div class="card">
+      <h3>Add Gift / Shop Item</h3>
+      <input id="ngName" placeholder="Gift name (e.g. Golden Rose)">
+      <input id="ngPrice" type="number" placeholder="Price in coins">
+      <input id="ngIcon" placeholder="Icon emoji (e.g. rose)">
+      <button class="btn gold" onclick="ownerAddGift()">Add Gift</button>
+    </div>
+    <div id="ownerPanel"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button data-tab="party" class="active" onclick="switchTab('party')"><img class="ic" src="assets/icons/mic.svg" alt=""> Party</button>
+    <button data-tab="discover" onclick="switchTab('discover')"><img class="ic" src="assets/icons/globe.svg" alt=""> Discover</button>
+    <button data-tab="messages" onclick="switchTab('messages')"><img class="ic" src="assets/icons/chat.svg" alt=""> Messages</button>
+    <button data-tab="friends" onclick="switchTab('friends')"><img class="ic" src="assets/icons/users.svg" alt=""> Friends</button>
+    <button data-tab="me" onclick="switchTab('me')"><img class="ic" src="assets/icons/me.svg" alt=""> Me</button>
+  </nav>
+</section>
+
+<!-- GIFT PANEL -->
+<div id="giftPanel" class="modal hidden">
+  <div class="modal-card">
+    <h3><img class="ic" src="assets/icons/gift.svg" alt=""> Send a Gift</h3>
+    <div class="tabs-mini">
+      <button class="mini-tab active" onclick="giftCat('hot',this)">Hot</button>
+      <button class="mini-tab" onclick="giftCat('activity',this)">Activity</button>
+      <button class="mini-tab" onclick="giftCat('privilege',this)">Privilege</button>
+      <button class="mini-tab" onclick="giftCat('cp',this)">CP</button>
+    </div>
+    <div id="giftGrid" class="gift-grid"></div>
+    <div class="qty-row">Qty:
+      <button onclick="setQty(1)">1</button><button onclick="setQty(7)">7</button>
+      <button onclick="setQty(17)">17</button><button onclick="setQty(77)">77</button>
+      <button onclick="setQty(777)">777</button><span id="qtyLabel">x1</span>
+    </div>
+    <p class="tiny">Send to: <span id="giftTarget">room</span></p>
+    <button class="btn ghost" onclick="closeGiftPanel()">Close</button>
+  </div>
+</div>
+
+<!-- LUCKY DRAW -->
+<div id="luckyModal" class="modal hidden">
+  <div class="modal-card">
+    <h3><img class="ic" src="assets/icons/target.svg" alt=""> Lucky Draw &mdash; 1,000 coins per spin</h3>
+    <div id="luckyWheel" class="wheel"><div class="wheel-pointer">&#9660;</div><div id="wheelInner" class="wheel-inner"><img class="ic" src="assets/icons/gift.svg" alt=""></div></div>
+    <button class="btn gold" onclick="spinLucky()">SPIN</button>
+    <p id="luckyResult"></p>
+    <button class="btn ghost" onclick="document.getElementById('luckyModal').classList.add('hidden')">Close</button>
+  </div>
+</div>
+
+<script>
+/* Register the service worker (offline app shell). */
+if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function (err) { console.log('Service worker registration failed:', err); }); }); }
+</script>
+<script src="sounds.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
