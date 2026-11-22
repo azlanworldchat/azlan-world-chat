@@ -92,7 +92,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
 /* Room stage: white 3D stage (themes override when bought) */
 .room-stage { background: linear-gradient(180deg, #ffffff, #fdf6e3); border: 1px solid #e3d9b8; border-radius: 18px; padding: 16px; background-size: 200% 200%; animation: stageGlow 10s ease infinite alternate; box-shadow: 0 8px 24px rgba(80,60,0,.12), 0 2px 6px rgba(0,0,0,.06); }
 @keyframes stageGlow { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
-.mic-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 0; perspective: 600px; }
+.mic-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0; perspective: 600px; }
 .mic-seat {
   aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 32%, #ffffff, #f3ead0 78%); border: 2px dashed #d9c27a; color: #6b6b6b; box-shadow: 0 4px 10px rgba(80,60,0,.10);
   display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; cursor: pointer;
@@ -101,7 +101,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
 .mic-seat:hover { transform: rotateY(10deg) scale(1.05); }
 .mic-seat.taken { border-style: solid; border-color: var(--gold); background: rgba(245,197,66,.14); }
 .mic-seat.speaking { border-color: #2fae6e; box-shadow: 0 0 0 3px rgba(74,222,128,.45), 0 0 16px rgba(74,222,128,.35); }
-.mic-seat .seat-avatar { font-size: 21px; }
+.mic-seat .seat-avatar { font-size: 19px; }
 @keyframes micRing {
   0% { box-shadow: 0 0 0 0 rgba(74,222,128,.7); }
   100% { box-shadow: 0 0 0 18px rgba(74,222,128,0); }
@@ -222,7 +222,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
 
 /* ============ VIP profile frame (dragon frame around avatar) ============ */
 .avatar.vip-frame { position: relative; border: 4px solid var(--gold); box-shadow: 0 0 0 3px rgba(255,122,26,.7), 0 0 24px rgba(255,122,26,.8); }
-.avatar.vip-frame::after { content: ""; position: absolute; bottom: -12px; right: -8px; width: 26px; height: 26px; background: url(assets/vip/vip10.svg) center/contain no-repeat; }
+.avatar.vip-frame::after { content: ""; position: absolute; bottom: -12px; right: -8px; width: 26px; height: 26px; background: url(assets/vip/vip10/badge.png) center/contain no-repeat; }
 .avatar .frame-img { position: absolute; inset: -10px; width: calc(100% + 20px); height: calc(100% + 20px); pointer-events: none; }
 .avatar.gif-photo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 
@@ -364,7 +364,7 @@ body { background: linear-gradient(180deg, #ffffff, #fdf9ec); }
 .room-stage { background: linear-gradient(180deg, #ffffff, #fdf6e3); position: relative; overflow: hidden; }
 .room-stage::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(166,124,0,.5) 1px, transparent 1.5px); background-size: 70px 70px; opacity: .10; pointer-events: none; }
 .mic-grid { counter-reset: seat; }
-.mic-seat { background: radial-gradient(circle at 50% 32%, #ffffff, #f3ead0 78%); border: 2px solid #d9c27a; border-radius: 22px; min-height: 92px; }
+.mic-seat { background: radial-gradient(circle at 50% 32%, #ffffff, #f3ead0 78%); border: 2px solid #d9c27a; border-radius: 22px; min-height: 80px; }
 .mic-seat::after { counter-increment: seat; content: counter(seat); position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); color: #8a6d1a; font-size: 11px; }
 .mic-seat.taken .seat-name { background: rgba(255,210,74,.35); border: 1px solid #d9a400; color: #231a00; border-radius: 20px; padding: 2px 9px; font-size: 10px; max-width: 92%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .announce { background: #fff8e1; border: 1px solid #d9a400; color: #7a5c00; box-shadow: 0 4px 12px rgba(80,60,0,.10); }
@@ -457,9 +457,9 @@ body { background: linear-gradient(180deg, #ffffff, #fdf9ec); }
 .room-bg { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: .35; pointer-events: none; border-radius: 18px; }
 /* --- UFO mic seats: host seat 1 on top, seats 2–8 as purple glass domes --- */
 .mic-grid { grid-template-columns: repeat(4, 1fr); }
-.mic-seat.ufo { border-radius: 50% 50% 22px 22px; background: radial-gradient(circle at 50% 28%, #ffffff, #f7ecd2 60%, #efe3bd 100%); min-height: 96px; border: 2px solid #d9c27a; }
+.mic-seat.ufo { border-radius: 50% 50% 22px 22px; background: radial-gradient(circle at 50% 28%, #ffffff, #f7ecd2 60%, #efe3bd 100%); min-height: 84px; border: 2px solid #d9c27a; }
 .mic-seat.ufo::after { content: none; }
-.mic-seat.host-seat { min-height: 96px; }
+.mic-seat.host-seat { min-height: 84px; }
 
 @keyframes micPulse { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,.7); } 70% { box-shadow: 0 0 0 16px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
 .seat-emoji { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); width: 44px; height: 44px; z-index: 3;  }
@@ -854,3 +854,279 @@ input:focus, select:focus, textarea:focus { outline: none !important; border-col
 .dark-room .welcome-msg { color: #d8c8f5 !important; }
 .dark-room .online-user { background: rgba(255,255,255,.94) !important; color: #1c1c1c !important; border-color: #6b4fa1 !important; }
 .dark-room .rt-count { color: #f3e9ff !important; }
+
+/* ===== VIP 1 animated phoenix frame (real motion, GPU-friendly) ===== */
+.vip1-frame-anim { overflow: visible; }
+.vip1-frame-anim > img { width: 100% !important; height: 100% !important; display: block; position: static !important; }
+.vip1-frame-anim .v1f-fx { position: absolute; pointer-events: none; }
+.vip1-frame-anim .v1f-shine { inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0deg, transparent 30deg, rgba(255,240,170,.65) 62deg, rgba(255,255,255,.9) 72deg, rgba(255,240,170,.65) 82deg, transparent 115deg, transparent 360deg); -webkit-mask: radial-gradient(circle, transparent 56%, #000 63%, #000 80%, transparent 87%); mask: radial-gradient(circle, transparent 56%, #000 63%, #000 80%, transparent 87%); animation: v1fSpin 6s linear infinite; }
+@keyframes v1fSpin { to { transform: rotate(360deg); } }
+.vip1-frame-anim .v1f-gem-l, .vip1-frame-anim .v1f-gem-r { width: 16%; height: 16%; top: 42%; border-radius: 50%; background: radial-gradient(circle, #fff 0%, #e9d5ff 25%, #a855f7 55%, rgba(168,85,247,0) 72%); animation: v1fTwinkle 2.4s ease-in-out infinite; }
+.vip1-frame-anim .v1f-gem-l { left: 1%; }
+.vip1-frame-anim .v1f-gem-r { right: 1%; animation-delay: 1.2s; }
+@keyframes v1fTwinkle { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.15); } }
+.vip1-frame-anim .v1f-flame { left: 28%; right: 28%; bottom: 0; height: 28%; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(255,140,30,.6), rgba(255,60,0,.28) 55%, transparent 75%); mix-blend-mode: screen; animation: v1fFlicker 1.6s ease-in-out infinite; }
+@keyframes v1fFlicker { 0%, 100% { opacity: .55; transform: scaleY(1); } 30% { opacity: .9; transform: scaleY(1.12); } 60% { opacity: .7; transform: scaleY(.94); } }
+.vip1-frame-anim .v1f-crown { left: 45%; top: -1%; width: 10%; height: 10%; border-radius: 50%; background: radial-gradient(circle, #fff, #ffd24a 55%, transparent 72%); animation: v1fGlint 5s ease-in-out infinite; }
+@keyframes v1fGlint { 0%, 88%, 100% { opacity: 0; transform: scale(.6); } 92% { opacity: 1; transform: scale(1.2); } 96% { opacity: 0; transform: scale(.9); } }
+.vip1-frame-anim.paused .v1f-fx { animation-play-state: paused; }
+body.low-perf .vip1-frame-anim .v1f-fx { display: none; }
+@media (prefers-reduced-motion: reduce) { .vip1-frame-anim .v1f-fx { display: none; } }
+
+/* ===== Entry real motion (layered 2.5D: cinematic zoom + particles) ===== */
+.entrance-art-wrap { position: relative; display: inline-block; }
+.entrance-motion-img { width: min(92vw, 420px); height: auto; border-radius: 18px; box-shadow: 0 0 40px rgba(255,210,74,.55); animation: entryZoom var(--entry-dur, 2.5s) ease forwards; }
+@keyframes entryZoom { 0% { transform: scale(.82) translateY(26px); opacity: 0; } 18% { transform: scale(1) translateY(0); opacity: 1; } 80% { transform: scale(1.07) translateY(-6px); opacity: 1; } 100% { transform: scale(1.12) translateY(-10px); opacity: 0; } }
+.entrance-particles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.entrance-particles span { position: absolute; bottom: 8%; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle, #fff, #ffd24a 60%, transparent 75%); animation: entryFloat 2.8s ease-in infinite; }
+.entrance-particles span:nth-child(1) { left: 12%; animation-delay: 0s; }
+.entrance-particles span:nth-child(2) { left: 28%; animation-delay: .5s; width: 6px; height: 6px; }
+.entrance-particles span:nth-child(3) { left: 46%; animation-delay: 1s; width: 10px; height: 10px; }
+.entrance-particles span:nth-child(4) { left: 62%; animation-delay: .3s; }
+.entrance-particles span:nth-child(5) { left: 78%; animation-delay: .8s; width: 6px; height: 6px; }
+.entrance-particles span:nth-child(6) { left: 88%; animation-delay: 1.4s; }
+@keyframes entryFloat { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-180px); opacity: 0; } }
+#entranceFx.play .entrance-standalone.entry-portal { animation: entrancePortal var(--entry-dur, 4.5s) ease forwards; }
+body.low-perf .entrance-particles { display: none; }
+body.low-perf .entrance-motion-img { animation: none; }
+@media (prefers-reduced-motion: reduce) { .entrance-particles { display: none; } .entrance-motion-img { animation: none; } }
+
+/* ============ LIVING BADGES (2026-11-22) ============ */
+/* Layered living animation over the photorealistic badge art — the badge feels
+   alive like a video is playing: the creature breathes (chest scale), blinks
+   (eyelid flicker), sways its head, wings shimmer, lions roar, dragon fire
+   breathes, phoenix flames dance. The golden owl is the EMOTION/MOTION
+   reference for all badges. Honest limit: no true video/GLB 3D pipeline exists
+   here — this is layered 2.5D motion over real rendered art, not a rendered
+   3D video. GPU-friendly (transform/opacity/filter only), pauses off-screen,
+   fully still in low-performance mode / reduced motion. */
+.living-badge { position: relative; display: inline-block; line-height: 0; animation: lbSway 2s ease-in-out infinite; transform-origin: 50% 60%; }
+.living-badge img { display: block; animation: lbBreathe 1.8s ease-in-out infinite; transform-origin: 50% 85%; }
+.living-badge.lb-shield, .living-badge.lb-wings { animation: lbWingSway 1.8s ease-in-out infinite; }
+.living-badge.lb-roar { animation: lbSway 2s ease-in-out infinite, lbRoar 1.8s ease-in-out infinite; }
+.living-badge .lb-fx { position: absolute; pointer-events: none; }
+.living-badge .lb-glow { left: 16%; right: 16%; top: 24%; height: 16%; background:
+  radial-gradient(ellipse 18% 60% at 30% 50%, rgba(255,255,255,.9), rgba(251,191,36,.55) 45%, transparent 75%),
+  radial-gradient(ellipse 18% 60% at 70% 50%, rgba(255,255,255,.9), rgba(251,191,36,.55) 45%, transparent 75%);
+  animation: lbGlow 1.8s ease-in-out infinite; mix-blend-mode: screen; }
+.living-badge.lb-vip4 .lb-glow, .living-badge.lb-vip11 .lb-glow { background:
+  radial-gradient(ellipse 18% 60% at 30% 50%, rgba(255,255,255,.9), rgba(96,165,250,.6) 45%, transparent 75%),
+  radial-gradient(ellipse 18% 60% at 70% 50%, rgba(255,255,255,.9), rgba(96,165,250,.6) 45%, transparent 75%); }
+.living-badge.lb-vip7 .lb-glow, .living-badge.lb-vip10 .lb-glow { background:
+  radial-gradient(ellipse 18% 60% at 30% 50%, rgba(255,255,255,.9), rgba(248,113,113,.6) 45%, transparent 75%),
+  radial-gradient(ellipse 18% 60% at 70% 50%, rgba(255,255,255,.9), rgba(248,113,113,.6) 45%, transparent 75%); }
+.living-badge.lb-vip1 .lb-glow, .living-badge.lb-vip3 .lb-glow { background:
+  radial-gradient(ellipse 18% 60% at 30% 50%, rgba(255,255,255,.9), rgba(52,211,153,.55) 45%, transparent 75%),
+  radial-gradient(ellipse 18% 60% at 70% 50%, rgba(255,255,255,.9), rgba(52,211,153,.55) 45%, transparent 75%); }
+.living-badge.lb-vip5 .lb-glow { background:
+  radial-gradient(ellipse 18% 60% at 30% 50%, rgba(255,255,255,.85), rgba(167,139,250,.55) 45%, transparent 75%),
+  radial-gradient(ellipse 18% 60% at 70% 50%, rgba(255,255,255,.85), rgba(167,139,250,.55) 45%, transparent 75%); }
+.living-badge .lb-flame { left: 20%; right: 20%; bottom: 0; height: 26%; background: radial-gradient(ellipse 50% 70% at 50% 100%, rgba(255,120,0,.55), rgba(255,180,0,.28) 55%, transparent 78%); animation: lbFlame 0.9s ease-in-out infinite; mix-blend-mode: screen; }
+.living-badge .lb-shine { inset: -4%; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,.55) 28deg, transparent 62deg, transparent 180deg, rgba(255,255,255,.35) 205deg, transparent 240deg); animation: lbShine 2s linear infinite; mix-blend-mode: screen; -webkit-mask: radial-gradient(circle, transparent 52%, #000 56%, #000 72%, transparent 76%); mask: radial-gradient(circle, transparent 52%, #000 56%, #000 72%, transparent 76%); }
+.living-badge .lb-blink-l, .living-badge .lb-blink-r { top: 30%; width: 12%; height: 4%; border-radius: 50%; background: rgba(20,12,4,.6); transform: scaleY(0); animation: lbBlink 1.8s ease-in-out infinite; }
+.living-badge .lb-blink-l { left: 24%; }
+.living-badge .lb-blink-r { left: 64%; }
+.living-badge.paused, .living-badge.paused img, .living-badge.paused .lb-fx { animation-play-state: paused !important; }
+/* Real GIF badges carry their own motion — no CSS animation on the wrapper/img */
+.living-badge.lb-gif, .living-badge.lb-gif img { animation: none !important; }
+@keyframes lbBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+@keyframes lbSway { 0%, 100% { transform: rotate(-1deg) translateX(-1px); } 50% { transform: rotate(1deg) translateX(1px); } }
+@keyframes lbWingSway { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+@keyframes lbGlow { 0%, 100% { opacity: .35; } 50% { opacity: .95; } }
+@keyframes lbFlame { 0%, 100% { opacity: .45; transform: scaleY(.92); } 30% { opacity: .9; transform: scaleY(1.06); } 60% { opacity: .6; transform: scaleY(.96); } }
+@keyframes lbShine { to { transform: rotate(360deg); } }
+@keyframes lbBlink { 0%, 91%, 100% { transform: scaleY(0); } 93.5% { transform: scaleY(1); } 96% { transform: scaleY(0); } }
+@keyframes lbRoar { 0%, 86%, 100% { filter: brightness(1); } 89% { filter: brightness(1.22); } 92% { filter: brightness(1.08); } }
+  /* FIRE ON ALL BADGES (owner rule) + LAVA ON VIP 10-12: rim flames and rising
+     embers over the art, centre stays clear (creature, badge, VIP number never
+     hidden). Lava = molten eruption glow from the base corners + 3D depth tilt.
+     1.5-2s loops, GPU-friendly, paused off-screen. No emoji anywhere. */
+  .living-badge .lb-firefx { inset: -3%; border-radius: 50%; background:
+    radial-gradient(ellipse 22% 16% at 10% 90%, rgba(255,140,0,.85), rgba(255,60,0,.4) 55%, transparent 75%),
+    radial-gradient(ellipse 22% 16% at 90% 90%, rgba(255,140,0,.85), rgba(255,60,0,.4) 55%, transparent 75%),
+    radial-gradient(ellipse 18% 14% at 8% 14%, rgba(255,120,0,.6), transparent 70%),
+    radial-gradient(ellipse 18% 14% at 92% 14%, rgba(255,120,0,.6), transparent 70%);
+    animation: lbFireFx .9s ease-in-out infinite; mix-blend-mode: screen;
+    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 48%, #000 62%, #000 88%, transparent 97%);
+    mask: radial-gradient(circle at 50% 50%, transparent 48%, #000 62%, #000 88%, transparent 97%); }
+  .living-badge .lb-embers { inset: 0; background-image:
+    radial-gradient(circle 2px, rgba(255,200,80,.95), transparent 70%),
+    radial-gradient(circle 1.5px, rgba(255,150,40,.9), transparent 70%),
+    radial-gradient(circle 2px, rgba(255,180,60,.95), transparent 70%);
+    background-repeat: no-repeat; background-position: 30% 82%, 55% 88%, 72% 84%;
+    animation: lbEmbers 1.8s linear infinite; mix-blend-mode: screen; }
+  .living-badge .lb-embers.lb-lava-embers { background-image:
+    radial-gradient(circle 2.5px, rgba(255,120,30,.95), transparent 70%),
+    radial-gradient(circle 2px, rgba(255,90,20,.95), transparent 70%),
+    radial-gradient(circle 2.5px, rgba(255,160,50,.95), transparent 70%),
+    radial-gradient(circle 2px, rgba(255,110,25,.95), transparent 70%),
+    radial-gradient(circle 1.5px, rgba(255,140,40,.9), transparent 70%);
+    background-position: 25% 82%, 42% 88%, 58% 84%, 75% 87%, 88% 80%;
+    animation-duration: 1.2s; }
+  .living-badge .lb-lava { left: 0; right: 0; bottom: -2%; height: 38%; background:
+    radial-gradient(ellipse 30% 45% at 12% 100%, rgba(255,60,0,.85), rgba(255,140,0,.45) 50%, transparent 75%),
+    radial-gradient(ellipse 30% 45% at 88% 100%, rgba(255,60,0,.85), rgba(255,140,0,.45) 50%, transparent 75%);
+    animation: lbLava 1.8s ease-in-out infinite; mix-blend-mode: screen; }
+  .living-badge.lb-lava { animation: lbSway 2s ease-in-out infinite, lbLavaDepth 1.8s ease-in-out infinite; }
+  .living-badge.lb-lava.lb-roar { animation: lbSway 2s ease-in-out infinite, lbRoar 1.8s ease-in-out infinite, lbLavaDepth 1.8s ease-in-out infinite; }
+  .living-badge.lb-lava.lb-wings { animation: lbWingSway 1.8s ease-in-out infinite, lbLavaDepth 1.8s ease-in-out infinite; }
+  @keyframes lbFireFx { 0%, 100% { opacity: .55; transform: scale(1) translateY(0); } 35% { opacity: .95; transform: scale(1.04) translateY(-2%); } 70% { opacity: .7; transform: scale(1.01) translateY(-1%); } }
+  @keyframes lbEmbers { 0% { background-position: 30% 84%, 55% 89%, 72% 85%; opacity: 0; } 15% { opacity: 1; } 100% { background-position: 28% 16%, 58% 24%, 70% 18%; opacity: 0; } }
+  @keyframes lbLava { 0%, 100% { opacity: .5; transform: scaleY(.85); } 40% { opacity: 1; transform: scaleY(1.12); } 65% { opacity: .75; transform: scaleY(.95); } }
+  @keyframes lbLavaDepth { 0%, 100% { transform: perspective(600px) rotateX(0deg) rotateY(-1.5deg); } 50% { transform: perspective(600px) rotateX(1.5deg) rotateY(1.5deg); } }
+
+body.low-perf .living-badge, body.low-perf .living-badge img, body.low-perf .living-badge .lb-fx { animation: none !important; }
+body.low-perf .living-badge .lb-fx { display: none; }
+@media (prefers-reduced-motion: reduce) { .living-badge, .living-badge img, .living-badge .lb-fx { animation: none !important; } .living-badge .lb-fx { display: none; } }
+/* ---- Room keyboard shift (2026-11-22, corrected): room stays FIXED; only the
+   keyboard moves it. While typing, the fixed bottom nav hides and the screen's
+   bottom padding shrinks so no blank gap appears below the room. ---- */
+body.kb-open .bottom-nav { display: none !important; }
+body.kb-open #appScreen { padding-bottom: 16px; }
+
+/* ---- ROOM REDESIGN 2026-11-22 (Yalla layout + text chat + 8-control bar) ---- */
+/* BOTTOM NAV HIDDEN INSIDE ROOMS (owner rule): Party / Discover / Messages /
+   Friends / Me show only OUTSIDE rooms. Inside a voice room the bar is
+   hidden completely; it returns when the user leaves the room. */
+body.in-room .bottom-nav { display: none !important; }
+body.in-room .screen { padding-bottom: 20px; }
+/* The old .room-controls row is hidden — its actions moved into the
+   hamburger / grid menus in the bottom bar. The buttons stay in the DOM
+   (mic state, voice effect, music file input still work). */
+.room-stage .room-controls { display: none; }
+/* Purple starry room background (dark-room base already exists above). */
+.room-stage.dark-room::before { background-image: radial-gradient(rgba(255,255,255,.9) 1px, transparent 1.6px), radial-gradient(rgba(255,210,74,.9) 1px, transparent 1.6px); background-size: 90px 90px, 140px 140px; background-position: 0 0, 45px 60px; opacity: .5; }
+.room-stage.dark-room::after { content: ""; position: absolute; top: 60px; right: 30px; width: 90px; height: 2px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.9), transparent); transform: rotate(-24deg); opacity: .5; pointer-events: none; }
+/* Yalla top bar: host avatar + name + ID left; trophy pill + count + icons right. */
+.room-stage.dark-room .rt-host { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.room-stage.dark-room .rt-host-av { width: 40px; height: 40px; min-width: 40px; border-radius: 50%; background: linear-gradient(135deg, #ffd24a, #c98f00); color: #1a0b2e; font-weight: 900; font-size: 17px; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; }
+.room-stage.dark-room .rt-name { color: #ffd24a; }
+.room-stage.dark-room .rt-sub { color: #d8c8f5; }
+.room-stage.dark-room .trophy-pill { background: linear-gradient(135deg, #ffe27a, #c98f00); color: #1a0b2e; border-radius: 14px; padding: 3px 9px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 3px; }
+.room-stage.dark-room .trophy-pill img { width: 13px; height: 13px; }
+.room-stage.dark-room .rt-right .icon-btn { background: rgba(42,18,80,.9); border: 1px solid #6b4fa1; }
+.room-stage.dark-room .rt-right .icon-btn img { filter: brightness(0) invert(1); }
+/* Mic seats: round circle + name label + number below (host in the middle
+   of the top row). The circle carries the ring/border; the outer seat is a
+   plain column. */
+.room-stage.dark-room .mic-seat { background: transparent; border: none; box-shadow: none; min-height: 0; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.room-stage.dark-room .mic-seat:hover { transform: none; }
+.room-stage.dark-room .mic-seat .seat-circle { width: 100%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 30%, #3c1a6e, #241040 75%); border: 2px solid #6b4fa1; display: flex; align-items: center; justify-content: center; position: relative; }
+.room-stage.dark-room .mic-seat.taken .seat-circle { border-color: #f5c542; box-shadow: 0 0 12px rgba(245,197,66,.35); }
+.room-stage.dark-room .mic-seat.speaking .seat-circle { border-color: #2fae6e; box-shadow: 0 0 0 3px rgba(74,222,128,.45), 0 0 18px rgba(74,222,128,.4); }
+.room-stage.dark-room .mic-seat.host-seat .seat-circle { border-width: 3px; border-color: #ffd24a; }
+.room-stage.dark-room .mic-seat .seat-circle .seat-avatar { color: #ffe27a; font-size: 20px; font-weight: 800; }
+.room-stage.dark-room .mic-seat .seat-circle.seat-empty { border-style: dashed; background: rgba(42,18,80,.35); }
+.room-stage.dark-room .mic-seat .seat-circle.seat-empty .seat-avatar img { width: 22px; height: 22px; opacity: .6; filter: brightness(0) invert(1); }
+.room-stage.dark-room .mic-seat .seat-name { position: static; background: rgba(13,5,24,.85); border: 1px solid #6b4fa1; color: #ffe27a; border-radius: 20px; padding: 1px 8px; font-size: 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-stage.dark-room .mic-seat .seat-num { position: static; transform: none; color: #a78bda; font-size: 11px; }
+.room-stage.dark-room .seat-vip-side { right: -8px; }
+.room-stage.dark-room .seat-micstate { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; border-radius: 50%; background: #2a1250; border: 1px solid #6b4fa1; display: flex; align-items: center; justify-content: center; z-index: 3; }
+.room-stage.dark-room .seat-micstate img { width: 11px; height: 11px; filter: brightness(0) invert(1); }
+/* Announcement + welcome boxes below the seats. */
+.room-stage.dark-room .pk-bar.announce-box { background: rgba(13,5,24,.78); border: 1px solid #6b4fa1; border-left: 3px solid #f5c542; color: #f3e9ff; border-radius: 12px; padding: 8px 12px; margin: 8px 68px 4px 0; }
+.room-stage.dark-room .pk-bar.announce-box .pk-badge { background: #f5c542; color: #1a0b2e; border-radius: 10px; padding: 1px 7px; font-size: 10px; font-weight: 800; }
+.room-stage.dark-room .pk-bar.announce-box .pk-edit { margin-left: auto; opacity: .85; }
+.room-stage.dark-room .pk-bar.announce-box .pk-edit img { width: 15px; height: 15px; filter: brightness(0) invert(1); }
+.room-stage.dark-room .welcome-box { background: rgba(13,5,24,.55); border: 1px solid rgba(107,79,161,.6); border-radius: 12px; padding: 7px 12px; margin: 4px 68px 8px 0; font-size: 11px; color: #d8c8f5; }
+/* Chat list: taller, always visible alongside voice; Yalla message rows. */
+.room-stage.dark-room .chat-box { min-height: 160px; max-height: 300px; margin-right: 68px; }
+.room-stage.dark-room #roomGiftFeed { margin-right: 68px; }
+.room-chat-head { font-size: 11px; font-weight: 800; color: #ffd24a; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+.room-chat-head img { width: 14px; height: 14px; }
+.chat-msg-row { display: flex; gap: 8px; margin: 8px 0; align-items: flex-start; }
+.chat-av { width: 28px; height: 28px; min-width: 28px; border-radius: 50%; background: linear-gradient(135deg, #ffd24a, #c98f00); color: #1a0b2e; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.chat-av-wrap { display: flex; }
+.chat-body { flex: 1; min-width: 0; }
+.chat-name-line { font-size: 11px; margin-bottom: 2px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.chat-vip-pill { background: linear-gradient(135deg, #ffd24a, #c98f00); color: #1a0b2e; border-radius: 10px; padding: 0 6px; font-size: 9px; font-weight: 800; display: inline-flex; align-items: center; gap: 2px; }
+.chat-vip-pill img { width: 10px; height: 10px; }
+.chat-lv-pill { background: #2fae6e; color: #fff; border-radius: 10px; padding: 0 6px; font-size: 9px; font-weight: 800; }
+.chat-bubble { background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.12); color: #f3e9ff; border-radius: 4px 12px 12px 12px; padding: 6px 10px; font-size: 12px; display: inline-block; max-width: 100%; }
+.chat-bubble.vip-bubble { background: linear-gradient(135deg, rgba(255,122,26,.35), rgba(255,210,74,.2)); border-color: rgba(255,122,26,.8); }
+.gift-line-img { width: 28px; height: 28px; }
+.gift-line-text { font-size: 11px; color: #f3e9ff; align-self: center; }
+.dark-room .gift-feed-item { background: rgba(13,5,24,.85); border-color: #6b4fa1; color: #f3e9ff; }
+/* Gift toast: small animated gift display floating over the room (3s). */
+.room-gift-toast { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #ffe27a, #c98f00); color: #1a0b2e; border-radius: 20px; padding: 6px 12px; font-size: 12px; font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,.5); animation: giftToastIn .3s ease; max-width: 94%; }
+.room-gift-toast img { width: 26px; height: 26px; }
+@keyframes giftToastIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+/* Bottom bar: exactly 8 round controls + the gold comment bar. */
+.room-stage.dark-room .room-bottom-bar { background: rgba(13,5,24,.92); border: 1px solid #6b4fa1; }
+.rb-btn { width: 40px; height: 40px; min-width: 40px; border-radius: 50%; background: #2a1250; border: 1px solid #8a6d2f; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+.rb-btn img { width: 20px; height: 20px; filter: brightness(0) invert(1); }
+.dark-room .say-input img { filter: brightness(0) invert(1); }
+.emoji-tray { display: flex; flex-wrap: wrap; gap: 6px; background: rgba(13,5,24,.92); border: 1px solid #6b4fa1; border-radius: 14px; padding: 8px; margin: 8px 0; }
+.emoji-btn { font-size: 20px; background: none; border: none; cursor: pointer; padding: 2px; }
+.room-menu-item { width: 100%; text-align: left; margin: 4px 0; display: flex; align-items: center; gap: 8px; }
+/* Owner key row (hidden portal entry): shown only after 5 logo taps. */
+#ownerKeyRow:not(.hidden) { display: flex; gap: 8px; margin: 10px 0; }
+#ownerKeyRow input { flex: 1; }
+/* ---- CUSTOMIZATION STUDIO ---- */
+.studio-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+.studio-row > span { flex: 1; min-width: 110px; }
+.studio-row input[type="color"] { width: 44px; height: 32px; padding: 2px; }
+.studio-thumb { width: 48px; height: 48px; object-fit: contain; border-radius: 10px; background: #f7f4ea; border: 1px solid var(--border); }
+.studio-vip-edit { border: 1px dashed var(--border); border-radius: 12px; padding: 10px; margin: 4px 0 12px; }
+.studio-preview { border-radius: 14px; padding: 14px; margin: 10px 0; }
+.studio-preview-card { border: 1px solid; border-radius: 12px; padding: 14px; }
+.studio-ai-results { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; }
+.studio-ai-opt { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 6px; cursor: pointer; }
+.studio-ai-opt img { width: 100%; aspect-ratio: 1; object-fit: contain; }
+.studio-ai-opt span { font-size: 10px; display: block; }
+
+/* ---- ROOM FIT FIXES 2026-11-22 (390px: header + bottom bar fit; fixed room) ---- */
+/* A. Top bar fits inside the stage at 390px (was 413px wide, icons cut off). */
+.room-stage.dark-room .room-topbar { gap: 6px; }
+.room-stage.dark-room .rt-host { gap: 6px; }
+.room-stage.dark-room .rt-host-av { width: 34px; height: 34px; min-width: 34px; font-size: 15px; }
+.room-stage.dark-room .rt-host > div { min-width: 0; }
+.room-stage.dark-room .rt-name { font-size: 15px; gap: 4px; }
+.room-stage.dark-room .rt-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.room-stage.dark-room .rt-name .rt-wing { width: 16px; height: 16px; flex-shrink: 0; }
+.room-stage.dark-room .rt-sub { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.room-stage.dark-room .rt-right { gap: 4px; }
+.room-stage.dark-room .trophy-pill { padding: 2px 7px; font-size: 10px; }
+.room-stage.dark-room .member-pill { padding: 2px 7px; font-size: 10px; }
+.room-stage.dark-room .rt-right .icon-btn { width: 32px; height: 32px; min-width: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
+.room-stage.dark-room .rt-right .icon-btn img, .room-stage.dark-room .rt-right .icon-btn .ic { width: 16px; height: 16px; }
+/* B. Bottom bar fits: 7 round buttons + comment field in one row at 390px
+   (was overflowing — the 8th grid button was cut off). */
+.rb-btn { width: 34px; height: 34px; min-width: 34px; }
+.rb-btn img { width: 18px; height: 18px; }
+.room-stage.dark-room .room-bottom-bar { gap: 5px; padding: 4px; margin: 4px -4px -4px; }
+/* C. FIXED ROOM (owner rule): the room layout stays FIXED — the page must
+   NOT scroll freely inside a room. Only the chat/feed areas scroll
+   internally. The header, mic seats, announcement, tabs and the 8-control
+   bottom bar stay put. When the keyboard opens, 100dvh shrinks with the
+   visual viewport (adjustResize) so the bar stays above the keyboard. */
+body.in-room { overflow: hidden; }
+body.in-room #appScreen { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; padding: 10px 10px 0; }
+body.in-room #appScreen > .topbar { flex-shrink: 0; }
+body.in-room #roomView:not(.hidden) { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+body.in-room .room-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 10px; }
+body.in-room #roomHeader, body.in-room #micGrid, body.in-room #micConnNote, body.in-room #roomPkBar, body.in-room #roomWelcome, body.in-room #roomTabs { flex-shrink: 0; }
+body.in-room #roomGiftFeed { flex-shrink: 0; max-height: 72px; overflow-y: auto; }
+body.in-room #roomChat { flex: 1 1 auto; min-height: 64px; max-height: none; }
+body.in-room #onlineUsers { flex-shrink: 0; max-height: 84px; overflow-y: auto; }
+body.in-room #voiceNotes { flex-shrink: 0; max-height: 64px; overflow-y: auto; }
+body.in-room .room-bottom-bar { flex-shrink: 0; position: static; }
+/* The comment-field icon had no size — the raw SVG rendered ~64px tall and
+   stretched the whole bottom bar to 81px. Size it like the other icons. */
+.say-input img { width: 18px; height: 18px; flex-shrink: 0; }
+
+/* ---- ROOM FIT FIXES 2 (2026-11-22): the fixed room still overflowed by
+   ~120px — inter-section margins (~126px) + a 39px-tall chat input (global
+   input padding) + the 81px bottom bar. Tighten all of them in-room. */
+.say-input input { padding: 2px 0; margin: 0; height: 22px; }
+body.in-room #roomHeader { margin-bottom: 2px; }
+body.in-room #micGrid { margin-top: 4px; margin-bottom: 4px; }
+body.in-room .room-stage.dark-room .mic-seat .seat-circle { width: 88%; }
+body.in-room #roomWelcome { margin: 4px 0; }
+body.in-room .welcome-box { padding: 5px 10px; font-size: 10px; }
+body.in-room #roomTabs { margin: 2px 0; }
+body.in-room #roomGiftFeed { margin: 4px 0; max-height: 56px; }
+body.in-room #roomChat { margin: 4px 0; }
+body.in-room #onlineUsers { margin: 4px 0; max-height: 56px; }
+body.in-room #voiceNotes { max-height: 48px; }
+body.in-room .room-bottom-bar { margin: 4px -4px -4px; }

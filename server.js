@@ -65,7 +65,15 @@ function blankDb() {
    { id: 'g31', name: 'Golden Rose Heart', price: 39, icon: 'assets/gifts/golden-rose-heart.svg', charm: 390, svg: 'assets/gifts/golden-rose-heart.svg', anim: 'bloom', sound: 'chime' },
    { id: 'g32', name: 'Pink Palace', price: 299, icon: 'assets/gifts/pink-palace.svg', charm: 2990, svg: 'assets/gifts/pink-palace.svg', anim: 'zoom', sound: 'fanfare' },
    { id: 'g33', name: 'Sports Car', price: 2999, icon: 'assets/gifts/sports-car.svg', charm: 29990, svg: 'assets/gifts/sports-car.svg', anim: 'drive', sound: 'engine' },
-   { id: 'g34', name: 'Dates', price: 39, icon: 'assets/gifts/dates.svg', charm: 390, svg: 'assets/gifts/dates.svg', anim: 'bloom', sound: 'chime' }
+   { id: 'g34', name: 'Dates', price: 39, icon: 'assets/gifts/dates.svg', charm: 390, svg: 'assets/gifts/dates.svg', anim: 'bloom', sound: 'chime' },
+   { id: 'g35', name: 'Dragon Flame', price: 26999, icon: 'assets/gifts/dragon-flame.png', charm: 269990, svg: 'assets/gifts/dragon-flame.png', anim: 'fly', sound: 'roar' },
+   { id: 'g36', name: 'Phoenix', price: 25999, icon: 'assets/gifts/phoenix.png', charm: 259990, svg: 'assets/gifts/phoenix.png', anim: 'fly', sound: 'roar' },
+   { id: 'g37', name: 'Castle Fantasy', price: 20000, icon: 'assets/gifts/castle-fantasy.png', charm: 200000, svg: 'assets/gifts/castle-fantasy.png', anim: 'zoom', sound: 'fanfare' },
+   { id: 'g38', name: 'Carriage', price: 28888, icon: 'assets/gifts/carriage.png', charm: 288880, svg: 'assets/gifts/carriage.png', anim: 'drive', sound: 'fanfare' },
+   { id: 'g39', name: 'Star Rocket', price: 20000, icon: 'assets/gifts/rocket.png', charm: 200000, svg: 'assets/gifts/rocket.png', anim: 'fly', sound: 'whoosh' },
+   { id: 'g40', name: 'Supercar', price: 29999, icon: 'assets/gifts/supercar.png', charm: 299990, svg: 'assets/gifts/supercar.png', anim: 'drive', sound: 'engine' },
+   { id: 'g41', name: 'Shining Palace', price: 39999, icon: 'assets/gifts/shining-palace.png', charm: 399990, svg: 'assets/gifts/shining-palace.png', anim: 'zoom', sound: 'fanfare' },
+   { id: 'g42', name: 'Shadow Queen', price: 34999, icon: 'assets/gifts/shadow-queen.png', charm: 349990, svg: 'assets/gifts/shadow-queen.png', anim: 'sparkle', sound: 'magic' }
   ],
   shop: [
    { id: 's1', name: 'Golden Profile Frame', price: 20000, category: 'Frame', icon: 'assets/frames/gold-frame.svg', svg: 'assets/frames/gold-frame.svg' },
@@ -82,12 +90,14 @@ function blankDb() {
    { id: 's12', name: 'Luxury CP Ring', price: 99999, category: 'Relationship', icon: 'assets/icons/cp.svg' },
    { id: 's13', name: 'CP Ring', price: 999, category: 'Relationship', icon: 'assets/icons/cp.svg' },
    { id: 's14', name: 'Chat Box — Gold', price: 399, category: 'Chat Box', icon: 'assets/icons/chatbox.svg' },
-   { id: 's15', name: 'Chat Box — Dragon Flame', price: 999, category: 'Chat Box', icon: 'assets/vip/vip10.svg' },
+   { id: 's15', name: 'Chat Box — Dragon Flame', price: 999, category: 'Chat Box', icon: 'assets/vip/vip10/badge.png' },
    { id: 's16', name: 'Profile Card — Dragon', price: 4999, category: 'Profile Card', icon: 'assets/icons/card.svg' },
    { id: 's17', name: 'Room Lock (1 month)', price: 6999, category: 'Room', icon: 'assets/icons/lock.svg' },
    { id: 's18', name: 'Pin on Top (2 hours)', price: 4000, category: 'Room', icon: 'assets/icons/pin.svg' },
    { id: 's19', name: 'Unique Room ID', price: 50000, category: 'Room', icon: 'assets/icons/id.svg' },
-   { id: 's20', name: 'Unique Personal ID', price: 75000, category: 'Room', icon: 'assets/icons/id.svg' }
+   { id: 's20', name: 'Unique Personal ID', price: 75000, category: 'Room', icon: 'assets/icons/id.svg' },
+   { id: 's21', name: 'Divine Universe Theme', price: 9999, category: 'Theme', icon: 'assets/themes/divine.jpg', svg: 'assets/themes/divine.jpg' },
+   { id: 's22', name: 'Castle Night Theme', price: 4999, category: 'Theme', icon: 'assets/themes/castle-night.jpg', svg: 'assets/themes/castle-night.jpg' }
   ],
   coinPackages: [
    { id: 'p1', usd: 1, coins: 1000000 },
@@ -158,16 +168,20 @@ if (!db.users.find(u => u.email === OWNER_EMAIL)) {
 }
 
 const app = express();
+/* PERFORMANCE (heavy-server rule): gzip everything, and cache immutable
+   images for a day. App code (HTML/JS/CSS) is never cached, so updates
+   reach users immediately. */
+try { app.use(require('compression')()); } catch (e) { console.log('compression not installed — responses are uncompressed'); }
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 /* Web root IS the package root now (deployable PWA at the zip root).
    Serve ONLY the public web files explicitly — never serve server.js,
    server/, data/ or any other backend file. */
-app.use('/assets', express.static(path.join(__dirname, 'assets')));
-app.use('/icons', express.static(path.join(__dirname, 'icons')));
+app.use('/assets', express.static(path.join(__dirname, 'assets'), { maxAge: '1d', immutable: true }));
+app.use('/icons', express.static(path.join(__dirname, 'icons'), { maxAge: '1d', immutable: true }));
 const WEB_FILES = { '/': 'index.html', '/index.html': 'index.html', '/vip-preview.html': 'vip-preview.html', '/icon-library.html': 'icon-library.html', '/app.js': 'app.js', '/styles.css': 'styles.css', '/sounds.js': 'sounds.js', '/manifest.json': 'manifest.json', '/sw.js': 'sw.js' };
-for (const [route, file] of Object.entries(WEB_FILES)) app.get(route, (req, res) => res.sendFile(path.join(__dirname, file)));
-app.use('/uploads', express.static(UPLOAD_DIR));
+for (const [route, file] of Object.entries(WEB_FILES)) app.get(route, (req, res) => { res.set('Cache-Control', 'no-cache'); res.sendFile(path.join(__dirname, file)); });
+app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '1d' }));
 const upload = multer({ dest: UPLOAD_DIR, limits: { fileSize: 25 * 1024 * 1024 } });
 
 /* ---------------- auth helpers ---------------- */
@@ -188,7 +202,19 @@ function ownerOnly(req, res, next) {
 }
 function publicUser(u) {
  if (!u) return null;
- const { password, ...rest } = u;
+ /* PRIVACY (owner rule 2026-11-22): email, phone, verification code and
+    device id are PRIVATE — visible only to the owner (ownerUser below) or
+    to the user themself. Every public response (profiles, user search,
+    rankings, rooms, leaderboards) goes through this function, so private
+    details can never leak to another user's client. */
+ const { password, email, phone, verificationCode, verificationExpires, deviceId, ...rest } = u;
+ return rest;
+}
+/* Owner-only view: the owner sees email + phone in the Owner Portal
+   (verification codes, VIP list, stats). Never used on public routes. */
+function ownerUser(u) {
+ if (!u) return null;
+ const { password, verificationCode, verificationExpires, ...rest } = u;
  return rest;
 }
 function notify(userId, text, extra) {
@@ -342,6 +368,20 @@ function enrichRoom(room) {
  return { ...room, members, seats, hostTheme: host ? (host.roomTheme || null) : null, admins: room.admins || [] };
 }
 app.get('/api/rooms', auth, (req, res) => res.json({ rooms: db.rooms.map(enrichRoom) }));
+/* PERFORMANCE — light room poll: one small request per room user every 5s
+   (chat tail + members + seats + gift feed) instead of the full room list.
+   The app polls this while inside a room, so text chat and gifts arrive in
+   real time while voice is on, without hammering the server. */
+app.get('/api/rooms/:id/poll', auth, (req, res) => {
+ const room = db.rooms.find(r => r.id === req.params.id);
+ if (!room) return res.status(404).json({ error: 'Room not found' });
+ const e = enrichRoom(room);
+ res.json({ room: {
+  id: e.id, name: e.name, topic: e.topic, hostId: e.hostId, level: e.level || 1,
+  announce: e.announce || null, members: e.members, seats: e.seats,
+  chat: (e.chat || []).slice(-30), giftFeed: ((db.roomGiftFeed && db.roomGiftFeed[e.id]) || []).slice(0, 10)
+ } });
+});
 app.post('/api/rooms', auth, (req, res) => {
  const u = me(req);
  if (!isOn(db, 'rooms')) return res.status(403).json({ error: 'Rooms are turned off by the owner' });
@@ -366,7 +406,7 @@ app.post('/api/rooms/:id/join', auth, (req, res) => {
  if (!room) return res.status(404).json({ error: 'Room not found' });
  if (room.blocked && room.blocked.includes(u.id)) return res.status(403).json({ error: 'You are blocked from this room.' });
  if (!room.members.includes(u.id)) room.members.push(u.id);
- save(); res.json({ room: enrichRoom(room), entrance: u.vip ? { name: u.anonymous ? 'Anonymous' : u.name, vip: u.vip, emblem: require('./server/vip').VIP_LEVELS[u.vip - 1].emblem, banner: require('./server/vip').BANNERS[u.vip - 1].svg, animal: require('./server/vip').BANNERS[u.vip - 1].animal, entry: require('./server/vip').VIP_LEVELS[u.vip - 1].entry, frame: require('./server/vip').VIP_LEVELS[u.vip - 1].frameSvg } : null });
+ save(); res.json({ room: enrichRoom(room), entrance: u.vip ? (() => { const lvl = require('./server/owner-content').applyVipOverrides(db, require('./server/vip').VIP_LEVELS[u.vip - 1]); const ov = (db.settings.customization && db.settings.customization.vip && db.settings.customization.vip[String(u.vip)]) || {}; return { name: u.anonymous ? 'Anonymous' : u.name, vip: u.vip, emblem: lvl.emblem, banner: ov.nameplate || require('./server/vip').BANNERS[u.vip - 1].svg, animal: require('./server/vip').BANNERS[u.vip - 1].animal, entry: lvl.entry, frame: lvl.frameSvg }; })() : null });
 });
 app.post('/api/rooms/:id/seat', auth, (req, res) => {
  const room = db.rooms.find(r => r.id === req.params.id);
@@ -628,7 +668,7 @@ app.post('/api/wallet/diamonds', auth, (req, res) => {
 /* ---------------- VIP ---------------- */
 const { VIP_LEVELS, DISCOUNTS } = require('./server/vip');
 app.get('/api/vip', auth, (req, res) => res.json({
- plans: VIP_LEVELS.map(l => ({ vip: l.vip, emblem: l.emblem, svg: l.svg, color: l.color, color2: l.color2, theme: l.theme, price: l.price, days: 31, points: l.points, totalBenefits: l.totalBenefits, discountPct: l.discountPct }))
+ plans: VIP_LEVELS.map(l => { const o = require('./server/owner-content').applyVipOverrides(db, l); return { vip: o.vip, emblem: o.emblem, svg: o.svg, color: o.color, color2: o.color2, theme: o.theme, price: o.price, days: 31, points: o.points, totalBenefits: o.totalBenefits, discountPct: o.discountPct }; })
 }));
 app.post('/api/vip/buy', auth, (req, res) => {
  const u = me(req); const { vip } = req.body || {};
@@ -834,6 +874,121 @@ app.get('/api/notifications', auth, (req, res) => {
 });
 app.get('/api/settings', auth, (req, res) => res.json({ settings: db.settings }));
 
+/* ---------------- rankings ---------------- */
+app.get('/api/rankings', auth, (req, res) => {
+ // Anonymous Display: anonymous users appear as "Anonymous" in rankings
+ const mask = (u) => { const p = publicUser(u); if (p.anonymous) { p.name = 'Anonymous'; } return p; };
+ const by = (k) => [...db.users].sort((a, b) => (b[k] || 0) - (a[k] || 0)).slice(0, 20).map(mask);
+ res.json({ wealth: by('wealth'), charm: by('charm'), level: by('level') });
+});
+
+/* ---------------- Discover moments ---------------- */
+app.get('/api/moments', auth, (req, res) => res.json({ moments: [...db.moments].reverse().slice(0, 50) }));
+app.post('/api/moments', auth, upload.single('image'), (req, res) => {
+ const u = me(req); const { text } = req.body || {};
+ if (!isOn(db, 'moments')) return res.status(403).json({ error: 'Moments are turned off by the owner' });
+ if (!text && !req.file) return res.status(400).json({ error: 'Write something or add a photo' });
+ u.momentsPosted = (u.momentsPosted || 0) + 1;
+ const m = { id: Date.now(), userId: u.id, name: u.name, text: text || '', image: req.file ? '/uploads/' + req.file.filename : null, likes: [], comments: [], at: new Date().toISOString() };
+ db.moments.push(m); save(); res.json({ moment: m });
+});
+app.post('/api/moments/:id/like', auth, (req, res) => {
+ const m = db.moments.find(x => x.id == req.params.id); const u = me(req);
+ if (!m) return res.status(404).json({ error: 'Post not found' });
+ if (!m.likes.includes(u.id)) m.likes.push(u.id);
+ save(); res.json({ ok: true, likes: m.likes.length });
+});
+app.post('/api/moments/:id/comment', auth, (req, res) => {
+ const m = db.moments.find(x => x.id == req.params.id); const u = me(req);
+ const { text } = req.body || {};
+ if (!m || !text) return res.status(400).json({ error: 'Missing post or text' });
+ m.comments.push({ userId: u.id, name: u.name, text, at: new Date().toISOString() });
+ save(); res.json({ ok: true });
+});
+
+/* ---------------- messaging ---------------- */
+/* Private messages need a MUTUAL follow (friends). The owner can message anyone. */
+function canDM(u, other) {
+ if (!u || !other) return false;
+ if (u.role === 'owner' || other.role === 'owner') return true;
+ return (u.following || []).includes(other.id) && (other.following || []).includes(u.id);
+}
+app.get('/api/messages/:userId', auth, (req, res) => {
+ const u = me(req);
+ const other = db.users.find(x => x.id === req.params.userId);
+ if (!other) return res.status(404).json({ error: 'User not found' });
+ if (!canDM(u, other)) return res.status(403).json({ error: 'Private messages unlock only when you follow each other — follow this user and wait for a follow-back.', locked: true });
+ const list = db.messages.filter(m => (m.from === u.id && m.to === req.params.userId) || (m.from === req.params.userId && m.to === u.id));
+ res.json({ messages: list });
+});
+app.post('/api/messages', auth, (req, res) => {
+ const u = me(req); const { to, text } = req.body || {};
+ if (!isOn(db, 'chat')) return res.status(403).json({ error: 'Messages are turned off by the owner' });
+ if (!to || !text) return res.status(400).json({ error: 'Missing recipient or text' });
+ const other = db.users.find(x => x.id === to);
+ if (!other) return res.status(404).json({ error: 'User not found' });
+ if (!canDM(u, other)) return res.status(403).json({ error: 'Private messages unlock only when you follow each other — follow this user and wait for a follow-back.', locked: true });
+ const m = { id: Date.now(), from: u.id, to, text, at: new Date().toISOString() };
+ db.messages.push(m); save(); notify(to, `New message from ${u.name}`);
+ res.json({ message: m });
+});
+
+/* ---------------- daily / tasks / lucky draw / invite ---------------- */
+app.post('/api/daily', auth, (req, res) => {
+ const u = me(req);
+ if (!isOn(db, 'daily')) return res.status(403).json({ error: 'Daily rewards are turned off by the owner' });
+ const today = new Date().toISOString().slice(0, 10);
+ if (u.lastDaily === today) return res.status(400).json({ error: 'Already claimed today' });
+ u.lastDaily = today;
+ // VIP benefit: Double Sign In and Task Rewards
+ const bonus = u.vip ? 100000 : 50000;
+ u.coins += bonus; u.bonusPoints = (u.bonusPoints || 0) + (u.vip ? 200 : 100);
+ save();
+ res.json({ ok: true, bonus, coins: u.coins });
+});
+app.post('/api/lucky', auth, (req, res) => {
+ const u = me(req);
+ if (!isOn(db, 'luckyDraw')) return res.status(403).json({ error: 'Lucky Draw is turned off by the owner' });
+ if (u.coins < 1000) return res.status(400).json({ error: 'Lucky draw costs 1,000 coins' });
+ u.coins -= 1000;
+ const prizes = [0, 500, 1000, 5000, 50000, 100000];
+ const prize = prizes[Math.floor(Math.random() * prizes.length)];
+ u.coins += prize;
+ if (prize > 0) { u.luckyWins = (u.luckyWins || 0) + 1; u.biggestLucky = Math.max(u.biggestLucky || 0, prize); }
+ save();
+ res.json({ ok: true, prize, coins: u.coins });
+});
+app.get('/api/invite', auth, (req, res) => {
+ const u = me(req);
+ res.json({ inviteCode: u.inviteCode, reward: 100000, rechargeBonusPct: 5, referred: db.users.filter(x => x.invitedBy === u.inviteCode).length });
+});
+
+/* ---------------- AI assistant (stub — plug in a real API key later) -------- */
+app.post('/api/ai', auth, (req, res) => {
+ const u = me(req); const { text } = req.body || {};
+ const t = (text || '').toLowerCase();
+ let reply = 'I am the AZLAN WORLD CHAT assistant. Ask me about rooms, coins, VIP or gifts!';
+ if (t.includes('coin')) reply = `You have ${u.coins.toLocaleString()} coins. Buy more in the Wallet — $1 = 1,000,000 coins.`;
+ else if (t.includes('vip')) reply = 'VIP1–VIP11 last 31 days each. VIP gives you badges, frames, exclusive gifts, mic rings and more — VIP10 has 58 benefits!';
+ else if (t.includes('room')) reply = 'Open the Party tab, create a room, take a mic seat and talk. Rooms have 8 mic seats.';
+ else if (t.includes('gift')) reply = 'Send gifts from a room or a profile. Gifts over 100,000 coins are announced to everyone.';
+ else if (t.includes('owner')) reply = 'The owner is Azlan. The Owner Portal controls coins, VIP, bans and recharges.';
+ res.json({ reply });
+});
+
+/* ---------------- feedback / notifications / settings ---------------- */
+app.post('/api/feedback', auth, (req, res) => {
+ const u = me(req); const { text } = req.body || {};
+ if (!text) return res.status(400).json({ error: 'Write your feedback' });
+ db.feedback.unshift({ id: Date.now(), userId: u.id, name: u.name, text, at: new Date().toISOString() });
+ save(); res.json({ ok: true });
+});
+app.get('/api/notifications', auth, (req, res) => {
+ const u = me(req);
+ res.json({ notifications: db.notifications.filter(n => n.userId === u.id).slice(0, 50) });
+});
+app.get('/api/settings', auth, (req, res) => res.json({ settings: db.settings }));
+
 /* ---------------- OWNER PORTAL ---------------- */
 /* Owner Portal: pending verification codes (accounts waiting to verify) */
 app.get('/api/owner/verification-codes', auth, ownerOnly, (req, res) => {
@@ -856,7 +1011,7 @@ app.post('/api/owner/vip/set', auth, ownerOnly, (req, res) => {
  target.vipUntil = v > 0 ? new Date(Date.now() + d * 24 * 3600 * 1000).toISOString() : null;
  if (v > 0) { const lvl = require('./server/vip').VIP_LEVELS[v - 1]; target.vipPoints = Math.max(target.vipPoints || 0, lvl.points); }
  save(); audit(req.user.id, 'owner-vip-set', `VIP${v} to ${target.name} (${target.id}) for ${d} days`);
- res.json({ ok: true, user: publicUser(target) });
+ res.json({ ok: true, user: ownerUser(target) });
 });
 app.post('/api/owner/vip/reward', auth, ownerOnly, (req, res) => {
  const { userId, coins, diamonds, bonusPoints } = req.body || {};
@@ -866,7 +1021,7 @@ app.post('/api/owner/vip/reward', auth, ownerOnly, (req, res) => {
  if (diamonds) target.diamonds = Math.max(0, (target.diamonds || 0) + Number(diamonds));
  if (bonusPoints) target.bonusPoints = Math.max(0, (target.bonusPoints || 0) + Number(bonusPoints));
  save(); audit(req.user.id, 'owner-vip-reward', `Reward to ${target.name} (${target.id}): ${coins || 0} coins, ${diamonds || 0} diamonds, ${bonusPoints || 0} bonus points`);
- res.json({ ok: true, user: publicUser(target) });
+ res.json({ ok: true, user: ownerUser(target) });
 });
 app.post('/api/owner/vip/price', auth, ownerOnly, (req, res) => {
  const { vip, price } = req.body || {};
@@ -879,14 +1034,14 @@ app.post('/api/owner/vip/price', auth, ownerOnly, (req, res) => {
 });
 app.get('/api/owner/vip/preview', auth, ownerOnly, (req, res) => {
  const { VIP_LEVELS } = require('./server/vip');
- res.json({ levels: VIP_LEVELS.map(l => ({ vip: l.vip, emblem: l.emblem, svg: l.svg, color: l.color, color2: l.color2, theme: l.theme, themeBg: l.themeBg, effect: l.effect, entry: l.entry, frameSvg: l.frameSvg, price: l.price, points: l.points, totalBenefits: l.totalBenefits, discountPct: l.discountPct })) });
+ res.json({ levels: VIP_LEVELS.map(l => { const o = require('./server/owner-content').applyVipOverrides(db, l); return { vip: o.vip, emblem: o.emblem, svg: o.svg, color: o.color, color2: o.color2, theme: o.theme, themeBg: o.themeBg, effect: o.effect, entry: o.entry, frameSvg: o.frameSvg, price: o.price, points: o.points, totalBenefits: o.totalBenefits, discountPct: o.discountPct }; }) });
 });
 app.get('/api/owner/stats', auth, ownerOnly, (req, res) => {
  res.json({
   totalUsers: db.users.length, totalRooms: db.rooms.length,
   pendingRecharges: db.recharges.filter(r => r.status === 'pending').length,
   masterWallet: db.settings.masterWallet,
-  auditLog: db.auditLog.slice(0, 50), users: db.users.map(publicUser)
+  auditLog: db.auditLog.slice(0, 50), users: db.users.map(ownerUser)
  });
 });
 app.post('/api/owner/coins', auth, ownerOnly, (req, res) => {
@@ -896,7 +1051,7 @@ app.post('/api/owner/coins', auth, ownerOnly, (req, res) => {
  target.coins = Math.max(0, target.coins + (amount || 0));
  save(); audit(req.user.id, 'owner-coins', `${amount} to ${target.name} (${target.id})`);
  notify(target.id, `The owner ${amount > 0 ? 'gave you' : 'took'} ${Math.abs(amount).toLocaleString()} coins.`);
- res.json({ ok: true, user: publicUser(target) });
+ res.json({ ok: true, user: ownerUser(target) });
 });
 app.post('/api/owner/vip', auth, ownerOnly, (req, res) => {
  const { userId, vip, svip } = req.body || {};
@@ -905,7 +1060,7 @@ app.post('/api/owner/vip', auth, ownerOnly, (req, res) => {
  if (vip !== undefined) { target.vip = vip; target.vipUntil = vip > 0 ? new Date(Date.now() + 31 * 24 * 3600 * 1000).toISOString() : null; }
  if (svip !== undefined) target.svip = !!svip;
  save(); audit(req.user.id, 'owner-vip', `VIP ${vip} / SVIP ${svip} for ${target.name}`);
- res.json({ ok: true, user: publicUser(target) });
+ res.json({ ok: true, user: ownerUser(target) });
 });
 app.post('/api/owner/uid', auth, ownerOnly, (req, res) => {
  const { userId, newId } = req.body || {};
@@ -914,7 +1069,7 @@ app.post('/api/owner/uid', auth, ownerOnly, (req, res) => {
  if (db.users.find(u => u.id === String(newId))) return res.status(400).json({ error: 'That ID is already taken' });
  target.id = String(newId);
  save(); audit(req.user.id, 'owner-uid', `${target.name} ID changed to ${newId}`);
- res.json({ ok: true, user: publicUser(target) });
+ res.json({ ok: true, user: ownerUser(target) });
 });
 app.post('/api/owner/ban', auth, ownerOnly, (req, res) => {
  const { userId, deviceId, unban } = req.body || {};
@@ -1023,6 +1178,10 @@ app.use('/api/v2/vipx', require('./server/vip-extras')(ctx));   // VIP extras: m
 app.use('/api/controls', require('./server/controls')(ctx));    // owner control panel (read + owner)
 app.use('/api/v2/extras', require('./server/extras')(ctx));    // achievements, badges, titles, wealth, events, legal, profiles
 app.use('/api/v2/updates', require('./server/updates2')(ctx)); // 2026-11-22 upgrade: honors profile, rank banners, room themes, mic emoji, owner frame, VIP Center
+app.use('/api/owner/content', require('./server/owner-content')(ctx)); // Customization Studio: no-code design + content editing (owner-only)
+/* Public customization view: the active design + owner art overrides, so the
+   app applies them on load. Design + art paths only — never user data. */
+app.get('/api/content', auth, (req, res) => res.json(require('./server/owner-content').publicCustomization(db)));
 
 /* Catch-all LAST — serves the PWA for any non-API route. (Must stay after
   all /api mounts above, otherwise API GET requests would return index.html.) */

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
 <meta name="theme-color" content="#ffffff">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -24,7 +24,7 @@
 <section id="authScreen" class="screen auth-light">
   <button class="guest-pill" onclick="guestLogin()"><img class="ic" src="assets/icons/users.svg" alt=""> Guest Mode</button>
   <div class="logo-wrap">
-    <img src="assets/logo-azlan.png" alt="Azlan" class="auth-logo">
+    <img src="assets/logo-azlan.png" alt="Azlan" class="auth-logo" id="appLogo" onclick="ownerLogoTap()">
     <h1 class="auth-title-big">Azlan</h1>
     <p class="auth-tag-big">World Chat</p>
   </div>
@@ -61,8 +61,13 @@
     </form>
     <p id="authMsg" class="msg"></p>
   </div>
-  <button class="btn owner-btn" onclick="ownerEnter()"><img class="ic" src="assets/icons/crown.svg" alt=""> Owner Portal &mdash; Enter Directly (Azlan, no login)</button>
-  <p class="tiny">Owner account: owner@azlanworld.chat &mdash; change the default password after first entry.</p>
+  <!-- OWNER PORTAL — COMPLETELY HIDDEN (owner rule 2026-11-22): no button, no
+       menu entry, no link for anyone except the owner. The owner reveals it
+       by tapping the Azlan logo 5 times, then entering the owner key. -->
+  <div id="ownerKeyRow" class="hidden">
+    <input id="ownerKeyInput" type="password" placeholder="Owner key" autocomplete="off">
+    <button class="btn gold" onclick="ownerEnterKey()">Enter Owner Portal</button>
+  </div>
   <p class="auth-terms">By continuing, you agree to AZLAN WORLD CHAT&apos;s Terms of Service and Privacy Policy.</p>
 </section>
 
@@ -92,7 +97,7 @@
     <div class="brand"><img src="icons/icon-192.png" class="brand-icon" alt=""><span>AZLAN WORLD CHAT</span></div>
     <div class="top-actions">
       <button class="icon-btn" onclick="showNotifications()" title="Notifications"><img class="ic" src="assets/icons/bell.svg" alt=""><span id="notifDot" class="dot hidden"></span></button>
-      <button class="icon-btn" onclick="openOwner()" title="Owner Portal"><img class="ic" src="assets/icons/crown.svg" alt=""></button>
+      <button id="ownerBtn" class="icon-btn hidden" onclick="openOwner()" title="Owner Portal"><img class="ic" src="assets/icons/crown.svg" alt=""></button>
     </div>
   </header>
   <div id="announce" class="announce hidden"></div>
@@ -116,13 +121,15 @@
       <div id="micGrid" class="mic-grid"></div>
       <p id="micConnNote" class="tiny"></p>
       <div id="roomPkBar"></div>
+      <div id="roomWelcome" class="room-welcome"></div>
       <div id="roomTabs" class="room-tabs"></div>
       <div id="roomGiftFeed" class="room-gift-feed"></div>
       <div id="roomChat" class="chat-box"></div>
       <div class="room-side-icons">
-        <div class="side-event" onclick="playRoomMusic()" title="Music Festival"><img src="assets/icons/music.svg" alt="">Music Festival</div>
+        <div class="side-event" onclick="openGlory('badge')" title="Honor System"><img src="assets/icons/achievement.svg" alt="">Honor System</div>
+        <div class="side-event" onclick="openEvents()" title="Season / Event"><img src="assets/icons/event.svg" alt="">Season</div>
+        <div class="side-event" onclick="showNotifications()" title="Messages"><img src="assets/icons/chat.svg" alt="">Message</div>
         <div class="side-event" onclick="openLucky()" title="Fruit Game"><img src="assets/icons/fruit.svg" alt="">Fruit Game</div>
-        <div class="side-gamepad" onclick="openEvents()" title="Games"><img src="assets/icons/game.svg" alt=""></div>
       </div>
       <div id="onlineUsers" class="online-list"></div>
       <div class="room-controls">
@@ -147,15 +154,26 @@
         <button class="btn danger" onclick="leaveRoom()"><img class="ic" src="assets/icons/room/leave-room.svg" alt=""> Leave Room</button>
       </div>
       <div id="voiceNotes"></div>
+      <!-- ROOM BOTTOM BAR — exactly 8 controls ONLY (owner rule): (1) Speaker
+           mutes the WHOLE room, (2) Mic mute/unmute, (3) Emoji, (4) Comment
+           bar ("Say some..." typing box), (5) Hamburger (music + everything),
+           (6) Raise hand, (7) Gift bag, (8) Grid (menu with everything). -->
+      <div id="emojiTray" class="emoji-tray hidden"></div>
       <div class="room-bottom-bar">
+        <button class="rb-btn" id="roomSoundBtn" onclick="toggleRoomSound()" title="Mute the whole room"><img src="assets/icons/volume.svg" alt="Sound"></button>
+        <button class="rb-btn" id="micBarBtn" onclick="toggleMic()" title="Mute / unmute my mic"><img src="assets/icons/mic.svg" alt="Mic"></button>
+        <button class="rb-btn" onclick="toggleEmojiTray()" title="Emoji"><img src="assets/icons/smile.svg" alt="Emoji"></button>
         <div class="say-input">
           <img src="assets/icons/chat.svg" alt="">
           <input id="chatText" placeholder="Say some..." onkeydown="if(event.key==='Enter')sendRoomChat()">
         </div>
-        <button class="round-gold-btn" id="roomSoundBtn" onclick="toggleRoomSound()" title="Mute the whole room"><img src="assets/icons/volume.svg" alt="Sound"></button>
-        <button class="round-gold-btn" onclick="showNotifications()" title="Notifications"><img src="assets/icons/bell.svg" alt="Notifications"></button>
-        <button class="round-gold-btn" onclick="openRoomThemes()" title="Menu"><img src="assets/icons/grid.svg" alt="Menu"></button>
-        <button class="round-gold-btn" onclick="showGiftPanel()" title="Send Gift"><img src="assets/icons/gift.svg" alt="Gift"></button>
+        <button class="rb-btn" onclick="openRoomMenu('menu')" title="Menu — music and more"><img src="assets/icons/menu.svg" alt="Menu"></button>
+        <button class="rb-btn" onclick="raiseHand()" title="Raise hand"><img src="assets/icons/hand.svg" alt="Raise hand"></button>
+        <button class="rb-btn" onclick="showGiftPanel()" title="Send gift"><img src="assets/icons/gift.svg" alt="Gift"></button>
+        <button class="rb-btn" onclick="openRoomMenu('all')" title="All — everything"><img src="assets/icons/grid.svg" alt="All"></button>
+      </div>
+      <div id="roomMenu" class="modal hidden">
+        <div class="modal-card" id="roomMenuCard"></div>
       </div>
     </div>
   </div>
@@ -221,6 +239,8 @@
     <div class="grid-btns">
       <button class="btn" onclick="openWallet()"><img class="ic" src="assets/icons/wallet.svg" alt=""> Wallet</button>
       <button class="btn" onclick="openVipClub()"><img class="ic" src="assets/icons/crown.svg" alt=""> VIP Club</button>
+      <button class="btn" onclick="openGlory('badge')"><img class="ic" src="assets/icons/medal.svg" alt=""> My Badge (Glory)</button>
+      <button class="btn" onclick="openGlory('vehicle')"><img class="ic" src="assets/gifts/gold-car.svg" alt=""> My Vehicle</button>
       <button class="btn" onclick="openShop()"><img class="ic" src="assets/icons/shop.svg" alt=""> Premium Shop</button>
       <button class="btn" onclick="openFamilies()"><img class="ic" src="assets/icons/family.svg" alt=""> Families</button>
       <button class="btn" onclick="openCP()"><img class="ic" src="assets/icons/cp.svg" alt=""> CP</button>
@@ -254,6 +274,7 @@
       <button class="btn" onclick="ownerAudit()"><img class="ic" src="assets/icons/legal.svg" alt=""> Audit Log</button>
       <button class="btn gold" onclick="openOwnerControls()"><img class="ic" src="assets/icons/control.svg" alt=""> Total Control</button>
       <button class="btn gold" onclick="ownerVipPanel()"><img class="ic" src="assets/icons/crown.svg" alt=""> VIP Admin Panel</button>
+      <button class="btn gold" onclick="openStudio()"><img class="ic" src="assets/icons/edit.svg" alt=""> Customization Studio</button>
     </div>
     <div class="card">
       <h3>Give / Take Coins</h3>

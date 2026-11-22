@@ -9,7 +9,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'CHANGE-THIS-JWT-SECRET-AZLAN';
 module.exports = function (ctx) {
   const { db, save, audit } = ctx;
   const router = express.Router();
-  const clean = (u) => { const { password, ...r } = u; return r; };
+  /* PRIVACY (owner rule 2026-11-22): strip private fields from every user
+     object this module returns — email/phone/verification/device never
+     leave the server for another user. */
+  const clean = (u) => { const { password, email, phone, verificationCode, verificationExpires, deviceId, ...r } = u; return r; };
 
   // Check whether an email is already registered (used by the app before signup)
   router.get('/check/:email', (req, res) => {

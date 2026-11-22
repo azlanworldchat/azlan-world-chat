@@ -98,18 +98,18 @@ const LEVEL_COUNTS = { 1: 18, 2: 25, 3: 30, 4: 32, 5: 34, 6: 37, 7: 40, 8: 44, 9
 /* Emblems exactly as in the screenshots — original CSS/SVG art in the app. */
 const EMBLEMS = [
  null,
- { emblem: 'Bronze Winged Medal', kind: 'medal', svg: 'assets/vip/vip1.svg', color: '#a67c00', color2: '#8a5a28', theme: 'brown', themeBg: 'linear-gradient(160deg,#fff8e1,#f3e2c0)', effect: 'bronze glow' },
- { emblem: 'Silver Winged Medal', kind: 'medal', svg: 'assets/vip/vip2.svg', color: '#7a8899', color2: '#8a94a6', theme: 'silver-grey', themeBg: 'linear-gradient(160deg,#f4f6f8,#e2e8f0)', effect: 'silver shimmer' },
- { emblem: 'Gold Star Medal', kind: 'medal', svg: 'assets/vip/vip3.svg', color: '#a67c00', color2: '#ffd24a', theme: 'gold', themeBg: 'linear-gradient(160deg,#fff8e1,#f5e6b8)', effect: 'starlight shine' },
- { emblem: 'Gold-Red Crown Medal', kind: 'medal', svg: 'assets/vip/vip4.svg', color: '#b8860b', color2: '#e63946', theme: 'gold-red', themeBg: 'linear-gradient(160deg,#fff3e0,#ffe0b2)', effect: 'ruby crown glow', gem: 'red' },
- { emblem: 'Purple Winged Medal', kind: 'medal', svg: 'assets/vip/vip5.svg', color: '#8b5cf6', color2: '#ffd24a', theme: 'purple', themeBg: 'linear-gradient(160deg,#f3e8ff,#e9d5ff)', effect: 'violet wing glow', gem: 'gold' },
- { emblem: 'Red-Gold Crown Medal', kind: 'medal', svg: 'assets/vip/vip6.svg', color: '#d94f2b', color2: '#ffd24a', theme: 'red-gold', themeBg: 'linear-gradient(160deg,#ffede8,#ffd9cc)', effect: 'ember crown glow', gem: 'purple' },
- { emblem: 'Wolf Head', kind: 'wolf', svg: 'assets/vip/vip7.svg', color: '#1e7a4c', color2: '#0f7a5c', theme: 'green', themeBg: 'linear-gradient(160deg,#e6f7f0,#c8ecdd)', effect: 'forest howl glow', crown: true },
- { emblem: 'Eagle Head', kind: 'eagle', svg: 'assets/vip/vip8.svg', color: '#8b5cf6', color2: '#5b2ea6', theme: 'purple', themeBg: 'linear-gradient(160deg,#f3e8ff,#e9d5ff)', effect: 'storm wing glow', crown: true },
- { emblem: 'Lion Head', kind: 'lion', svg: 'assets/vip/vip9.svg', color: '#d99a00', color2: '#e63946', theme: 'gold-red', themeBg: 'linear-gradient(160deg,#fff3e0,#ffe0b2)', effect: 'flame mane glow', crown: true, flames: true },
- { emblem: 'Flaming Dragon Head', kind: 'dragon', svg: 'assets/vip/vip10.svg', color: '#e85d00', color2: '#ffd24a', theme: 'fire-gold', themeBg: 'linear-gradient(160deg,#ffede8,#ffd9cc)', effect: 'full-screen dragon fire', flames: true },
- { emblem: 'Thunder Dragon', kind: 'dragon', svg: 'assets/vip/vip11.svg', color: '#a67c00', color2: '#7a5cff', theme: 'thunder', themeBg: 'linear-gradient(160deg,#fffde7,#fff3c4)', effect: 'lightning + gold fire', flames: true },
- { emblem: 'Divine Celestial Crown', kind: 'crown', svg: 'assets/vip/vip12.svg', color: '#7a5cff', color2: '#ffd24a', theme: 'divine', themeBg: 'linear-gradient(160deg,#f3e8ff,#fff8e1)', effect: 'divine aura', gem: 'divine', crown: true, flames: true }
+ { emblem: 'Sword Shield', kind: 'shield', svg: 'assets/vip/vip01/badge.gif', color: '#0d9488', color2: '#ffd24a', theme: 'teal-gold', themeBg: 'linear-gradient(160deg,#e6f7f5,#fff8e1)', effect: 'sword shield glow', gem: 'teal' },
+ { emblem: 'Twin White Wolves', kind: 'wolf', svg: 'assets/vip/vip02/badge.gif', color: '#e8e8e8', color2: '#c0392b', theme: 'white-gold', themeBg: 'linear-gradient(160deg,#fff8e1,#fde8e8)', effect: 'twin wolf glow', gem: 'red' },
+ { emblem: 'Emerald Sword', kind: 'sword', svg: 'assets/vip/vip03/badge.gif', color: '#16a34a', color2: '#ffd24a', theme: 'green-gold', themeBg: 'linear-gradient(160deg,#e6f7ee,#fff8e1)', effect: 'emerald sword glow', gem: 'green', crown: true },
+ { emblem: 'Twin Blue Wolves', kind: 'wolf', svg: 'assets/vip/vip04/badge.gif', color: '#2563eb', color2: '#7dd3fc', theme: 'blue', themeBg: 'linear-gradient(160deg,#e8f0ff,#dbeafe)', effect: 'twin blue wolf glow', gem: 'blue' },
+ { emblem: 'Dark Wings', kind: 'wings', svg: 'assets/vip/vip05/badge.gif', color: '#7c3aed', color2: '#111827', theme: 'purple-dark', themeBg: 'linear-gradient(160deg,#f3e8ff,#ede9fe)', effect: 'dark wing glow', gem: 'purple' },
+ { emblem: 'Twin White Tigers', kind: 'tiger', svg: 'assets/vip/vip06/badge.gif', color: '#e8e8f0', color2: '#8b5cf6', theme: 'white-purple', themeBg: 'linear-gradient(160deg,#f3e8ff,#e9d5ff)', effect: 'twin tiger roar', gem: 'purple' },
+ { emblem: 'Twin Lions', kind: 'lion', svg: 'assets/vip/vip07/badge.gif', color: '#8a5a28', color2: '#ff5a00', theme: 'fire', themeBg: 'linear-gradient(160deg,#ffede8,#ffd9cc)', effect: 'twin lion fire roar', flames: true },
+ { emblem: 'Twin Golden Dragons', kind: 'dragon', svg: 'assets/vip/vip08/badge.gif', color: '#d99a00', color2: '#e63946', theme: 'gold-red', themeBg: 'linear-gradient(160deg,#ffede8,#ffd9cc)', effect: 'twin dragon fire glow', flames: true },
+ { emblem: 'Golden Lion', kind: 'lion', svg: 'assets/vip/vip09/badge.gif', color: '#d99a00', color2: '#e63946', theme: 'gold-fire', themeBg: 'linear-gradient(160deg,#fff3e0,#ffe0b2)', effect: 'golden lion roar', flames: true, crown: true },
+ { emblem: 'Golden Phoenix', kind: 'phoenix', svg: 'assets/vip/vip10/badge.gif', color: '#e85d00', color2: '#ffd24a', theme: 'fire-gold', themeBg: 'linear-gradient(160deg,#ffede8,#ffd9cc)', effect: 'golden phoenix fire wings', flames: true },
+ { emblem: 'Fire Lion', kind: 'lion', svg: 'assets/vip/vip11/badge.gif', color: '#e85d00', color2: '#7a5cff', theme: 'fire-gold', themeBg: 'linear-gradient(160deg,#ffede8,#ffe0b2)', effect: 'fire lion roar, lava eruption', flames: true },
+ { emblem: 'Hooded King', kind: 'king', svg: 'assets/vip/vip12/badge.gif', color: '#7a5cff', color2: '#ffd24a', theme: 'divine', themeBg: 'linear-gradient(160deg,#f3e8ff,#fff8e1)', effect: 'hooded king, lava eruption', gem: 'divine', crown: true, flames: true }
 ];
 /* VIP points needed to REACH each level (VIP1 = 2,400, from the screenshots). */
 const POINTS = { 1: 2400, 2: 6000, 3: 12000, 4: 20000, 5: 30000, 6: 45000, 7: 65000, 8: 90000, 9: 120000, 10: 160000, 11: 220000, 12: 300000 };
@@ -162,14 +162,14 @@ const VIP_GIFTS = [
  { id: 'vg6', name: 'Palace', price: 3999, minVip: 3, icon: 'assets/gifts/palace.svg', tab: 'privilege', svg: 'assets/gifts/palace.svg', anim: 'zoom', sound: 'fanfare' },
  { id: 'vg7', name: 'Blue Dragon', price: 4999, minVip: 4, icon: 'assets/gifts/blue-dragon.svg', tab: 'privilege', svg: 'assets/gifts/blue-dragon.svg', anim: 'fly', sound: 'roar' },
  { id: 'vg8', name: 'White Beast', price: 5999, minVip: 5, icon: 'assets/gifts/white-beast.svg', tab: 'privilege', svg: 'assets/gifts/white-beast.svg', anim: 'sparkle', sound: 'magic' },
- { id: 'vg9', name: 'Divine Throne', price: 9999, minVip: 12, icon: 'assets/vip/vip12.svg', tab: 'privilege', svg: 'assets/vip/vip12.svg', anim: 'sparkle', sound: 'fanfare' }
+ { id: 'vg9', name: 'Divine Throne', price: 9999, minVip: 12, icon: 'assets/vip/vip12/badge.gif', tab: 'privilege', svg: 'assets/vip/vip12/badge.gif', anim: 'sparkle', sound: 'fanfare' }
 ];
 
 /* Exclusive Stickers on Mic — fun stickers shown on the mic seat while speaking. */
 const MIC_STICKERS = [
  { id: 'st1', name: 'Yanto', icon: 'assets/gifts/pineapple.svg', desc: 'Pineapple character with sunglasses' },
  { id: 'st2', name: 'Cool Cat', icon: 'assets/gifts/cool-cat.svg', desc: 'Cat with cool sunglasses' },
- { id: 'st3', name: 'Fire Dragon', icon: 'assets/vip/vip10.svg', desc: 'Little dragon breathing fire' },
+ { id: 'st3', name: 'Fire Dragon', icon: 'assets/vip/vip10/badge.gif', desc: 'Little dragon breathing fire' },
  { id: 'st4', name: 'Golden Crown', icon: 'assets/icons/crown.svg', desc: 'Shiny golden crown' }
 ];
 
@@ -239,7 +239,7 @@ const VIP_LEVELS = Array.from({ length: 12 }, (_, i) => {
   color: e.color, color2: e.color2, theme: e.theme, themeBg: e.themeBg,
   effect: e.effect, gem: e.gem || null, crown: !!e.crown, flames: !!e.flames,
   entry: ENTRY_TYPES[v],
-  frameSvg: v === 10 ? 'assets/vip/profile-frame-gold.svg' : 'assets/vip/frame' + v + '.svg',
+  frameSvg: 'assets/vip/vip' + String(v).padStart(2, '0') + '/frame.png',
   price: PRICES[v], points: POINTS[v], pointsNeeded: POINTS[v], days: DAYS,
   discountPct: DISCOUNTS[v],
   usernameStyle: USERNAME_STYLES[v], usernameMode: USERNAME_MODE[v],
@@ -263,23 +263,23 @@ const BONUS_STORE = [
 /* Rank banners — the banner shown depends on the user's RANK and shows with
    their ID. Original SVG art in assets/vip/banner*.svg (self-drawn). */
 const BANNERS = [
- { vip: 1, name: 'VIP 1 Banner', animal: 'White Horse', svg: 'assets/vip/banner1.svg', colors: 'teal crystal', desc: 'Teal crystal banner with a white horse on top.' },
- { vip: 2, name: 'VIP 2 Banner', animal: 'Golden Eagle', svg: 'assets/vip/banner2.svg', colors: 'gold amber', desc: 'Gold banner with a golden eagle on top.' },
- { vip: 3, name: 'VIP 3 Banner', animal: 'Golden Wolf', svg: 'assets/vip/banner3.svg', colors: 'deep blue crystal', desc: 'Deep blue crystal banner with a golden wolf on top.' },
- { vip: 4, name: 'VIP 4 Banner', animal: 'Gold-Red Crown', svg: 'assets/vip/banner4.svg', colors: 'gold-red', desc: 'Gold-red banner with a crown medal.' },
- { vip: 5, name: 'VIP 5 Banner', animal: 'Purple Wings', svg: 'assets/vip/banner5.svg', colors: 'purple', desc: 'Purple banner with winged medal.' },
- { vip: 6, name: 'VIP 6 Banner', animal: 'Crowned Lion', svg: 'assets/vip/banner6.svg', colors: 'red', desc: 'Red banner with a crowned golden lion and flames.' },
- { vip: 7, name: 'VIP 7 Banner', animal: 'Phoenix', svg: 'assets/vip/banner7.svg', colors: 'orange fire', desc: 'Orange fire banner with a phoenix on top.' },
- { vip: 8, name: 'VIP 8 Banner', animal: 'Crown + Dragons', svg: 'assets/vip/banner8.svg', colors: 'red', desc: 'Red banner with a crown and two golden dragons.' },
- { vip: 9, name: 'VIP 9 Banner', animal: 'Golden Lion', svg: 'assets/vip/banner9.svg', colors: 'gold-red', desc: 'Gold-red banner with a golden lion and flames.' },
- { vip: 10, name: 'VIP 10 Banner', animal: 'Flaming Dragon', svg: 'assets/vip/banner10.svg', colors: 'fire-gold', desc: 'Fire-gold banner with a flaming dragon.' },
- { vip: 11, name: 'VIP 11 Banner', animal: 'Thunder Dragon', svg: 'assets/vip/banner11.svg', colors: 'thunder', desc: 'Thunder banner with a lightning dragon.' },
- { vip: 12, name: 'VIP 12 Banner', animal: 'Divine Throne', svg: 'assets/vip/banner12.svg', colors: 'gold-purple celestial', desc: 'Celestial banner with a divine throne and golden wings.' }
+ { vip: 1, name: 'VIP 1 Banner', animal: 'Sword Shield', svg: 'assets/vip/vip01/nameplate.jpg', colors: 'teal-gold', desc: 'Teal-gold banner with a sword shield on top.' },
+ { vip: 2, name: 'VIP 2 Banner', animal: 'Twin White Wolves', svg: 'assets/vip/vip02/nameplate.jpg', colors: 'white-gold', desc: 'White-gold banner with twin white wolves and a golden sword.' },
+ { vip: 3, name: 'VIP 3 Banner', animal: 'Emerald Sword', svg: 'assets/vip/vip03/nameplate.jpg', colors: 'green-gold', desc: 'Green-gold banner with an emerald sword on top.' },
+ { vip: 4, name: 'VIP 4 Banner', animal: 'Twin Blue Wolves', svg: 'assets/vip/vip04/nameplate.jpg', colors: 'blue', desc: 'Blue banner with twin blue wolves and a golden sword.' },
+ { vip: 5, name: 'VIP 5 Banner', animal: 'Dark Wings', svg: 'assets/vip/vip05/nameplate.jpg', colors: 'purple', desc: 'Purple banner with black wings and a golden sword.' },
+ { vip: 6, name: 'VIP 6 Banner', animal: 'Twin White Tigers', svg: 'assets/vip/vip06/nameplate.jpg', colors: 'purple-gold', desc: 'Purple-gold banner with twin white tigers and a golden sword.' },
+ { vip: 7, name: 'VIP 7 Banner', animal: 'Twin Lions', svg: 'assets/vip/vip07/nameplate.jpg', colors: 'orange fire', desc: 'Orange fire banner with twin roaring lions breathing fire.' },
+ { vip: 8, name: 'VIP 8 Banner', animal: 'Twin Golden Dragons', svg: 'assets/vip/vip08/nameplate.jpg', colors: 'fire-gold', desc: 'Fire-gold banner with twin golden dragons and a golden sword.' },
+ { vip: 9, name: 'VIP 9 Banner', animal: 'Golden Lion', svg: 'assets/vip/vip09/nameplate.jpg', colors: 'gold-red', desc: 'Gold-red banner with a golden roaring lion on top.' },
+ { vip: 10, name: 'VIP 10 Banner', animal: 'Golden Phoenix', svg: 'assets/vip/vip10/nameplate.jpg', colors: 'fire-gold', desc: 'Fire-gold banner with a golden phoenix on top.' },
+ { vip: 11, name: 'VIP 11 Banner', animal: 'Fire Lion', svg: 'assets/vip/vip11/nameplate.jpg', colors: 'fire-gold', desc: 'Fire-gold banner with a red fire lion and two golden lions.' },
+ { vip: 12, name: 'VIP 12 Banner', animal: 'Hooded King', svg: 'assets/vip/vip12/nameplate.jpg', colors: 'gold-purple celestial', desc: 'Celestial banner with a hooded king and golden fire wings.' }
 ];
 /* SVIP badges — shown WITH the user's name. SVIP9 is 3D animated. */
 const SVIP_BADGES = {
- 9: { name: 'SVIP9', animal: 'Flaming Phoenix', svg: 'assets/vip/banner-svip9.svg', animated3d: true, desc: 'Flaming phoenix with peacock feathers — 3D animated, shows with the name.' },
- 10: { name: 'SVIP10', animal: 'Golden Dragon', svg: 'assets/vip/banner-svip10.svg', animated3d: true, desc: 'Golden dragon head with lightning — shows with the name.' }
+ 9: { name: 'SVIP9', animal: 'Flaming Phoenix', svg: 'assets/vip/vip09/badge.gif', animated3d: true, desc: 'Flaming phoenix with peacock feathers — 3D animated, shows with the name.' },
+ 10: { name: 'SVIP10', animal: 'Golden Dragon', svg: 'assets/vip/vip10/badge.gif', animated3d: true, desc: 'Golden dragon head with lightning — shows with the name.' }
 };
 /* Flaming winged rank badges — run ONLY on the PROFILE page where the VIP
    rank is written, in 3D animation, for VIP 1–7. Bigger rank = bigger animation. */
@@ -291,7 +291,7 @@ function rankBadgeSize(vip) { return 60 + (vip || 1) * 14; } /* px — grows wit
 function vipKit(vip) {
  const e = EMBLEMS[vip] || EMBLEMS[1];
  const b = BANNERS[vip - 1] || BANNERS[0];
- const frameSvg = vip === 10 ? 'assets/vip/profile-frame-gold.svg' : 'assets/vip/frame' + (vip || 1) + '.svg';
+ const frameSvg = 'assets/vip/vip' + String(vip || 1).padStart(2, '0') + '/frame.png';
  return {
   vip, emblem: e.emblem, animal: b.animal, color: e.color, color2: e.color2, themeBg: e.themeBg,
   entry: ENTRY_TYPES[vip] || 'sweep',
@@ -354,8 +354,9 @@ module.exports = function (ctx) {
   const u = me(req);
   const myVip = u.vip || 0;
   const next = myVip < 12 ? VIP_LEVELS[myVip] : null; // next level (index myVip)
+  const { applyVipOverrides } = require('./owner-content');
   res.json({
-   levels: VIP_LEVELS,
+   levels: VIP_LEVELS.map(l => applyVipOverrides(db, l)),
    myVip, myVipUntil: u.vipUntil || null, mySvip: !!u.svip,
    myPoints: u.vipPoints || 0, myBonusPoints: u.bonusPoints || 0,
    pointsToNext: next ? Math.max(0, next.points - (u.vipPoints || 0)) : 0,

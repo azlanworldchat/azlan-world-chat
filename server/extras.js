@@ -21,7 +21,7 @@ const ACHIEVEMENTS = [
  { id: 'a2', name: 'First Gift', desc: 'Send your first gift', icon: 'assets/icons/gift.svg', test: u => (u.giftsSent || 0) >= 1 },
  { id: 'a3', name: 'Gift Star', desc: 'Send 10 gifts', icon: 'assets/icons/star.svg', test: u => (u.giftsSent || 0) >= 10 },
  { id: 'a4', name: 'VIP Member', desc: 'Become a VIP', icon: 'assets/icons/crown.svg', test: u => (u.vip || 0) >= 1 },
- { id: 'a5', name: 'VIP10 Legend', desc: 'Reach VIP10', icon: 'assets/vip/vip10.svg', test: u => (u.vip || 0) >= 10 },
+ { id: 'a5', name: 'VIP10 Legend', desc: 'Reach VIP10', icon: 'assets/vip/vip10/badge.png', test: u => (u.vip || 0) >= 10 },
  { id: 'a6', name: 'Millionaire', desc: 'Hold 1,000,000+ wealth', icon: 'assets/icons/coin.svg', test: u => (u.wealth || 0) >= 1000000 },
  { id: 'a7', name: 'Charm Star', desc: 'Reach 100,000 charm', icon: 'assets/icons/heart.svg', test: u => (u.charm || 0) >= 100000 },
  { id: 'a8', name: 'Popular', desc: 'Get 10 followers', icon: 'assets/icons/users.svg', test: u => (u.followers || []).length >= 10 },
@@ -101,7 +101,9 @@ module.exports = function (ctx) {
  const me = (req) => db.users.find(x => x.id === req.user.id);
  const pub = (u) => {
   if (!u) return null;
-  const { password, ...rest } = u;
+  /* PRIVACY (owner rule 2026-11-22): email/phone/verification/device are
+     private — never in a public profile response. */
+  const { password, email, phone, verificationCode, verificationExpires, deviceId, ...rest } = u;
   if (rest.anonymous) rest.name = 'Anonymous';
   return rest;
  };
