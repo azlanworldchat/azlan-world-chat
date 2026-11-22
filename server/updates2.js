@@ -48,7 +48,7 @@ const MIC_EMOJIS = [
 const OWNER_FRAME = { id: 'owner-frame', name: 'Owner Frame', svg: 'assets/vip/owner-frame.svg', ownerOnly: true, desc: 'The golden winged OWNER frame — owner only, same animation as the photo.' };
 
 module.exports = function (ctx) {
- const { db, save, notify } = ctx;
+ const { db, save, notify, displayNameOf } = ctx;
  const router = express.Router();
  router.use(auth);
  const me = (req) => db.users.find(x => x.id === req.user.id);
@@ -146,7 +146,7 @@ module.exports = function (ctx) {
   if (remove) room.admins = room.admins.filter(id => id !== userId);
   else if (!room.admins.includes(userId)) room.admins.push(userId);
   save();
-  notify(userId, remove ? `${u.name} removed your admin role in room ${room.name}.` : `${u.name} made you an admin of room ${room.name}!`);
+  notify(userId, remove ? `${displayNameOf(u)} removed your admin role in room ${room.name}.` : `${displayNameOf(u)} made you an admin of room ${room.name}!`);
   res.json({ ok: true, admins: room.admins });
  });
 
@@ -195,7 +195,7 @@ module.exports = function (ctx) {
   const rooms = (db.rooms || []).filter(r => r.hostId === u.id).map(r => ({ id: r.id, name: r.name, topic: r.topic, level: r.level || 1, members: (r.members || []).length }));
   res.json({
    user: {
-    id: u.id, name: u.anonymous ? 'Anonymous' : u.name, bio: u.bio || '', gender: u.gender || '',
+    id: u.id, name: u.anonymous ? 'Anonymous' : displayNameOf(u), bio: u.bio || '', gender: u.gender || '',
     country: u.country || '', vip, svip: !!u.svip, level: u.level || 1, levelTier: levelTier(u.level || 1),
     honorTitle: honorTitleFor(u.wealth || 0), banner: vip > 0 ? BANNERS[vip - 1] : null,
     svipBadge: u.svip ? (SVIP_BADGES[10] || null) : null,

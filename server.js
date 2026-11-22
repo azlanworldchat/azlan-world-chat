@@ -158,7 +158,7 @@ if (!db.users.find(u => u.email === OWNER_EMAIL)) {
  db.users.push({
   id: uid(), email: OWNER_EMAIL, name: 'Azlan', role: 'owner',
   password: bcrypt.hashSync(OWNER_DEFAULT_PASSWORD, 10),
-  coins: 0, diamonds: 0, charm: 0, wealth: 0, vip: 0, vipUntil: null,
+  coins: 0, diamonds: 0, charm: 0, wealth: 0, vip: 11, vipUntil: null, // owner: VIP 11 PERMANENT (never "No VIP yet")
   level: 42, followers: [], following: [], inventory: [],
   bio: 'Owner of AZLAN WORLD CHAT', gender: 'Male', country: 'Pakistan',
   createdAt: new Date().toISOString(), banned: false, deviceId: null, verified: true,
@@ -208,6 +208,14 @@ function publicUser(u) {
     rankings, rooms, leaderboards) goes through this function, so private
     details can never leak to another user's client. */
  const { password, email, phone, verificationCode, verificationExpires, deviceId, ...rest } = u;
+ /* NAME SAFETY (null-name fix 2026-11-22): a name can never leave the server
+    as null/undefined/empty or the literal strings "null"/"undefined" — every
+    consumer of a user record shows a real display name instead. */
+ rest.name = displayNameOf(u);
+ /* OWNER VIP FLOOR: the owner is always at least VIP 11 (permanent). A fresh
+    database seeds the owner at VIP 11, but an older record may still hold 0 —
+    never report the owner as "no VIP". */
+ if (u.role === 'owner') rest.vip = Math.max(u.vip || 0, 11);
  return rest;
 }
 /* Owner-only view: the owner sees email + phone in the Owner Portal
@@ -215,7 +223,34 @@ function publicUser(u) {
 function ownerUser(u) {
  if (!u) return null;
  const { password, verificationCode, verificationExpires, ...rest } = u;
+ rest.name = displayNameOf(u);
+ if (u.role === 'owner') rest.vip = Math.max(u.vip || 0, 11);
  return rest;
+}
+/* ---- display-name safety (null-name fix 2026-11-22) ----
+   One rule for every name the server ever emits: null / undefined / blank /
+   "null" / "undefined" are never valid names. The owner is always "Azlan",
+   guests fall back to "Guest-XXXX", everyone else to "User <id>". */
+function displayNameOf(u) {
+ if (!u) return 'User';
+ let n = u.name;
+ if (typeof n !== 'string') n = '';
+ n = n.trim();
+ if (!n || n.toLowerCase() === 'null' || n.toLowerCase() === 'undefined') {
+  if (u.role === 'owner') return 'Azlan';
+  if (u.email && String(u.email).endsWith('@guest.azlanworld.chat')) return 'Guest-' + String(u.id).slice(-4);
+  return u.id ? 'User ' + u.id : 'User';
+ }
+ return n;
+}
+/* Clean a name a user typed in (register / profile edit): trim it, and
+   reject null/undefined/empty/"null"/"undefined" so a bad value can never
+   be stored. Returns the clean name, or null when the input is unusable. */
+function cleanNameInput(name) {
+ if (typeof name !== 'string') return null;
+ const n = name.trim();
+ if (!n || n.toLowerCase() === 'null' || n.toLowerCase() === 'undefined') return null;
+ return n;
 }
 function notify(userId, text, extra) {
  db.notifications.unshift({ id: Date.now() + Math.random(), userId, text, at: new Date().toISOString(), read: false, ...(extra || {}) });
@@ -225,7 +260,8 @@ function notify(userId, text, extra) {
 /* ---------------- auth routes ---------------- */
 app.post('/api/auth/register', (req, res) => {
  const { name, email, password, inviteCode, phone } = req.body || {};
- if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
+ const cleanName = cleanNameInput(name);
+ if (!cleanName || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
  if (db.users.find(u => u.email === email)) return res.status(400).json({ error: 'Email already registered' });
  const bonus = db.settings.signupBonus || 1000000;
  // Guest accounts (auto-created by Guest Mode) are verified at once — the
@@ -233,7 +269,7 @@ app.post('/api/auth/register', (req, res) => {
  const isGuest = String(email).endsWith('@guest.azlanworld.chat');
  const code = String(Math.floor(100000 + Math.random() * 900000));
  const user = {
-  id: uid(), email, name, role: 'user', password: bcrypt.hashSync(password, 10),
+  id: uid(), email, name: cleanName, role: 'user', password: bcrypt.hashSync(password, 10),
   phone: phone || null,
   verified: isGuest, verificationCode: isGuest ? null : code, verificationExpires: isGuest ? null : Date.now() + 10 * 60 * 1000,
   coins: bonus, diamonds: 0, charm: 0, wealth: 0, vip: 0, vipUntil: null,
@@ -247,9 +283,9 @@ app.post('/api/auth/register', (req, res) => {
  // Invite & Earn: inviter gets 100,000 coins when the invite is used
  if (inviteCode) {
   const inviter = db.users.find(u => u.inviteCode === inviteCode);
-  if (inviter) { inviter.coins += 100000; notify(inviter.id, `Your invite earned you 100,000 coins — ${name} joined!`); save(); }
+  if (inviter) { inviter.coins += 100000; notify(inviter.id, `Your invite earned you 100,000 coins — ${cleanName} joined!`); save(); }
  }
- audit(user.id, 'register', name);
+ audit(user.id, 'register', cleanName);
  // Mandatory verification: the account cannot log in until the 6-digit code
  // is entered. No SMS gateway is connected, so the code is shown in-app on
  // the verification screen itself (never pretend an SMS was sent).
@@ -294,6 +330,10 @@ app.post('/api/auth/resend-code', (req, res) => {
 app.post('/api/owner/enter', (req, res) => {
  if ((req.body || {}).secret !== OWNER_SECRET) return res.status(403).json({ error: 'Wrong owner key' });
  const owner = db.users.find(u => u.role === 'owner');
+ /* OWNER VIP FLOOR (null-name fix 2026-11-22): an older owner record may hold
+    vip 0 — repair it to VIP 11 permanent on entry. Never downgrade: if the
+    owner already holds VIP 12 (bought), it stays. */
+ if (owner && (owner.vip || 0) < 11) { owner.vip = 11; owner.vipUntil = null; save(); }
  audit(owner.id, 'owner-enter', 'Owner entered directly');
  res.json({ token: tokenFor(owner), user: publicUser(owner) });
 });
@@ -301,7 +341,8 @@ app.post('/api/owner/enter', (req, res) => {
 app.get('/api/me', auth, (req, res) => res.json({ user: publicUser(me(req)) }));
 app.put('/api/me', auth, (req, res) => {
  const u = me(req); const { name, bio, gender, country } = req.body || {};
- if (name) u.name = name; if (bio !== undefined) u.bio = bio;
+ const cleanName = cleanNameInput(name);
+ if (cleanName) u.name = cleanName; if (bio !== undefined) u.bio = bio;
  if (gender) u.gender = gender; if (country) u.country = country;
  save(); res.json({ user: publicUser(u) });
 });
@@ -312,7 +353,9 @@ app.get('/api/users/:id', auth, (req, res) => {
 });
 app.get('/api/users', auth, (req, res) => {
  const q = (req.query.q || '').toLowerCase();
- res.json({ users: db.users.filter(u => !q || u.name.toLowerCase().includes(q) || u.id.includes(q)).slice(0, 30).map(publicUser) });
+ /* NAME SAFETY: a stored name may be null on an old record — never crash the
+    search on .toLowerCase(). */
+ res.json({ users: db.users.filter(u => !q || (u.name || '').toLowerCase().includes(q) || u.id.includes(q)).slice(0, 30).map(publicUser) });
 });
 /* Follow states (TikTok-style): Follow / Following / Follow Back / Friends (mutual) */
 function followState(u, target) {
@@ -347,7 +390,7 @@ app.get('/api/users/:id/follow-state', auth, (req, res) => {
 app.get('/api/friends', auth, (req, res) => {
  const u = me(req);
  const friends = db.users.filter(x => x.id !== u.id && (u.following || []).includes(x.id) && (x.following || []).includes(u.id))
-  .map(x => ({ id: x.id, name: x.anonymous ? 'Anonymous' : x.name, vip: x.vip || 0, level: x.level || 1 }));
+  .map(x => ({ id: x.id, name: x.anonymous ? 'Anonymous' : displayNameOf(x), vip: x.vip || 0, level: x.level || 1 }));
  res.json({ friends });
 });
 
@@ -359,7 +402,8 @@ function enrichRoom(room) {
  const info = (id) => {
   const u = db.users.find(x => x.id === id);
   if (!u) return { id, name: 'User ' + id, vip: 0, anonymous: false };
-  return { id: u.id, name: u.anonymous ? 'Anonymous' : u.name, vip: u.vip || 0, svip: !!u.svip, anonymous: !!u.anonymous, micSticker: u.micSticker || null, micAnimation: u.micAnimation || null, vipCustom: u.vipCustom || {}, micStyle: u.micStyle || 'default', micWave: u.micWave || 'default', micEmoji: u.micEmoji || null, profileFrame: u.profileFrame || null, level: u.level || 1, isOwner: u.role === 'owner', isHost: room.hostId === u.id, isAdmin: (room.admins || []).includes(u.id), honorTitle: require('./server/vip').honorTitleFor(u.wealth || 0) };
+  /* NAME SAFETY: never emit a null name in a seat/member snapshot. */
+  return { id: u.id, name: u.anonymous ? 'Anonymous' : displayNameOf(u), vip: u.role === 'owner' ? Math.max(u.vip || 0, 11) : (u.vip || 0), svip: !!u.svip, anonymous: !!u.anonymous, micSticker: u.micSticker || null, micAnimation: u.micAnimation || null, vipCustom: u.vipCustom || {}, micStyle: u.micStyle || 'default', micWave: u.micWave || 'default', micEmoji: u.micEmoji || null, profileFrame: u.profileFrame || null, level: u.level || 1, isOwner: u.role === 'owner', isHost: room.hostId === u.id, isAdmin: (room.admins || []).includes(u.id), honorTitle: require('./server/vip').honorTitleFor(u.wealth || 0) };
  };
  const members = (room.members || []).map(info)
   .sort((a, b) => (b.vip || 0) - (a.vip || 0)); // VIP first — front row
@@ -367,7 +411,7 @@ function enrichRoom(room) {
  const host = db.users.find(x => x.id === room.hostId);
  return { ...room, members, seats, hostTheme: host ? (host.roomTheme || null) : null, admins: room.admins || [] };
 }
-app.get('/api/rooms', auth, (req, res) => res.json({ rooms: db.rooms.map(enrichRoom) }));
+app.get('/api/rooms', auth, (req, res) => res.json({ rooms: require('./server/list-order').visibleItems(db, 'rooms', db.rooms, r => r.id).map(enrichRoom) }));
 /* PERFORMANCE — light room poll: one small request per room user every 5s
    (chat tail + members + seats + gift feed) instead of the full room list.
    The app polls this while inside a room, so text chat and gifts arrive in
@@ -432,7 +476,7 @@ app.post('/api/rooms/:id/chat', auth, (req, res) => {
  if (!isOn(db, 'chat')) return res.status(403).json({ error: 'Chat is turned off by the owner' });
  if ((room.chatBanned || []).includes(u.id)) return res.status(403).json({ error: 'You are banned from chat in this room.' });
  // Anonymous Display: name shows as "Anonymous". VIP chat box: dragon-flame bubble.
- room.chat.push({ id: Date.now(), userId: u.id, name: u.anonymous ? 'Anonymous' : u.name, vip: u.vip || 0, chatBox: u.vip ? 'dragon-flame' : 'normal', text, at: new Date().toISOString() });
+ room.chat.push({ id: Date.now(), userId: u.id, name: u.anonymous ? 'Anonymous' : displayNameOf(u), vip: u.vip || 0, chatBox: u.vip ? 'dragon-flame' : 'normal', text, at: new Date().toISOString() });
  if (room.chat.length > 200) room.chat = room.chat.slice(-200);
  room.xp += 1; room.level = 1 + Math.floor(room.xp / 1000);
  save(); res.json({ room: enrichRoom(room) });
@@ -441,7 +485,7 @@ app.post('/api/rooms/:id/voice-note', auth, upload.single('audio'), (req, res) =
  const room = db.rooms.find(r => r.id === req.params.id);
  const u = me(req);
  if (!room || !req.file) return res.status(400).json({ error: 'Missing room or audio file' });
- room.voiceNotes.push({ id: Date.now(), userId: u.id, name: u.name, url: '/uploads/' + req.file.filename, at: new Date().toISOString() });
+ room.voiceNotes.push({ id: Date.now(), userId: u.id, name: displayNameOf(u), url: '/uploads/' + req.file.filename, at: new Date().toISOString() });
  room.xp += 5; save(); res.json({ ok: true, url: '/uploads/' + req.file.filename });
 });
 app.post('/api/rooms/:id/music', auth, upload.single('audio'), (req, res) => {
@@ -449,7 +493,7 @@ app.post('/api/rooms/:id/music', auth, upload.single('audio'), (req, res) => {
  const u = me(req);
  if (!room || !req.file) return res.status(400).json({ error: 'Missing room or audio file' });
  if (room.hostId !== u.id && u.role !== 'owner') return res.status(403).json({ error: 'Only the host can set room music' });
- room.music = { url: '/uploads/' + req.file.filename, by: u.name, at: new Date().toISOString() };
+ room.music = { url: '/uploads/' + req.file.filename, by: displayNameOf(u), at: new Date().toISOString() };
  save(); res.json({ room });
 });
 /* Remove from mic / kick from room — ONLY the room owner or a room admin.
@@ -605,12 +649,14 @@ app.put('/api/voice-settings', auth, (req, res) => {
 });
 
 /* ---------------- gifts ---------------- */
-app.get('/api/gifts', auth, (req, res) => res.json({ gifts: db.gifts }));
+const listOrder = require('./server/list-order');
+app.get('/api/gifts', auth, (req, res) => res.json({ gifts: listOrder.visibleItems(db, 'gifts', db.gifts, g => g.id) }));
 app.post('/api/gifts/send', auth, (req, res) => {
  const u = me(req); const { giftId, toUserId, roomId, qty } = req.body || {};
  const gift = db.gifts.find(g => g.id === giftId);
  const to = db.users.find(x => x.id === toUserId);
  if (!gift || !to) return res.status(400).json({ error: 'Gift or user not found' });
+ if (listOrder.isHidden(db, 'gifts', giftId)) return res.status(400).json({ error: 'This gift was removed by the owner' });
  if (!isOn(db, 'gifts')) return res.status(403).json({ error: 'Gifts are turned off by the owner' });
  if (!giftEnabled(db, giftId)) return res.status(403).json({ error: 'This gift is turned off by the owner' });
  const n = Math.max(1, Math.min(777, qty || 1));
@@ -632,9 +678,9 @@ app.post('/api/gifts/send', auth, (req, res) => {
  const room = roomId ? db.rooms.find(r => r.id === roomId) : null;
  if (room) room.xp += cost;
  const broadcast = cost >= 100000; // 100,000+ coin gifts are announced to everyone
- const bText = `${u.name} sent ${gift.name} x${n} to ${to.name} — ${cost.toLocaleString()} coins!`;
+ const bText = `${displayNameOf(u)} sent ${gift.name} x${n} to ${displayNameOf(to)} — ${cost.toLocaleString()} coins!`;
  if (broadcast) { db.broadcasts.unshift({ id: Date.now(), text: bText, kind: 'gift', at: new Date().toISOString() }); db.users.forEach(x => notify(x.id, bText)); }
- else notify(to.id, `${u.name} sent you ${gift.name} x${n}`);
+ else notify(to.id, `${displayNameOf(u)} sent you ${gift.name} x${n}`);
  save();
  res.json({ ok: true, broadcast, coins: u.coins, gift: { id: gift.id, name: gift.name, svg: gift.svg, anim: gift.anim, sound: gift.sound, icon: gift.icon } });
 });
@@ -649,7 +695,7 @@ app.post('/api/wallet/recharge', auth, upload.single('receipt'), (req, res) => {
  if (!pkg || !method) return res.status(400).json({ error: 'Package and payment method are required' });
  if (!req.file) return res.status(400).json({ error: 'Please upload the payment receipt' });
  const rec = {
-  id: Date.now() + Math.random(), userId: u.id, name: u.name, packageId,
+  id: Date.now() + Math.random(), userId: u.id, name: displayNameOf(u), packageId,
   usd: pkg.usd, coins: pkg.coins, method, receipt: '/uploads/' + req.file.filename,
   status: 'pending', at: new Date().toISOString()
  };
@@ -668,12 +714,13 @@ app.post('/api/wallet/diamonds', auth, (req, res) => {
 /* ---------------- VIP ---------------- */
 const { VIP_LEVELS, DISCOUNTS } = require('./server/vip');
 app.get('/api/vip', auth, (req, res) => res.json({
- plans: VIP_LEVELS.map(l => { const o = require('./server/owner-content').applyVipOverrides(db, l); return { vip: o.vip, emblem: o.emblem, svg: o.svg, color: o.color, color2: o.color2, theme: o.theme, price: o.price, days: 31, points: o.points, totalBenefits: o.totalBenefits, discountPct: o.discountPct }; })
+ plans: listOrder.visibleItems(db, 'vip', VIP_LEVELS, l => l.vip).map(l => { const o = require('./server/owner-content').applyVipOverrides(db, l); return { vip: o.vip, emblem: o.emblem, svg: o.svg, color: o.color, color2: o.color2, theme: o.theme, price: o.price, days: 31, points: o.points, totalBenefits: o.totalBenefits, discountPct: o.discountPct }; })
 }));
 app.post('/api/vip/buy', auth, (req, res) => {
  const u = me(req); const { vip } = req.body || {};
  const level = VIP_LEVELS.find(l => l.vip === vip);
  if (!level) return res.status(400).json({ error: 'VIP must be 1–11' });
+ if (listOrder.isHidden(db, 'vip', vip)) return res.status(400).json({ error: `VIP${vip} was removed by the owner` });
  if (!isOn(db, 'vip')) return res.status(403).json({ error: 'VIP is turned off by the owner' });
  if (!vipLevelEnabled(db, vip)) return res.status(403).json({ error: `VIP${vip} is turned off by the owner` });
  const price = u.role === 'owner' ? 0 : ((db.settings.vipPriceOverride && db.settings.vipPriceOverride[vip]) || level.price);
@@ -683,7 +730,7 @@ app.post('/api/vip/buy', auth, (req, res) => {
  u.vipPoints = (u.vipPoints || 0) + level.points;
  u.vipUntil = new Date(Date.now() + 31 * 24 * 3600 * 1000).toISOString();
  // Level-up Broadcast to the Whole Platform (fire-dragon banner to ALL users)
- const bText = `Congratulations to ${u.name} for leveling up to VIP${vip} (${level.emblem})!`;
+ const bText = `Congratulations to ${displayNameOf(u)} for leveling up to VIP${vip} (${level.emblem})!`;
  db.broadcasts.unshift({ id: Date.now(), text: bText, kind: 'levelup', at: new Date().toISOString() });
  db.users.forEach(x => notify(x.id, bText));
  // Get Golds (one-time): VIP9 500,000 / VIP10 1,000,000 on upgrade
@@ -701,11 +748,12 @@ app.post('/api/vip/buy', auth, (req, res) => {
 });
 
 /* ---------------- shop ---------------- */
-app.get('/api/shop', auth, (req, res) => res.json({ items: db.shop }));
+app.get('/api/shop', auth, (req, res) => res.json({ items: listOrder.visibleItems(db, 'shop', db.shop, i => i.id) }));
 app.post('/api/shop/buy', auth, (req, res) => {
  const u = me(req); const { itemId } = req.body || {};
  const item = db.shop.find(i => i.id === itemId);
  if (!item) return res.status(400).json({ error: 'Item not found' });
+ if (listOrder.isHidden(db, 'shop', itemId)) return res.status(400).json({ error: 'This item was removed by the owner' });
  if (!isOn(db, 'shop')) return res.status(403).json({ error: 'Shop is turned off by the owner' });
  // Golds Items Discount: 50% off golds-priced items for VIPs; otherwise the
  // better of the VIP discount (2% per level, up to 25%) and Premium (15%).
@@ -750,7 +798,7 @@ app.post('/api/cp/invite', auth, (req, res) => {
  u.coins -= cost;
  const pair = { id: Date.now(), a: u.id, b: to.id, tier, intimacy: cost, status: 'pending', createdAt: new Date().toISOString() };
  db.cpPairs.push(pair); save();
- notify(to.id, `${u.name} invited you to be CP (${tier}) — accept in the CP section.`);
+ notify(to.id, `${displayNameOf(u)} invited you to be CP (${tier}) — accept in the CP section.`);
  res.json({ ok: true, pair });
 });
 app.post('/api/cp/:id/accept', auth, (req, res) => {
@@ -774,7 +822,7 @@ app.post('/api/moments', auth, upload.single('image'), (req, res) => {
  if (!isOn(db, 'moments')) return res.status(403).json({ error: 'Moments are turned off by the owner' });
  if (!text && !req.file) return res.status(400).json({ error: 'Write something or add a photo' });
  u.momentsPosted = (u.momentsPosted || 0) + 1;
- const m = { id: Date.now(), userId: u.id, name: u.name, text: text || '', image: req.file ? '/uploads/' + req.file.filename : null, likes: [], comments: [], at: new Date().toISOString() };
+ const m = { id: Date.now(), userId: u.id, name: displayNameOf(u), text: text || '', image: req.file ? '/uploads/' + req.file.filename : null, likes: [], comments: [], at: new Date().toISOString() };
  db.moments.push(m); save(); res.json({ moment: m });
 });
 app.post('/api/moments/:id/like', auth, (req, res) => {
@@ -787,7 +835,7 @@ app.post('/api/moments/:id/comment', auth, (req, res) => {
  const m = db.moments.find(x => x.id == req.params.id); const u = me(req);
  const { text } = req.body || {};
  if (!m || !text) return res.status(400).json({ error: 'Missing post or text' });
- m.comments.push({ userId: u.id, name: u.name, text, at: new Date().toISOString() });
+ m.comments.push({ userId: u.id, name: displayNameOf(u), text, at: new Date().toISOString() });
  save(); res.json({ ok: true });
 });
 
@@ -814,7 +862,7 @@ app.post('/api/messages', auth, (req, res) => {
  if (!other) return res.status(404).json({ error: 'User not found' });
  if (!canDM(u, other)) return res.status(403).json({ error: 'Private messages unlock only when you follow each other — follow this user and wait for a follow-back.', locked: true });
  const m = { id: Date.now(), from: u.id, to, text, at: new Date().toISOString() };
- db.messages.push(m); save(); notify(to, `New message from ${u.name}`);
+ db.messages.push(m); save(); notify(to, `New message from ${displayNameOf(u)}`);
  res.json({ message: m });
 });
 
@@ -865,122 +913,7 @@ app.post('/api/ai', auth, (req, res) => {
 app.post('/api/feedback', auth, (req, res) => {
  const u = me(req); const { text } = req.body || {};
  if (!text) return res.status(400).json({ error: 'Write your feedback' });
- db.feedback.unshift({ id: Date.now(), userId: u.id, name: u.name, text, at: new Date().toISOString() });
- save(); res.json({ ok: true });
-});
-app.get('/api/notifications', auth, (req, res) => {
- const u = me(req);
- res.json({ notifications: db.notifications.filter(n => n.userId === u.id).slice(0, 50) });
-});
-app.get('/api/settings', auth, (req, res) => res.json({ settings: db.settings }));
-
-/* ---------------- rankings ---------------- */
-app.get('/api/rankings', auth, (req, res) => {
- // Anonymous Display: anonymous users appear as "Anonymous" in rankings
- const mask = (u) => { const p = publicUser(u); if (p.anonymous) { p.name = 'Anonymous'; } return p; };
- const by = (k) => [...db.users].sort((a, b) => (b[k] || 0) - (a[k] || 0)).slice(0, 20).map(mask);
- res.json({ wealth: by('wealth'), charm: by('charm'), level: by('level') });
-});
-
-/* ---------------- Discover moments ---------------- */
-app.get('/api/moments', auth, (req, res) => res.json({ moments: [...db.moments].reverse().slice(0, 50) }));
-app.post('/api/moments', auth, upload.single('image'), (req, res) => {
- const u = me(req); const { text } = req.body || {};
- if (!isOn(db, 'moments')) return res.status(403).json({ error: 'Moments are turned off by the owner' });
- if (!text && !req.file) return res.status(400).json({ error: 'Write something or add a photo' });
- u.momentsPosted = (u.momentsPosted || 0) + 1;
- const m = { id: Date.now(), userId: u.id, name: u.name, text: text || '', image: req.file ? '/uploads/' + req.file.filename : null, likes: [], comments: [], at: new Date().toISOString() };
- db.moments.push(m); save(); res.json({ moment: m });
-});
-app.post('/api/moments/:id/like', auth, (req, res) => {
- const m = db.moments.find(x => x.id == req.params.id); const u = me(req);
- if (!m) return res.status(404).json({ error: 'Post not found' });
- if (!m.likes.includes(u.id)) m.likes.push(u.id);
- save(); res.json({ ok: true, likes: m.likes.length });
-});
-app.post('/api/moments/:id/comment', auth, (req, res) => {
- const m = db.moments.find(x => x.id == req.params.id); const u = me(req);
- const { text } = req.body || {};
- if (!m || !text) return res.status(400).json({ error: 'Missing post or text' });
- m.comments.push({ userId: u.id, name: u.name, text, at: new Date().toISOString() });
- save(); res.json({ ok: true });
-});
-
-/* ---------------- messaging ---------------- */
-/* Private messages need a MUTUAL follow (friends). The owner can message anyone. */
-function canDM(u, other) {
- if (!u || !other) return false;
- if (u.role === 'owner' || other.role === 'owner') return true;
- return (u.following || []).includes(other.id) && (other.following || []).includes(u.id);
-}
-app.get('/api/messages/:userId', auth, (req, res) => {
- const u = me(req);
- const other = db.users.find(x => x.id === req.params.userId);
- if (!other) return res.status(404).json({ error: 'User not found' });
- if (!canDM(u, other)) return res.status(403).json({ error: 'Private messages unlock only when you follow each other — follow this user and wait for a follow-back.', locked: true });
- const list = db.messages.filter(m => (m.from === u.id && m.to === req.params.userId) || (m.from === req.params.userId && m.to === u.id));
- res.json({ messages: list });
-});
-app.post('/api/messages', auth, (req, res) => {
- const u = me(req); const { to, text } = req.body || {};
- if (!isOn(db, 'chat')) return res.status(403).json({ error: 'Messages are turned off by the owner' });
- if (!to || !text) return res.status(400).json({ error: 'Missing recipient or text' });
- const other = db.users.find(x => x.id === to);
- if (!other) return res.status(404).json({ error: 'User not found' });
- if (!canDM(u, other)) return res.status(403).json({ error: 'Private messages unlock only when you follow each other — follow this user and wait for a follow-back.', locked: true });
- const m = { id: Date.now(), from: u.id, to, text, at: new Date().toISOString() };
- db.messages.push(m); save(); notify(to, `New message from ${u.name}`);
- res.json({ message: m });
-});
-
-/* ---------------- daily / tasks / lucky draw / invite ---------------- */
-app.post('/api/daily', auth, (req, res) => {
- const u = me(req);
- if (!isOn(db, 'daily')) return res.status(403).json({ error: 'Daily rewards are turned off by the owner' });
- const today = new Date().toISOString().slice(0, 10);
- if (u.lastDaily === today) return res.status(400).json({ error: 'Already claimed today' });
- u.lastDaily = today;
- // VIP benefit: Double Sign In and Task Rewards
- const bonus = u.vip ? 100000 : 50000;
- u.coins += bonus; u.bonusPoints = (u.bonusPoints || 0) + (u.vip ? 200 : 100);
- save();
- res.json({ ok: true, bonus, coins: u.coins });
-});
-app.post('/api/lucky', auth, (req, res) => {
- const u = me(req);
- if (!isOn(db, 'luckyDraw')) return res.status(403).json({ error: 'Lucky Draw is turned off by the owner' });
- if (u.coins < 1000) return res.status(400).json({ error: 'Lucky draw costs 1,000 coins' });
- u.coins -= 1000;
- const prizes = [0, 500, 1000, 5000, 50000, 100000];
- const prize = prizes[Math.floor(Math.random() * prizes.length)];
- u.coins += prize;
- if (prize > 0) { u.luckyWins = (u.luckyWins || 0) + 1; u.biggestLucky = Math.max(u.biggestLucky || 0, prize); }
- save();
- res.json({ ok: true, prize, coins: u.coins });
-});
-app.get('/api/invite', auth, (req, res) => {
- const u = me(req);
- res.json({ inviteCode: u.inviteCode, reward: 100000, rechargeBonusPct: 5, referred: db.users.filter(x => x.invitedBy === u.inviteCode).length });
-});
-
-/* ---------------- AI assistant (stub — plug in a real API key later) -------- */
-app.post('/api/ai', auth, (req, res) => {
- const u = me(req); const { text } = req.body || {};
- const t = (text || '').toLowerCase();
- let reply = 'I am the AZLAN WORLD CHAT assistant. Ask me about rooms, coins, VIP or gifts!';
- if (t.includes('coin')) reply = `You have ${u.coins.toLocaleString()} coins. Buy more in the Wallet — $1 = 1,000,000 coins.`;
- else if (t.includes('vip')) reply = 'VIP1–VIP11 last 31 days each. VIP gives you badges, frames, exclusive gifts, mic rings and more — VIP10 has 58 benefits!';
- else if (t.includes('room')) reply = 'Open the Party tab, create a room, take a mic seat and talk. Rooms have 8 mic seats.';
- else if (t.includes('gift')) reply = 'Send gifts from a room or a profile. Gifts over 100,000 coins are announced to everyone.';
- else if (t.includes('owner')) reply = 'The owner is Azlan. The Owner Portal controls coins, VIP, bans and recharges.';
- res.json({ reply });
-});
-
-/* ---------------- feedback / notifications / settings ---------------- */
-app.post('/api/feedback', auth, (req, res) => {
- const u = me(req); const { text } = req.body || {};
- if (!text) return res.status(400).json({ error: 'Write your feedback' });
- db.feedback.unshift({ id: Date.now(), userId: u.id, name: u.name, text, at: new Date().toISOString() });
+ db.feedback.unshift({ id: Date.now(), userId: u.id, name: displayNameOf(u), text, at: new Date().toISOString() });
  save(); res.json({ ok: true });
 });
 app.get('/api/notifications', auth, (req, res) => {
@@ -1164,7 +1097,7 @@ app.listen(PORT, () => {
 
 /* ---------------- modular services (server/ folder) ----------------
   One module per function. They share the same database via ctx. */
-const ctx = { db, save, audit, notify };
+const ctx = { db, save, audit, notify, displayNameOf, listOrder: require('./server/list-order') };
 app.use('/api/voice', require('./server/agora')(ctx));     // Agora live-voice status + token
 app.use('/api/v2/auth', require('./server/auth')(ctx));     // auth service
 app.use('/api/v2/chat', require('./server/chat')(ctx));     // chat service

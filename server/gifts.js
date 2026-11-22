@@ -21,13 +21,16 @@ const CATEGORIES = {
 };
 
 module.exports = function (ctx) {
- const { db, save, notify } = ctx;
+ const { db, save, notify, displayNameOf } = ctx;
  const router = express.Router();
  router.use(auth);
 
- // Full catalogue with category + animation size (small / big / huge)
+ // Full catalogue with category + animation size (small / big / huge).
+ // OWNER MANAGE LISTS: hidden gifts are not shown; the rest follow the
+ // owner's order (server-side, so every user sees the same list).
  router.get('/catalog', (req, res) => {
-  const gifts = db.gifts.map(g => ({
+  const { listOrder } = ctx;
+  const gifts = listOrder.visibleItems(db, 'gifts', db.gifts, g => g.id).map(g => ({
    ...g,
    animation: g.price >= 5000 ? 'huge' : g.price >= 500 ? 'big' : 'small',
    category: Object.keys(CATEGORIES).find(c => CATEGORIES[c].includes(g.id)) || 'hot'
@@ -52,6 +55,7 @@ module.exports = function (ctx) {
   const gift = db.gifts.find(g => g.id === giftId);
   const to = db.users.find(x => x.id === toUserId);
   if (!gift || !to) return res.status(400).json({ error: 'Gift or user not found' });
+  if (ctx.listOrder.isHidden(db, 'gifts', giftId)) return res.status(400).json({ error: 'This gift was removed by the owner' });
   const { isOn, giftEnabled } = require('./controls');
   if (!isOn(db, 'gifts')) return res.status(403).json({ error: 'Gifts are turned off by the owner' });
   if (!giftEnabled(db, giftId)) return res.status(403).json({ error: 'This gift is turned off by the owner' });
@@ -69,8 +73,8 @@ module.exports = function (ctx) {
   save();
   // Gift event: visible in the room for everyone, and notifies the recipient.
   const event = { id: Date.now() + '' + Math.floor(Math.random() * 1000), roomId: roomId || null,
-   fromId: u.id, fromName: u.anonymous ? 'Anonymous' : u.name, fromVip: u.vip || 0,
-   toId: to.id, toName: to.name, giftId: gift.id, giftName: gift.name, giftSvg: gift.svg,
+   fromId: u.id, fromName: u.anonymous ? 'Anonymous' : displayNameOf(u), fromVip: u.vip || 0,
+   toId: to.id, toName: displayNameOf(to), giftId: gift.id, giftName: gift.name, giftSvg: gift.svg,
    giftAnim: gift.anim, giftSound: gift.sound, qty: n, cost, at: new Date().toISOString() };
   if (roomId) {
    db.roomGiftFeed = db.roomGiftFeed || {};
@@ -78,7 +82,7 @@ module.exports = function (ctx) {
    db.roomGiftFeed[roomId].unshift(event);
    if (db.roomGiftFeed[roomId].length > 20) db.roomGiftFeed[roomId] = db.roomGiftFeed[roomId].slice(0, 20);
   }
-  const giftExtra = { kind: 'gift', giftEventId: event.id, gift: { id: gift.id, name: gift.name, svg: gift.svg, anim: gift.anim, sound: gift.sound }, from: event.fromName, fromId: u.id, to: to.name, qty: n, cost };
+  const giftExtra = { kind: 'gift', giftEventId: event.id, gift: { id: gift.id, name: gift.name, svg: gift.svg, anim: gift.anim, sound: gift.sound }, from: event.fromName, fromId: u.id, to: displayNameOf(to), qty: n, cost };
   const text = broadcast
    ? `${event.fromName} sent ${gift.name} x${n} to ${to.name} — ${cost.toLocaleString()} coins!`
    : `${event.fromName} sent you ${gift.name} x${n}${message ? ': ' + message : ''} — you received a gift!`;

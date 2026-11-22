@@ -95,7 +95,7 @@ const LEGAL = {
 };
 
 module.exports = function (ctx) {
- const { db, save, notify } = ctx;
+ const { db, save, notify, displayNameOf } = ctx;
  const router = express.Router();
  router.use(auth);
  const me = (req) => db.users.find(x => x.id === req.user.id);
@@ -222,7 +222,7 @@ module.exports = function (ctx) {
   const target = db.users.find(x => x.id === req.params.id);
   if (!target) return res.status(404).json({ error: 'User not found' });
   db.reports = db.reports || [];
-  db.reports.unshift({ id: Date.now(), reporterId: u.id, reporterName: u.name, userId: target.id, userName: target.name, reason: reason || 'No reason given', at: new Date().toISOString(), status: 'open' });
+  db.reports.unshift({ id: Date.now(), reporterId: u.id, reporterName: displayNameOf(u), userId: target.id, userName: displayNameOf(target), reason: reason || 'No reason given', at: new Date().toISOString(), status: 'open' });
   save();
   res.json({ ok: true, note: 'Report sent to the owner. Thank you for keeping AZLAN WORLD CHAT safe.' });
  });

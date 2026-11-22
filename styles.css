@@ -1130,3 +1130,45 @@ body.in-room #roomChat { margin: 4px 0; }
 body.in-room #onlineUsers { margin: 4px 0; max-height: 56px; }
 body.in-room #voiceNotes { max-height: 48px; }
 body.in-room .room-bottom-bar { margin: 4px -4px -4px; }
+
+/* ---- NULL FIX 2026-11-22: in-app prompt/confirm modal -------------------
+   Replaces the native window.prompt()/confirm(), which do not work in the
+   Android WebView (prompt returns null immediately; some versions show the
+   literal word "null" in the input). This modal always works, on web and
+   in the APK, and can never show "null". */
+.app-modal { position: fixed; inset: 0; z-index: 999; background: rgba(20, 8, 40, .55); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.app-modal.hidden { display: none; }
+.app-modal-card { background: #fff; border-radius: 18px; padding: 18px; width: 100%; max-width: 340px; box-shadow: 0 18px 50px rgba(0, 0, 0, .35); }
+.app-modal-card h3 { margin: 0 0 6px; font-size: 17px; color: #1c1c1c; }
+.app-modal-card p { margin: 0 0 12px; font-size: 14px; color: #555; white-space: pre-line; }
+.app-modal-card input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #d9c98f; border-radius: 10px; font-size: 15px; margin-bottom: 12px; }
+.app-modal-card input.hidden { display: none; }
+.app-modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+.app-modal-btns .btn { min-width: 84px; }
+
+/* ---- VIP detail Back button (2026-11-22): the button must never sit half
+   under the sticky app header — #mePanel scrolls into view with a 76px
+   offset (see the MutationObserver in app.js). */
+#mePanel { scroll-margin-top: 76px; }
+
+/* ---- ROOM COMMENT FIELD WIDENING (2026-11-22): "Say some..." showed only
+   "Say" at 390px — the 7 round buttons left the field ~52px. Shrink the
+   buttons a little in-room and tighten the field's own padding so the full
+   placeholder fits. */
+body.in-room .rb-btn { width: 30px; height: 30px; min-width: 30px; }
+body.in-room .rb-btn img { width: 16px; height: 16px; }
+body.in-room .room-stage.dark-room .room-bottom-bar { gap: 4px; }
+body.in-room .say-input { padding: 4px 8px; gap: 4px; }
+body.in-room .say-input input { font-size: 12px; }
+
+/* ---- OWNER MANAGE LISTS (2026-11-22): Studio Add / Remove / Reorder ---- */
+.studio-list-btns { display: flex; gap: 4px; flex-shrink: 0; }
+.studio-list-btns .btn { padding: 4px 8px; min-width: 0; font-size: 14px; }
+.studio-hidden-row { opacity: .6; background: #f7f3e6; }
+.studio-variants { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0; width: 100%; }
+.studio-variant { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #e3d9b8; border-radius: 10px; padding: 4px; background: #fff; }
+.studio-variant.active { border-color: #d4af37; box-shadow: 0 0 10px rgba(212, 175, 55, .45); }
+.studio-variant img { width: 40px; height: 40px; object-fit: contain; border-radius: 6px; }
+.studio-variant .btn { padding: 2px 6px; min-width: 0; font-size: 12px; }
+.studio-variant-add { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.studio-variant-add input { width: 150px; }

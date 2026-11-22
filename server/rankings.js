@@ -13,12 +13,12 @@ function auth(req, res, next) {
 }
 
 module.exports = function (ctx) {
-  const { db } = ctx;
+  const { db, displayNameOf } = ctx;
   const router = express.Router();
   router.use(auth);
   /* PRIVACY (owner rule 2026-11-22): rankings show public things only —
      email/phone/verification/device are stripped, never sent to clients. */
-  const clean = (u) => { const { password, email, phone, verificationCode, verificationExpires, deviceId, ...r } = u; if (r.anonymous) r.name = 'Anonymous'; return r; }; // Anonymous Display: masked in Top Gifters / rankings
+  const clean = (u) => { const { password, email, phone, verificationCode, verificationExpires, deviceId, ...r } = u; if (r.anonymous) r.name = 'Anonymous'; else r.name = displayNameOf(u); return r; }; // Anonymous Display: masked in Top Gifters / rankings
   const top = (key, n = 20) => [...db.users].sort((a, b) => (b[key] || 0) - (a[key] || 0)).slice(0, n).map(clean);
 
   router.get('/wealth', (req, res) => res.json({ ranking: top('wealth') }));

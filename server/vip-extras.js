@@ -86,7 +86,7 @@ function broadcast(db, notify, text, kind) {
 }
 
 module.exports = function (ctx) {
- const { db, save, notify } = ctx;
+ const { db, save, notify, displayNameOf } = ctx;
  const router = express.Router();
  router.use(auth);
  const me = (req) => db.users.find(x => x.id === req.user.id);
@@ -154,7 +154,7 @@ module.exports = function (ctx) {
   if (u.coins < price) return res.status(400).json({ error: 'Not enough golds (coins)' });
   u.coins -= price;
   to.inventory = to.inventory || []; to.inventory.push(item.id);
-  notify(to.id, `${u.name} sent you ${item.icon} ${item.name} — choose the item you like from the store and send it to your friends to show your love!`);
+  notify(to.id, `${displayNameOf(u)} sent you ${item.icon} ${item.name} — choose the item you like from the store and send it to your friends to show your love!`);
   save();
   res.json({ ok: true, sent: true, coins: u.coins });
  });
@@ -289,7 +289,7 @@ module.exports = function (ctx) {
   const { text } = req.body || {};
   if (!text) return res.status(400).json({ error: 'Write your question' });
   db.tickets = db.tickets || [];
-  const t = { id: Date.now(), userId: u.id, name: u.name, text, vip: u.vip || 0, status: 'open', at: new Date().toISOString() };
+  const t = { id: Date.now(), userId: u.id, name: displayNameOf(u), text, vip: u.vip || 0, status: 'open', at: new Date().toISOString() };
   db.tickets.unshift(t); save();
   res.json({ ok: true, ticket: t, note: 'Your ticket was sent to the Customer Service Expert.' });
  });
@@ -319,8 +319,8 @@ module.exports = function (ctx) {
   res.json({ ok: true, note: 'If they violate Community Guidelines in someone else\'s room, they may still be banned from chat in that room.' });
  });
 
- /* --- O + P) Broadcasts feed --- */
- router.get('/broadcasts', (req, res) => res.json({ broadcasts: (db.broadcasts || []).slice(0, 20) }));
+ /* --- O + P) Broadcasts feed (owner's announcement order applies) --- */
+ router.get('/broadcasts', (req, res) => res.json({ broadcasts: ctx.listOrder.applyOrder(db, 'announcements', db.broadcasts || [], b => b.id).slice(0, 20) }));
  /* --- Q) Honor Achievement Display --- */
  router.get('/honor', (req, res) => {
   const top = [...db.users].filter(x => !x.anonymous).sort((a, b) => (b.charm || 0) - (a.charm || 0))[0];

@@ -344,7 +344,7 @@ const LEVEL_TIERS = [
 function levelTier(level) { return LEVEL_TIERS.find(t => level >= t.min && level <= t.max) || LEVEL_TIERS[0]; }
 
 module.exports = function (ctx) {
- const { db, save, notify } = ctx;
+ const { db, save, notify, displayNameOf } = ctx;
  const router = express.Router();
  router.use(auth);
  const me = (req) => db.users.find(x => x.id === req.user.id);
@@ -352,11 +352,17 @@ module.exports = function (ctx) {
  // VIP Club: all 12 levels + my status + points + offers + detail data
  router.get('/club', (req, res) => {
   const u = me(req);
-  const myVip = u.vip || 0;
+  /* OWNER VIP FLOOR: the owner is always at least VIP 11 — the Club must
+     never tell the owner he has "no VIP yet". */
+  const myVip = u.role === 'owner' ? Math.max(u.vip || 0, 11) : (u.vip || 0);
   const next = myVip < 12 ? VIP_LEVELS[myVip] : null; // next level (index myVip)
   const { applyVipOverrides } = require('./owner-content');
+  const { listOrder } = ctx;
+  /* OWNER MANAGE LISTS: VIP levels show in the owner's order; hidden levels
+     are not shown. Reordering never changes a level's own price, points or
+     benefits — only its position in the list. */
   res.json({
-   levels: VIP_LEVELS.map(l => applyVipOverrides(db, l)),
+   levels: listOrder.visibleItems(db, 'vip', VIP_LEVELS, l => l.vip).map(l => applyVipOverrides(db, l)),
    myVip, myVipUntil: u.vipUntil || null, mySvip: !!u.svip,
    myPoints: u.vipPoints || 0, myBonusPoints: u.bonusPoints || 0,
    pointsToNext: next ? Math.max(0, next.points - (u.vipPoints || 0)) : 0,
@@ -429,9 +435,9 @@ module.exports = function (ctx) {
   u.giftsSent = (u.giftsSent || 0) + n; u.biggestGift = Math.max(u.biggestGift || 0, cost);
   save();
   // VIP gift event: visible in the room for everyone, and notifies each recipient.
-  const toNames = recipients.map(id => { const t = db.users.find(x => x.id === id); return t ? t.name : id; });
+  const toNames = recipients.map(id => { const t = db.users.find(x => x.id === id); return t ? displayNameOf(t) : id; });
   const event = { id: Date.now() + '' + Math.floor(Math.random() * 1000), roomId: roomId || null,
-   fromId: u.id, fromName: u.anonymous ? 'Anonymous' : u.name, fromVip: u.vip || 0,
+   fromId: u.id, fromName: u.anonymous ? 'Anonymous' : displayNameOf(u), fromVip: u.vip || 0,
    toId: toUserId === 'everyone' ? 'everyone' : recipients[0], toName: toUserId === 'everyone' ? 'Everyone on Mic' : (toNames[0] || ''),
    giftId: gift.id, giftName: gift.name, giftSvg: gift.svg, giftAnim: gift.anim, giftSound: gift.sound, qty: n, cost, at: new Date().toISOString() };
   if (roomId) {
@@ -442,8 +448,8 @@ module.exports = function (ctx) {
   }
   const giftExtra = { kind: 'gift', giftEventId: event.id, gift: { id: gift.id, name: gift.name, svg: gift.svg, anim: gift.anim, sound: gift.sound }, from: event.fromName, fromId: u.id, to: event.toName, qty: n, cost };
   const text = broadcast
-   ? `${u.anonymous ? 'Anonymous' : u.name} sent ${gift.name} x${n} to ${toUserId === 'everyone' ? 'everyone on mic' : toNames.join(', ')} — ${cost.toLocaleString()} coins!`
-   : `${u.anonymous ? 'Anonymous' : u.name} sent you ${gift.name} x${n} (VIP gift) — you received a gift!`;
+   ? `${u.anonymous ? 'Anonymous' : displayNameOf(u)} sent ${gift.name} x${n} to ${toUserId === 'everyone' ? 'everyone on mic' : toNames.join(', ')} — ${cost.toLocaleString()} coins!`
+   : `${u.anonymous ? 'Anonymous' : displayNameOf(u)} sent you ${gift.name} x${n} (VIP gift) — you received a gift!`;
   // Exclusive Gifting Banner & Broadcast: fire-dragon banner across rooms
   if (broadcast) { db.broadcasts = db.broadcasts || []; db.broadcasts.unshift({ id: Date.now(), text, kind: 'gift', at: new Date().toISOString() }); db.users.forEach(x => notify(x.id, text, giftExtra)); }
   else recipients.forEach(id => notify(id, text, giftExtra));
@@ -498,6 +504,7 @@ module.exports = function (ctx) {
   const { vip } = req.body || {};
   const level = VIP_LEVELS.find(l => l.vip === vip);
   if (!level) return res.status(400).json({ error: 'VIP must be 1–12' });
+  if (ctx.listOrder.isHidden(db, 'vip', vip)) return res.status(400).json({ error: `VIP${vip} was removed by the owner` });
   const { isOn, vipLevelEnabled } = require('./controls');
   if (!isOn(db, 'vip')) return res.status(403).json({ error: 'VIP is turned off by the owner' });
   if (!vipLevelEnabled(db, vip)) return res.status(403).json({ error: `VIP${vip} is turned off by the owner` });
@@ -508,7 +515,7 @@ module.exports = function (ctx) {
   u.vipPoints = (u.vipPoints || 0) + level.points;
   u.vipUntil = new Date(Date.now() + DAYS * 24 * 3600 * 1000).toISOString();
   // Level-up Broadcast to the Whole Platform (fire-dragon banner to ALL users)
-  const bText = `Congratulations to ${u.name} for leveling up to VIP${vip} (${level.emblem})!`;
+  const bText = `Congratulations to ${displayNameOf(u)} for leveling up to VIP${vip} (${level.emblem})!`;
   db.broadcasts = db.broadcasts || [];
   db.broadcasts.unshift({ id: Date.now(), text: bText, kind: 'levelup', at: new Date().toISOString() });
   db.users.forEach(x => notify(x.id, bText));
@@ -576,7 +583,7 @@ module.exports = function (ctx) {
   if (u.coins < g) return res.status(400).json({ error: 'Not enough coins' });
   u.coins -= g; save();
   const others = db.users.filter(x => x.id !== u.id).slice(0, n);
-  others.forEach(o => { const share = Math.floor(g / others.length); o.coins += share; notify(o.id, `${u.name} sent you a lucky bag — ${share} coins!`); });
+  others.forEach(o => { const share = Math.floor(g / others.length); o.coins += share; notify(o.id, `${displayNameOf(u)} sent you a lucky bag — ${share} coins!`); });
   save();
   res.json({ ok: true, sentTo: others.length, totalGold: g });
  });

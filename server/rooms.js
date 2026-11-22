@@ -17,7 +17,7 @@ function auth(req, res, next) {
 }
 
 module.exports = function (ctx) {
-  const { db, save } = ctx;
+  const { db, save, displayNameOf } = ctx;
   const router = express.Router();
   router.use(auth);
 
@@ -44,7 +44,7 @@ module.exports = function (ctx) {
   router.get('/:id', (req, res) => {
     const room = db.rooms.find(r => r.id === req.params.id);
     if (!room) return res.status(404).json({ error: 'Room not found' });
-    const members = room.members.map(id => { const u = db.users.find(x => x.id === id); return u ? { id: u.id, name: u.name, vip: u.vip || 0 } : null; }).filter(Boolean);
+    const members = room.members.map(id => { const u = db.users.find(x => x.id === id); return u ? { id: u.id, name: u.anonymous ? 'Anonymous' : displayNameOf(u), vip: u.vip || 0 } : null; }).filter(Boolean);
     res.json({ room: { ...room, members } });
   });
   // Voice note with an effect label (normal / deep / robot / echo) — the
@@ -53,7 +53,7 @@ module.exports = function (ctx) {
     const room = db.rooms.find(r => r.id === req.params.id);
     const u = db.users.find(x => x.id === req.user.id);
     if (!room || !req.file) return res.status(400).json({ error: 'Missing room or audio' });
-    const note = { id: Date.now(), userId: u.id, name: u.name,
+    const note = { id: Date.now(), userId: u.id, name: displayNameOf(u),
       url: '/uploads/' + req.file.filename, effect: req.body.effect || 'normal',
       at: new Date().toISOString() };
     room.voiceNotes.push(note); room.xp += 5; save();

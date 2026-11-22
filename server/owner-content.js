@@ -40,7 +40,13 @@ const VIP_TAGS = { 1: 'sword shield teal gold', 2: 'wolves wolf white gold', 3: 
 
 function ensureCustomization(db) {
   db.settings = db.settings || {};
-  db.settings.customization = db.settings.customization || { design: {}, vip: {}, gifts: {}, shop: {} };
+  db.settings.customization = db.settings.customization || {};
+  /* Fill any missing keys — the object may already exist in a partial
+     shape (e.g. created by a list call before the Studio ran). */
+  const c0 = db.settings.customization;
+  c0.design = c0.design || {}; c0.vip = c0.vip || {}; c0.gifts = c0.gifts || {}; c0.shop = c0.shop || {};
+  const lo = require('./list-order');
+  lo.listsOf(db);
   return db.settings.customization;
 }
 function publicCustomization(db) {
@@ -164,12 +170,14 @@ async function generateWithApi(q) {
 }
 
 module.exports = function (ctx) {
-  const { db, save, audit } = ctx;
+  const { db, save, audit, listOrder } = ctx;
   const router = express.Router();
   router.use(auth, ownerOnly);
 
   /* Full Studio data for the owner: current customization + every editable
-     item (VIP levels with live art paths, gifts, shop). */
+     item (VIP levels with live art paths, gifts, shop) + the manage-lists
+     state (order / hidden / custom / VIP art variants) + announcements
+     (broadcast feed) + rooms (for reorder / remove). */
   router.get('/', (req, res) => {
     const { VIP_LEVELS, BANNERS } = require('./vip');
     const levels = VIP_LEVELS.map(l => {
@@ -177,7 +185,11 @@ module.exports = function (ctx) {
       const banner = BANNERS[l.vip - 1] || {};
       return { vip: l.vip, name: o.emblem, badge: o.svg, frame: o.frameSvg, crown: o.crownSvg || ('assets/vip/vip' + String(l.vip).padStart(2, '0') + '/crown.png'), nameplate: (ensureCustomization(db).vip[String(l.vip)] || {}).nameplate || banner.svg || '', price: l.price, points: l.points };
     });
-    res.json({ customization: publicCustomization(db), levels, gifts: db.gifts || [], shop: db.shop || [], aiConfigured: !!(process.env.IMAGE_GEN_API_KEY && process.env.IMAGE_GEN_API_URL) });
+    const c = ensureCustomization(db);
+    res.json({ customization: publicCustomization(db), levels, gifts: db.gifts || [], shop: db.shop || [], aiConfigured: !!(process.env.IMAGE_GEN_API_KEY && process.env.IMAGE_GEN_API_URL),
+      lists: { order: c.order || {}, hidden: c.hidden || {}, custom: c.custom || {}, vipArt: c.vipArt || {} },
+      announcements: db.broadcasts || [],
+      rooms: (db.rooms || []).map(r => ({ id: r.id, name: r.name, topic: r.topic, hostId: r.hostId, members: (r.members || []).length, level: r.level || 1 })) });
   });
 
   /* Save changes: design / VIP art+names / gift+shop edits / settings /
@@ -186,7 +198,7 @@ module.exports = function (ctx) {
     const c = ensureCustomization(db);
     const b = req.body || {};
     if (b.reset) {
-      db.settings.customization = { design: {}, vip: {}, gifts: {}, shop: {} };
+      db.settings.customization = { design: {}, vip: {}, gifts: {}, shop: {}, order: {}, hidden: {}, custom: {}, vipArt: {} };
       save(); audit(req.user.id, 'studio-reset', 'Customization reset to defaults');
       return res.json({ ok: true, customization: publicCustomization(db), note: 'Design and content reset to defaults. Added gifts/items were kept.' });
     }
@@ -198,7 +210,16 @@ module.exports = function (ctx) {
         const n = parseInt(v, 10);
         if (!(n >= 1 && n <= 12) || typeof ov !== 'object') continue;
         c.vip[String(n)] = c.vip[String(n)] || {};
-        for (const k of ['badge', 'frame', 'crown', 'nameplate']) if (ov[k] !== undefined && isSafeUrl(ov[k])) c.vip[String(n)][k] = ov[k];
+        for (const k of ['badge', 'frame', 'crown', 'nameplate']) if (ov[k] !== undefined && isSafeUrl(ov[k])) {
+          c.vip[String(n)][k] = ov[k];
+          /* Keep the art-variant list in sync: a newly chosen photo becomes
+             the first (active) variant, so it also shows in Manage Lists. */
+          const lo = require('./list-order'); const vv = lo.listsOf(db);
+          vv.vipArt[String(n)] = vv.vipArt[String(n)] || {};
+          const variants = vv.vipArt[String(n)][k] = vv.vipArt[String(n)][k] || [];
+          const at = variants.indexOf(ov[k]); if (at > 0) variants.splice(at, 1);
+          if (at !== 0) variants.unshift(ov[k]);
+        }
         if (ov.name !== undefined) c.vip[String(n)].name = String(ov.name).slice(0, 60);
         if (ov.desc !== undefined) c.vip[String(n)].desc = String(ov.desc).slice(0, 300);
       }
@@ -236,6 +257,11 @@ module.exports = function (ctx) {
           const key = { 'vip-badge': 'badge', 'vip-frame': 'frame', 'vip-crown': 'crown', 'vip-nameplate': 'nameplate' }[s.kind];
           c.vip[String(n)] = c.vip[String(n)] || {};
           c.vip[String(n)][key] = b.apply.url;
+          const lo = require('./list-order'); const vv = lo.listsOf(db);
+          vv.vipArt[String(n)] = vv.vipArt[String(n)] || {};
+          const variants = vv.vipArt[String(n)][key] = vv.vipArt[String(n)][key] || [];
+          const at = variants.indexOf(b.apply.url); if (at > 0) variants.splice(at, 1);
+          if (at !== 0) variants.unshift(b.apply.url);
         }
       } else if (s.kind === 'gift') {
         const g = (db.gifts || []).find(x => x.id === s.id);
@@ -282,6 +308,169 @@ module.exports = function (ctx) {
     res.json({ ok: true, item });
   });
 
+  /* ============ OWNER MANAGE LISTS — Add / Remove / Reorder (2026-11-22) ==
+     Every list the owner manages gets Add, Remove (with a confirm step in
+     the app) and Move up / Move down. Changes apply live immediately and
+     persist server-side; the order the owner sets is the order every user
+     sees. Server-enforced: these routes are ownerOnly (router-wide).
+     - VIP levels are fixed at 1–12 (their price/points/benefits never
+       change): they can be REORDERED or HIDDEN, never added or deleted.
+     - Built-in gifts/shop items are HIDDEN on remove (restorable); owner-
+       added items are DELETED for good. Rooms are deleted on remove.
+     - Announcements are the platform broadcast feed (db.broadcasts). */
+  function listsState() {
+    const c = ensureCustomization(db);
+    return { order: c.order || {}, hidden: c.hidden || {}, custom: c.custom || {}, vipArt: c.vipArt || {} };
+  }
+  router.get('/lists', (req, res) => {
+    res.json({ ok: true, lists: listsState(), announcements: db.broadcasts || [], rooms: (db.rooms || []).map(r => ({ id: r.id, name: r.name, topic: r.topic, hostId: r.hostId, members: (r.members || []).length, level: r.level || 1 })) });
+  });
+  /* Save a full display order for one list. The client sends the ordered
+     ids (after a Move up / Move down); the server stores it as-is. */
+  router.post('/lists/order', (req, res) => {
+    const { kind, order } = req.body || {};
+    if (!listOrder.KINDS.includes(kind)) return res.status(400).json({ error: 'Unknown list' });
+    if (!Array.isArray(order)) return res.status(400).json({ error: 'Order must be a list of ids' });
+    listOrder.setOrder(db, kind, order.map(String).slice(0, 500));
+    save(); audit(req.user.id, 'studio-list-order', kind + ' order saved (' + order.length + ' items)');
+    res.json({ ok: true, lists: listsState() });
+  });
+  /* Add a new item to a list. Gifts/shop items appear in the catalogue,
+     gift panel and store at once. kind 'ids' adds a Unique ID product
+     (a shop item in the "Unique ID" category). */
+  router.post('/lists/add', (req, res) => {
+    const { kind, item } = req.body || {};
+    const it = item || {};
+    if (kind === 'vip') return res.status(400).json({ error: 'VIP levels are fixed at 1–12 — reorder them or hide one instead of adding a new level.' });
+    if (kind === 'rooms') return res.status(400).json({ error: 'Create rooms from the Party tab — the Studio lists and reorders them here.' });
+    if (kind === 'gifts') {
+      if (!it.name || it.price === undefined) return res.status(400).json({ error: 'Gift name and price are required' });
+      let n = 100;
+      while ((db.gifts || []).find(g => g.id === 'g' + n)) n++;
+      const p = Math.max(0, Math.floor(Number(it.price) || 0));
+      const gift = { id: 'g' + n, name: String(it.name).slice(0, 80), price: p, charm: p * 10, category: it.category || 'hot', svg: isSafeUrl(it.svg) ? it.svg : 'assets/icons/gift.svg', anim: 'bloom' };
+      db.gifts.push(gift); listOrder.registerCustom(db, 'gifts', gift.id);
+      save(); audit(req.user.id, 'studio-list-add', 'gift ' + gift.name + ' (' + gift.id + ')');
+      return res.json({ ok: true, gift });
+    }
+    if (kind === 'shop' || kind === 'ids') {
+      if (!it.name || it.price === undefined) return res.status(400).json({ error: 'Item name and price are required' });
+      let n = 100;
+      while ((db.shop || []).find(x => x.id === 's' + n)) n++;
+      const shopItem = { id: 's' + n, name: String(it.name).slice(0, 80), price: Math.max(0, Math.floor(Number(it.price) || 0)), category: kind === 'ids' ? 'Unique ID' : (it.category || 'Theme'), icon: isSafeUrl(it.icon) ? it.icon : 'assets/icons/id.svg', svg: isSafeUrl(it.icon) ? it.icon : 'assets/icons/id.svg' };
+      db.shop.push(shopItem); listOrder.registerCustom(db, 'shop', shopItem.id);
+      save(); audit(req.user.id, 'studio-list-add', 'shop item ' + shopItem.name + ' (' + shopItem.id + ')');
+      return res.json({ ok: true, item: shopItem });
+    }
+    if (kind === 'announcements') {
+      if (!it.text) return res.status(400).json({ error: 'Announcement text is required' });
+      db.broadcasts = db.broadcasts || [];
+      const note = { id: Date.now(), text: String(it.text).slice(0, 200), kind: 'announcement', at: new Date().toISOString() };
+      db.broadcasts.unshift(note); listOrder.registerCustom(db, 'announcements', note.id);
+      if (db.broadcasts.length > 50) db.broadcasts.length = 50;
+      save(); audit(req.user.id, 'studio-list-add', 'announcement: ' + note.text.slice(0, 60));
+      return res.json({ ok: true, announcement: note });
+    }
+    return res.status(400).json({ error: 'Unknown list' });
+  });
+  /* Remove an item from a list. Built-ins are hidden (Restore brings them
+     back); owner-added gifts/shop items and rooms are deleted for good. */
+  router.post('/lists/remove', (req, res) => {
+    const { kind, id } = req.body || {};
+    if (!listOrder.KINDS.includes(kind) || id === undefined) return res.status(400).json({ error: 'List and id are required' });
+    const sid = String(id);
+    if (kind === 'vip') {
+      const v = parseInt(sid, 10);
+      if (!(v >= 1 && v <= 12)) return res.status(400).json({ error: 'VIP must be 1–12' });
+      listOrder.hideItem(db, 'vip', v);
+      save(); audit(req.user.id, 'studio-list-remove', 'VIP' + v + ' hidden');
+      return res.json({ ok: true, removed: 'hidden', lists: listsState() });
+    }
+    if (kind === 'rooms') {
+      const before = (db.rooms || []).length;
+      db.rooms = (db.rooms || []).filter(r => String(r.id) !== sid);
+      if (db.roomGiftFeed) delete db.roomGiftFeed[sid];
+      if (db.rooms.length === before) return res.status(404).json({ error: 'Room not found' });
+      listOrder.forgetId(db, 'rooms', sid);
+      save(); audit(req.user.id, 'studio-list-remove', 'room ' + sid + ' deleted');
+      return res.json({ ok: true, removed: 'deleted' });
+    }
+    if (kind === 'announcements') {
+      const before = (db.broadcasts || []).length;
+      db.broadcasts = (db.broadcasts || []).filter(b => String(b.id) !== sid);
+      if (db.broadcasts.length === before) return res.status(404).json({ error: 'Announcement not found' });
+      listOrder.forgetId(db, 'announcements', sid);
+      save(); audit(req.user.id, 'studio-list-remove', 'announcement ' + sid + ' deleted');
+      return res.json({ ok: true, removed: 'deleted' });
+    }
+    if (kind === 'gifts' || kind === 'shop') {
+      const arr = kind === 'gifts' ? db.gifts : db.shop;
+      const found = (arr || []).find(x => String(x.id) === sid);
+      if (!found) return res.status(404).json({ error: 'Item not found' });
+      if (listOrder.isCustom(db, kind, sid)) {
+        if (kind === 'gifts') db.gifts = db.gifts.filter(x => String(x.id) !== sid);
+        else db.shop = db.shop.filter(x => String(x.id) !== sid);
+        listOrder.forgetId(db, kind, sid);
+        save(); audit(req.user.id, 'studio-list-remove', kind + ' ' + sid + ' deleted');
+        return res.json({ ok: true, removed: 'deleted' });
+      }
+      listOrder.hideItem(db, kind, sid);
+      save(); audit(req.user.id, 'studio-list-remove', kind + ' ' + sid + ' hidden');
+      return res.json({ ok: true, removed: 'hidden', lists: listsState() });
+    }
+    return res.status(400).json({ error: 'Unknown list' });
+  });
+  /* Bring back a hidden built-in item. */
+  router.post('/lists/restore', (req, res) => {
+    const { kind, id } = req.body || {};
+    if (!listOrder.KINDS.includes(kind) || id === undefined) return res.status(400).json({ error: 'List and id are required' });
+    listOrder.unhideItem(db, kind, id);
+    save(); audit(req.user.id, 'studio-list-restore', kind + ' ' + id + ' restored');
+    res.json({ ok: true, lists: listsState() });
+  });
+  /* VIP art variants: each VIP level's badge / frame / crown / nameplate
+     can hold several art options; the FIRST is the active one. Add a
+     variant (upload or AI search URL), remove one, or move one up/down —
+     moving one to the top makes it the active art everywhere, live. */
+  router.post('/lists/vip-art', (req, res) => {
+    const { vip, slot, url, action, index, dir } = req.body || {};
+    const v = parseInt(vip, 10);
+    if (!(v >= 1 && v <= 12)) return res.status(400).json({ error: 'VIP must be 1–12' });
+    if (!['badge', 'frame', 'crown', 'nameplate'].includes(slot)) return res.status(400).json({ error: 'Art slot must be badge, frame, crown or nameplate' });
+    const c = ensureCustomization(db);
+    c.vipArt[String(v)] = c.vipArt[String(v)] || {};
+    const variants = c.vipArt[String(v)][slot] = c.vipArt[String(v)][slot] || [];
+    /* Seed the variant list from the current active art the first time. */
+    if (!variants.length) {
+      const cur = (c.vip[String(v)] || {})[slot];
+      const fallback = { badge: 'assets/vip/vip' + String(v).padStart(2, '0') + '/badge.gif', frame: 'assets/vip/vip' + String(v).padStart(2, '0') + '/frame.png', crown: 'assets/vip/vip' + String(v).padStart(2, '0') + '/crown.png', nameplate: 'assets/vip/vip' + String(v).padStart(2, '0') + '/nameplate.jpg' }[slot];
+      variants.push(cur && isSafeUrl(cur) ? cur : fallback);
+    }
+    const i = Number(index);
+    if (action === 'add') {
+      if (!isSafeUrl(url)) return res.status(400).json({ error: 'A valid image URL is required' });
+      if (!variants.includes(url)) variants.push(url);
+    } else if (action === 'remove') {
+      if (!(i >= 0 && i < variants.length)) return res.status(400).json({ error: 'Bad variant index' });
+      if (variants.length <= 1) return res.status(400).json({ error: 'A level needs at least one art option — add another one first.' });
+      variants.splice(i, 1);
+    } else if (action === 'move') {
+      if (!(i >= 0 && i < variants.length)) return res.status(400).json({ error: 'Bad variant index' });
+      const j = i + (dir === 'up' ? -1 : 1);
+      if (j < 0 || j >= variants.length) return res.status(400).json({ error: 'Already at the edge' });
+      const t = variants[i]; variants[i] = variants[j]; variants[j] = t;
+    } else if (action === 'set-active') {
+      if (!(i >= 0 && i < variants.length)) return res.status(400).json({ error: 'Bad variant index' });
+      const t = variants.splice(i, 1)[0]; variants.unshift(t);
+    } else return res.status(400).json({ error: 'Action must be add, remove, move or set-active' });
+    /* The first variant is the active art everywhere — keep the override
+       in sync so the badge/frame/crown/nameplate changes live, at once. */
+    c.vip[String(v)] = c.vip[String(v)] || {};
+    c.vip[String(v)][slot] = variants[0];
+    save(); audit(req.user.id, 'studio-vip-art', 'VIP' + v + ' ' + slot + ' variants: ' + variants.length);
+    res.json({ ok: true, variants, active: variants[0], lists: listsState() });
+  });
+
   /* AI SEARCH (owner-only): type what you want, get design options, tap one
      to apply it to the slot. Free path: the app's own design library.
      If an image API is configured, it also generates brand-new designs. */
@@ -301,7 +490,7 @@ module.exports = function (ctx) {
   });
 
   router.post('/reset', (req, res) => {
-    db.settings.customization = { design: {}, vip: {}, gifts: {}, shop: {} };
+    db.settings.customization = { design: {}, vip: {}, gifts: {}, shop: {}, order: {}, hidden: {}, custom: {}, vipArt: {} };
     save(); audit(req.user.id, 'studio-reset', 'Customization reset to defaults');
     res.json({ ok: true, customization: publicCustomization(db) });
   });

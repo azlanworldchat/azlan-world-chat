@@ -2,7 +2,14 @@
    Original work. Talks to the Node backend in server.js.
    Owner (Azlan) enters directly with NO login (Owner Portal button).
    Everyone else must register / log in. */
-const API = '';
+/* API BASE (null fix 2026-11-22): the APK bundles the app files and runs
+   them in the Android WebView, where there is NO local server — a relative
+   API path would call the WebView itself and fail, so the APK could never
+   log in, open a room or create one (the "null" the owner saw). When the
+   app runs inside Capacitor (native app), all API calls go to the live
+   Render server; on the web the calls stay relative (same origin). */
+const API = (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || (typeof location !== 'undefined' && location.hostname === 'localhost' && !location.port && location.protocol.indexOf('http') === 0)
+  ? 'https://azlan-world-chat.onrender.com' : '';
 let TOKEN = localStorage.getItem('awc_token') || '';
 let ME = null;
 let currentRoom = null;
@@ -109,6 +116,69 @@ async function api(path, opts) {
   return data;
 }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+/* Display name — NEVER "null" / "undefined" / blank (null-name fix 2026-11-22).
+   The server already normalizes names; this is the client-side safety net
+   for every place a name renders. Accepts a user object or a bare string. */
+function displayName(u) {
+  if (typeof u === 'string') u = { name: u };
+  if (!u || typeof u !== 'object') return 'User';
+  if (u.anonymous) return 'Anonymous';
+  let n = (u.name == null ? '' : String(u.name)).trim();
+  if (!n || n.toLowerCase() === 'null' || n.toLowerCase() === 'undefined') {
+    if (u.role === 'owner' || u.isOwner) return 'Azlan';
+    if (u.id) return 'User ' + u.id;
+    return 'User';
+  }
+  return n;
+}
+/* ---------------- in-app prompt / confirm (null fix 2026-11-22) -----------
+   The old code used the browser's native window.prompt() / window.confirm().
+   In the Android WebView (Capacitor) those are not implemented the same way:
+   prompt() returns null immediately — so "Create Room" silently did nothing
+   — and on some Android versions the dialog itself shows the literal word
+   "null" in the input field. Every prompt/confirm in the app now uses this
+   in-app modal instead: it always works, on web and in the APK, and it can
+   never show "null". */
+let _appModalResolve = null;
+function _appModalEl() {
+  let el = document.getElementById('appModal');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'appModal'; el.className = 'app-modal hidden';
+  el.innerHTML = '<div class="app-modal-card"><h3 id="appModalTitle"></h3><p id="appModalMsg"></p>' +
+    '<input id="appModalInput" type="text">' +
+    '<div class="app-modal-btns"><button class="btn ghost" id="appModalCancel">Cancel</button>' +
+    '<button class="btn gold" id="appModalOk">OK</button></div></div>';
+  document.body.appendChild(el);
+  document.getElementById('appModalCancel').onclick = () => { _appModalClose(null); };
+  document.getElementById('appModalOk').onclick = () => {
+    const inp = document.getElementById('appModalInput');
+    _appModalClose(inp.classList.contains('hidden') ? true : inp.value);
+  };
+  el.addEventListener('click', e => { if (e.target === el) _appModalClose(null); });
+  return el;
+}
+function _appModalClose(val) {
+  const el = document.getElementById('appModal'); if (el) el.classList.add('hidden');
+  if (_appModalResolve) { const r = _appModalResolve; _appModalResolve = null; r(val); }
+}
+function _appModalOpen(title, msg, showInput, defVal, inputType) {
+  const el = _appModalEl();
+  document.getElementById('appModalTitle').textContent = title || '';
+  document.getElementById('appModalMsg').textContent = msg || '';
+  const inp = document.getElementById('appModalInput');
+  inp.type = inputType || 'text';
+  if (showInput) { inp.classList.remove('hidden'); inp.value = (defVal === undefined || defVal === null) ? '' : String(defVal); }
+  else inp.classList.add('hidden');
+  el.classList.remove('hidden');
+  if (showInput) setTimeout(() => inp.focus(), 50);
+  return new Promise(res => { _appModalResolve = res; });
+}
+/* In-app prompt: returns the typed text, or null on Cancel / tap outside.
+   The input is NEVER pre-filled with "null" — an empty default stays empty. */
+function appPrompt(title, msg, defVal, inputType) { return _appModalOpen(title, msg, true, defVal, inputType); }
+/* In-app confirm: returns true for OK, false for Cancel / tap outside. */
+function appConfirm(msg) { return _appModalOpen('Confirm', msg, false).then(v => v === true); }
 function fmt(n) { return Number(n || 0).toLocaleString(); }
 function show(id, on) { document.getElementById(id).classList.toggle('hidden', !on); }
 
@@ -230,7 +300,7 @@ async function ownerEnterKey() {
   } catch (err) { document.getElementById('authMsg').textContent = 'Wrong owner key.'; }
 }
 async function ownerEnter() {
-  const secret = prompt('Owner key (OWNER_SECRET from the server — change the default before publishing):');
+  const secret = await appPrompt('Owner Key', 'Owner key (OWNER_SECRET from the server — change the default before publishing):');
   if (!secret) return;
   try {
     const d = await api('/api/owner/enter', { method: 'POST', headers: headers(true), body: JSON.stringify({ secret }) });
@@ -256,14 +326,14 @@ async function loadMe() {
   try {
     const d = await api('/api/me', { headers: headers() });
     ME = d.user;
-    document.getElementById('myName').textContent = ME.name;
+    document.getElementById('myName').textContent = displayName(ME);
     document.getElementById('myName').className = 'vip-username vip-color-' + (ME.vip || 0);
     document.getElementById('myUid').textContent = 'ID: ' + ME.id + '  •  Level ' + (ME.level || 1);
     document.getElementById('myBio').textContent = ME.bio || '';
     const av = document.getElementById('myAvatar');
     av.className = 'avatar' + (ME.vip ? ' vip-frame' : '') + (ME.gifPhoto ? ' gif-photo' : '');
     if (ME.gifPhoto) av.innerHTML = '<img src="' + esc(ME.gifPhoto) + '" alt="profile">';
-    else av.textContent = (ME.name || 'A')[0].toUpperCase();
+    else av.textContent = displayName(ME)[0].toUpperCase();
     document.getElementById('statCoins').textContent = fmt(ME.coins);
     document.getElementById('statDiamonds').textContent = fmt(ME.diamonds);
     document.getElementById('statCharm').textContent = fmt(ME.charm);
@@ -273,9 +343,22 @@ async function loadMe() {
 }
 function renderVipBadge() {
   const el = document.getElementById('myVipBadge');
-  if (ME.vip) {
-    el.innerHTML = ic('crown') + ' VIP' + ME.vip + ' • ' + (VIP_ANIMALS[ME.vip] || '') + vipEmblemMini(ME.vip) + (ME.svip ? ' • SVIP' : '');
+  if (!el) return;
+  /* OWNER VIP FLOOR: the owner is always at least VIP 11 — the Me tab must
+     never tell the owner he has "no VIP yet". */
+  const v = ME && ME.role === 'owner' ? Math.max(ME.vip || 0, 11) : ((ME && ME.vip) || 0);
+  if (v) {
+    el.innerHTML = ic('crown') + ' VIP' + v + ' • ' + (VIP_ANIMALS[v] || '') + vipEmblemMini(v) + (ME && ME.svip ? ' • SVIP' : '');
   } else el.textContent = 'No VIP yet — open VIP Club';
+}
+/* VIP detail pages: when a detail page renders into #mePanel, bring its top
+   (the "← Back to VIP Club" button) into view below the sticky app header,
+   so the button never sits half-hidden under it. */
+if (typeof MutationObserver !== 'undefined' && document.getElementById('mePanel')) {
+  new MutationObserver(() => {
+    const mp = document.getElementById('mePanel');
+    if (mp && mp.innerHTML.indexOf('Back to VIP Club') !== -1) mp.scrollIntoView({ block: 'start' });
+  }).observe(document.getElementById('mePanel'), { childList: true });
 }
 /* ---------------- Glory (My Badge / My Vehicle) ---------------- */
 async function openGlory(kind) {
@@ -495,10 +578,10 @@ function showEntrance(user) {
     if (user.banner) visual = '<img class="entrance-banner-img" src="' + user.banner + '" alt="VIP banner">';
     else visual = '<div class="entrance-art-wrap"><img class="entrance-motion-img" src="' + vipEntryImg(user.vip) + '" alt="VIP' + user.vip + ' entrance">' + particles + '</div>';
     fx.innerHTML = '<div class="entrance-standalone entry-' + entry + animCls + '">' + visual +
-      '<div class="entrance-name' + animCls + '">' + esc(user.name) + ' entered</div>' +
+      '<div class="entrance-name' + animCls + '">' + esc(displayName(user)) + ' entered</div>' +
       '<div class="entrance-sub">' + ic('crown') + ' VIP' + user.vip + (user.animal ? ' • ' + esc(user.animal) : '') + '</div></div>';
   } else {
-    fx.innerHTML = '<div class="entrance-standalone"><div class="entrance-text">' + ic('sparkle') + ' ' + esc(user.name) + ' entered ' + ic('sparkle') + '<br><span style="font-size:13px">Welcome to AZLAN WORLD CHAT</span></div></div>';
+    fx.innerHTML = '<div class="entrance-standalone"><div class="entrance-text">' + ic('sparkle') + ' ' + esc(displayName(user)) + ' entered ' + ic('sparkle') + '<br><span style="font-size:13px">Welcome to AZLAN WORLD CHAT</span></div></div>';
   }
   fx.classList.remove('hidden'); fx.classList.remove('play'); void fx.offsetWidth; fx.classList.add('play');
   fx.innerHTML += '<button class="entrance-skip" onclick="skipEntrance()">Skip</button>';
@@ -557,9 +640,9 @@ async function searchRooms() {
   try { const d = await api('/api/v2/rooms/search?q=' + encodeURIComponent(q), { headers: headers() }); renderRooms(d.rooms); } catch (e) {}
 }
 async function createRoomPrompt() {
-  const name = prompt('Room name:');
+  const name = await appPrompt('Create Room', 'Room name:');
   if (!name) return;
-  const topic = prompt('Topic (e.g. Music, Chat, Games):', 'Chat') || 'Chat';
+  const topic = (await appPrompt('Create Room', 'Topic (e.g. Music, Chat, Games):', 'Chat')) || 'Chat';
   try {
     const d = await api('/api/rooms', { method: 'POST', headers: headers(true), body: JSON.stringify({ name, topic }) });
     joinRoom(d.room.id);
@@ -586,9 +669,9 @@ async function joinRoom(id) {
       if (bg) bg.style.backgroundImage = currentRoom.hostTheme ? 'url(assets/themes/' + currentRoom.hostTheme + '.svg)' : '';
     }
     renderRoomHeader(); renderMicGrid(); renderRoomChat(); renderVoiceNotes(); renderOnlineUsers();
-    addWelcomeMessage(ME.name, false);
+    addWelcomeMessage(displayName(ME), false);
     startRoomFeedPoll();
-    if (d.entrance) showEntrance({ name: d.entrance.name, vip: d.entrance.vip, banner: d.entrance.banner, animal: d.entrance.animal });
+    if (d.entrance) showEntrance({ name: displayName(d.entrance), vip: d.entrance.vip, banner: d.entrance.banner, animal: d.entrance.animal });
     window.SFX && SFX.join();
     joinAgoraChannel(currentRoom.id);
   } catch (e) { alert(e.message); }
@@ -601,9 +684,9 @@ function renderRoomHeader() {
   const el = document.getElementById('roomHeader'); if (!el || !currentRoom) return;
   const host = (currentRoom.members || []).find(m => m.id === currentRoom.hostId);
   const members = currentRoom.members || [];
-  const hostInitial = esc(((host && host.name) || 'A')[0].toUpperCase());
+  const hostInitial = esc((host ? displayName(host) : 'A')[0].toUpperCase());
   el.innerHTML = '<div class="room-topbar"><div class="rt-host"><span class="rt-host-av">' + hostInitial + '</span><div><div class="rt-name"><span class="rt-name-text">' + esc(currentRoom.name) + '</span> <img class="rt-wing" src="assets/icons/wing-badge.svg" alt="wing badge"></div>' +
-    '<div class="rt-sub">' + (host ? '<span>' + esc(host.name) + '</span>' : '') + ' <span class="muted">ID: ' + currentRoom.id + '</span></div></div></div>' +
+    '<div class="rt-sub">' + (host ? '<span>' + esc(displayName(host)) + '</span>' : '') + ' <span class="muted">ID: ' + currentRoom.id + '</span></div></div></div>' +
     '<div class="rt-right"><span class="trophy-pill">' + ic('trophy') + ' Lv.' + (currentRoom.level || 1) + '</span>' +
     '<span class="member-pill">' + ic('users') + ' ' + members.length + '</span>' +
     '<button class="icon-btn" onclick="showNotifications()" title="Inbox">' + ic('bell') + '</button>' +
@@ -626,7 +709,7 @@ function renderPkBar() {
 }
 async function pkBarTap() {
   if (currentRoom && (currentRoom.hostId === ME.id || ME.role === 'owner')) {
-    const a = prompt('Room announcement (shows to everyone in the room):', currentRoom.announce || '');
+    const a = await appPrompt('Room Announcement', 'Room announcement (shows to everyone in the room):', currentRoom.announce || '');
     if (a !== null) {
       try { const d = await api('/api/rooms/' + currentRoom.id + '/settings', { method: 'POST', headers: headers(true), body: JSON.stringify({ announce: a }) }); currentRoom = d.room; renderPkBar(); }
       catch (e) { alert(e.message); }
@@ -704,7 +787,7 @@ function addWelcomeMessage(name, onMount) {
   const box = document.getElementById('roomChat'); if (!box) return;
   const div = document.createElement('p');
   div.className = 'welcome-msg';
-  div.innerHTML = 'Welcome <b>' + esc(name) + '</b> come into the room' + (onMount ? ' on a mount' : '');
+  div.innerHTML = 'Welcome <b>' + esc(displayName(name)) + '</b> come into the room' + (onMount ? ' on a mount' : '');
   box.appendChild(div); box.scrollTop = box.scrollHeight;
 }
 /* Room gift feed: every gift shows in the room with sender photo + gift +
@@ -715,7 +798,7 @@ function appendRoomGiftEvent(ev) {
   if (roomGiftEvents.length > 20) roomGiftEvents = roomGiftEvents.slice(-20);
   const div = document.createElement('div');
   div.className = 'gift-feed-item';
-  div.innerHTML = roomChatAvatar(ev.fromName) + (ev.giftSvg ? '<img src="' + ev.giftSvg + '" alt="">' : '') + roomChatAvatar(ev.toName) + '<span><b>' + esc(ev.fromName) + '</b> sent <b>' + esc(ev.giftName) + '</b>' + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to <b>' + esc(ev.toName) + '</b></span>';
+  div.innerHTML = roomChatAvatar(displayName(ev.fromName)) + (ev.giftSvg ? '<img src="' + ev.giftSvg + '" alt="">' : '') + roomChatAvatar(displayName(ev.toName)) + '<span><b>' + esc(displayName(ev.fromName)) + '</b> sent <b>' + esc(ev.giftName) + '</b>' + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to <b>' + esc(displayName(ev.toName)) + '</b></span>';
   feed.appendChild(div);
   while (feed.children.length > 5) feed.removeChild(feed.firstChild);
   renderRoomChat();
@@ -729,8 +812,8 @@ function showGiftToast(ev) {
   const g = ev.gift || {};
   const div = document.createElement('div');
   div.className = 'room-gift-toast';
-  div.innerHTML = roomChatAvatar(ev.fromName) + (g.svg ? '<img src="' + g.svg + '" alt="">' : '') + roomChatAvatar(ev.toName) +
-    '<span><b>' + esc(ev.fromName || 'Someone') + '</b> sent <b>' + esc(g.name || 'a gift') + '</b>' + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to <b>' + esc(ev.toName || 'you') + '</b></span>';
+  div.innerHTML = roomChatAvatar(displayName(ev.fromName)) + (g.svg ? '<img src="' + g.svg + '" alt="">' : '') + roomChatAvatar(displayName(ev.toName)) +
+    '<span><b>' + esc(displayName(ev.fromName)) + '</b> sent <b>' + esc(g.name || 'a gift') + '</b>' + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to <b>' + esc(displayName(ev.toName)) + '</b></span>';
   stage.appendChild(div);
   setTimeout(() => div.remove(), 3000);
   if (!APP_CONTROLS || APP_CONTROLS.sounds) { if (window.SFX) SFX.gift(); }
@@ -781,7 +864,7 @@ function renderMicGrid() {
     const seat = (currentRoom.seats || []).find(x => x.seat === s);
     if (seat) {
       const u = seat.user || {};
-      const name = u.name || ('User ' + seat.userId);
+      const name = displayName({ ...u, id: u.id || seat.userId });
       const vip = u.vip || 0;
       const ring = MIC_RING_COLORS[vip] || '';
       const styleCls = u.micStyle && u.micStyle !== 'default' ? ' style-' + u.micStyle : '';
@@ -817,7 +900,7 @@ function renderOnlineUsers() {
   const members = (currentRoom.members || []).slice().sort((a, b) => (b.vip || 0) - (a.vip || 0));
   const total = members.length;
   el.innerHTML = '<p class="muted">'+ic("users")+' Online Users: ' + total + '</p>' + members.map(m =>
-    '<span class="online-user' + (m.vip ? ' vip-first' : '') + '" onclick="openProfile(\'' + m.id + '\')"><span class="ou-avatar">' + esc((m.name || 'U')[0].toUpperCase()) + '</span><span class="' + (m.vip ? 'vip-color-' + m.vip : '') + '">' + esc(m.name || 'User') + '</span>' + roleTag(m) + ' ' + vipTagHtml(m) + ' ' + levelPill(m.level) + (m.micSticker ? '<span class="ou-sticker">' + iconImg(m.micSticker.icon) + '</span>' : '') + (m.micEmoji ? '<span class="ou-sticker"><img src="' + m.micEmoji.svg + '" alt=""></span>' : '') + '</span>'
+    '<span class="online-user' + (m.vip ? ' vip-first' : '') + '" onclick="openProfile(\'' + m.id + '\')"><span class="ou-avatar">' + esc(displayName(m)[0].toUpperCase()) + '</span><span class="' + (m.vip ? 'vip-color-' + m.vip : '') + '">' + esc(displayName(m)) + '</span>' + roleTag(m) + ' ' + vipTagHtml(m) + ' ' + levelPill(m.level) + (m.micSticker ? '<span class="ou-sticker">' + iconImg(m.micSticker.icon) + '</span>' : '') + (m.micEmoji ? '<span class="ou-sticker"><img src="' + m.micEmoji.svg + '" alt=""></span>' : '') + '</span>'
   ).join('') +
   (currentRoom.hostId === ME.id || ME.role === 'owner' ? '<p class="muted">Host tools: tap a user above to open their profile, or <button class="btn ghost" onclick="makeRoomAdminPrompt()">Make Admin</button></p>' : '');
 }
@@ -840,7 +923,7 @@ async function micLeaveFromProfile() {
   profileFromMic = false; backToRoom();
 }
 async function removeFromMic(userId) {
-  if (!confirm('Remove this user from the mic?')) return;
+  if (!(await appConfirm('Remove this user from the mic?'))) return;
   try {
     const d = await api('/api/rooms/' + currentRoom.id + '/remove-seat', { method: 'POST', headers: headers(true), body: JSON.stringify({ userId }) });
     currentRoom = d.room; renderMicGrid(); profileFromMic = false; backToRoom();
@@ -890,8 +973,8 @@ function renderRoomChat() {
   let html = head;
   if (roomTabFilter === 'all' || roomTabFilter === 'chat') {
     html += (currentRoom.chat || []).slice(-30).map(m =>
-      '<div class="chat-msg-row"><div class="chat-av-wrap">' + roomChatAvatar(m.name) + '</div>' +
-      '<div class="chat-body"><div class="chat-name-line"><b class="chat-name vip-color-' + (m.vip || 0) + '">' + esc(m.name) + '</b>' +
+      '<div class="chat-msg-row"><div class="chat-av-wrap">' + roomChatAvatar(displayName(m)) + '</div>' +
+      '<div class="chat-body"><div class="chat-name-line"><b class="chat-name vip-color-' + (m.vip || 0) + '">' + esc(displayName(m)) + '</b>' +
       (m.vip ? ' <span class="chat-vip-pill">' + ic('crown') + 'VIP' + m.vip + '</span>' : '') +
       ' <span class="chat-lv-pill">Lv.' + roomChatLevel(m.userId) + '</span></div>' +
       '<div class="chat-bubble' + (m.chatBox === 'dragon-flame' ? ' vip-bubble' : '') + '">' + esc(m.text) + '</div></div></div>'
@@ -899,8 +982,8 @@ function renderRoomChat() {
   }
   if (roomTabFilter === 'all' || roomTabFilter === 'gift') {
     html += roomGiftEvents.slice(-10).map(ev =>
-      '<div class="chat-msg-row gift-line">' + roomChatAvatar(ev.fromName) + '<img class="gift-line-img" src="' + esc(ev.giftSvg || 'assets/icons/gift.svg') + '" alt="">' + roomChatAvatar(ev.toName) +
-      '<span class="gift-line-text"><b>' + esc(ev.fromName) + '</b> sent <b>' + esc(ev.giftName) + '</b>' + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to <b>' + esc(ev.toName) + '</b></span></div>'
+      '<div class="chat-msg-row gift-line">' + roomChatAvatar(displayName(ev.fromName)) + '<img class="gift-line-img" src="' + esc(ev.giftSvg || 'assets/icons/gift.svg') + '" alt="">' + roomChatAvatar(displayName(ev.toName)) +
+      '<span class="gift-line-text"><b>' + esc(displayName(ev.fromName)) + '</b> sent <b>' + esc(ev.giftName) + '</b>' + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to <b>' + esc(displayName(ev.toName)) + '</b></span></div>'
     ).join('');
   }
   box.innerHTML = html || head + '<p class="muted">No messages yet — say hello!</p>';
@@ -921,7 +1004,7 @@ async function sendRoomChat() {
 function renderVoiceNotes() {
   const el = document.getElementById('voiceNotes');
   el.innerHTML = (currentRoom.voiceNotes || []).slice(-5).map(n =>
-    '<div class="voice-note"><span>'+ic("mic")+' ' + esc(n.name) + ' (' + (n.effect || 'normal') + ')</span>' +
+    '<div class="voice-note"><span>'+ic("mic")+' ' + esc(displayName(n)) + ' (' + (n.effect || 'normal') + ')</span>' +
     '<button class="btn" onclick="playVoiceNote(\'' + n.url + '\', \'' + (n.effect || 'normal') + '\')">'+ic("play")+' Play</button></div>'
   ).join('');
 }
@@ -937,7 +1020,7 @@ function startVoiceNote() {
     const fd = new FormData();
     fd.append('audio', blob, 'voice.webm');
     fd.append('effect', effect);
-    const res = await fetch('/api/v2/rooms/' + currentRoom.id + '/voice-note', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
+    const res = await fetch(API + '/api/v2/rooms/' + currentRoom.id + '/voice-note', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
     const d = await res.json();
     if (res.ok) { currentRoom.voiceNotes.push(d.note); renderVoiceNotes(); window.SFX && SFX.coin(); }
     else alert(d.error || 'Upload failed');
@@ -949,7 +1032,7 @@ async function uploadRoomMusic(e) {
   const f = e.target.files[0];
   if (!f || !currentRoom) return;
   const fd = new FormData(); fd.append('audio', f);
-  const res = await fetch('/api/rooms/' + currentRoom.id + '/music', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
+  const res = await fetch(API + '/api/rooms/' + currentRoom.id + '/music', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
   const d = await res.json();
   if (res.ok) { alert(' Room music set!'); const a = new Audio(d.room.music.url); a.play(); }
   else alert(d.error || 'Upload failed');
@@ -1170,12 +1253,12 @@ function closeVoiceSettings() {
 function vsUpdateStatus() {
   const s = voiceSettings || VS_DEFAULTS;
   const el = document.getElementById('vsStatus');
-  if (el) el.innerHTML = '<b>Status:</b> Mic ' + (s.micOn ? (s.muted ? 'ON — muted' : 'ON') : 'OFF') + ' • Speaker ' + (s.speakerOn ? 'ON ' + s.speakerVolume + '%' : 'OFF') + ' • Mode ' + (s.inputMode === 'ptt' ? 'Push-to-talk' : 'Voice activity') + ' • Noise suppression ' + (s.noiseSuppression === 'standard' ? 'Standard (browser)' : 'None') + ' • Settings saved on server for <b>' + esc(ME ? ME.name : '') + '</b>';
+  if (el) el.innerHTML = '<b>Status:</b> Mic ' + (s.micOn ? (s.muted ? 'ON — muted' : 'ON') : 'OFF') + ' • Speaker ' + (s.speakerOn ? 'ON ' + s.speakerVolume + '%' : 'OFF') + ' • Mode ' + (s.inputMode === 'ptt' ? 'Push-to-talk' : 'Voice activity') + ' • Noise suppression ' + (s.noiseSuppression === 'standard' ? 'Standard (browser)' : 'None') + ' • Settings saved on server for <b>' + esc(ME ? displayName(ME) : '') + '</b>';
   const c = document.getElementById('vsConnText');
   if (c) {
     const dev = vsStream ? (vsStream.getAudioTracks()[0] || {}).label || 'microphone' : 'none';
     c.innerHTML = 'Mic stream: <b>' + (vsStream ? 'LIVE (' + esc(dev) + ')' : 'off — enable Mic to start it') + '</b><br>' +
-      'Server: logged in as <b>' + esc(ME ? ME.name : '?') + '</b> (ID ' + esc(ME ? ME.id : '?') + ')<br>' +
+      'Server: logged in as <b>' + esc(ME ? displayName(ME) : '?') + '</b> (ID ' + esc(ME ? ME.id : '?') + ')<br>' +
       'Room: ' + (currentRoom ? '<b>in “' + esc(currentRoom.name) + '”</b>' : 'not in a room') + '<br>' +
       'Live multi-party voice: <span id="vsLiveVoice">' + (window.AGORA && AGORA.joined ? '<b>LIVE — talking in the room now (Agora)</b>' : 'checking…') + '</span>';
     /* Live voice status from the server (Agora configured or voice-notes mode). */
@@ -1304,7 +1387,7 @@ function vsTestPlay() { const au = document.getElementById('vsTestAudio'); if (a
 function vsPttDown(e) { if (e) e.preventDefault(); setMicState(true); const b = document.getElementById('vsPttBtn'); if (b) b.classList.add('holding'); }
 function vsPttUp() { const b = document.getElementById('vsPttBtn'); if (b) b.classList.remove('holding'); if ((voiceSettings || VS_DEFAULTS).inputMode === 'ptt') setMicState(false); }
 async function vsReset() {
-  if (!confirm('Reset all voice settings to defaults?')) return;
+  if (!(await appConfirm('Reset all voice settings to defaults?'))) return;
   voiceSettings = { ...VS_DEFAULTS };
   await vsSave();
   renderVoiceSettings();
@@ -1314,7 +1397,7 @@ async function vsReset() {
 /* ---------------- room actions (normal user voice room) ---------------- */
 async function requestMic() {
   if (!currentRoom) { alert('Join a room first.'); return; }
-  const seat = prompt('Which seat number do you want? (leave empty for any seat)', '');
+  const seat = await appPrompt('Request Mic', 'Which seat number do you want? (leave empty for any seat)', '');
   try {
     await api('/api/rooms/' + currentRoom.id + '/request-mic', { method: 'POST', headers: headers(true), body: JSON.stringify({ seat: seat ? Number(seat) : undefined }) });
     alert('Mic request sent to the host.');
@@ -1332,11 +1415,11 @@ async function openRoomSettings() {
   if (!currentRoom) { alert('Join a room first.'); return; }
   const can = currentRoom.hostId === ME.id || (currentRoom.admins || []).includes(ME.id) || ME.role === 'owner';
   if (!can) { alert('Only the room host or an admin can change room settings.'); return; }
-  const announce = prompt('Room announcement (PK bar):', currentRoom.announce || '');
+  const announce = await appPrompt('Room Settings', 'Room announcement (PK bar):', currentRoom.announce || '');
   if (announce === null) return;
-  const topic = prompt('Room topic:', currentRoom.topic || 'Chat');
+  const topic = await appPrompt('Room Settings', 'Room topic:', currentRoom.topic || 'Chat');
   if (topic === null) return;
-  const locks = prompt('Locked seats (numbers separated by commas, e.g. 3,4 — empty = none):', (currentRoom.lockedSeats || []).join(','));
+  const locks = await appPrompt('Room Settings', 'Locked seats (numbers separated by commas, e.g. 3,4 — empty = none):', (currentRoom.lockedSeats || []).join(','));
   if (locks === null) return;
   try {
     const d = await api('/api/rooms/' + currentRoom.id + '/settings', { method: 'POST', headers: headers(true), body: JSON.stringify({ announce, topic, lockedSeats: locks.split(',').map(x => Number(x.trim())).filter(n => n >= 2 && n <= 8) }) });
@@ -1349,7 +1432,7 @@ async function openRoomSettings() {
 function showGiftPanel() {
   if (!currentRoom && !giftTarget) { alert('Join a room first, or pick a user to gift.'); return; }
   document.getElementById('giftPanel').classList.remove('hidden');
-  document.getElementById('giftTarget').textContent = giftTarget ? giftTarget.name : ('room ' + (currentRoom ? currentRoom.name : ''));
+  document.getElementById('giftTarget').textContent = giftTarget ? displayName(giftTarget) : ('room ' + (currentRoom ? currentRoom.name : ''));
   loadGiftCatalog();
 }
 function closeGiftPanel() { document.getElementById('giftPanel').classList.add('hidden'); }
@@ -1411,7 +1494,7 @@ function showGiftBroadcast3D(ev) {
   fx.classList.remove('hidden');
   fx.innerHTML = '<div class="gift-broadcast-3d">' +
     (g.svg ? '<img class="gift3d-img anim-' + (g.anim || 'bloom') + '" src="' + g.svg + '" alt="' + esc(g.name || 'gift') + '">' : '<img class="gift3d-img anim-bloom" src="assets/icons/gift.svg" alt="gift">') +
-    '<div class="gift3d-name">' + esc(ev.fromName || 'Someone') + ' sent ' + esc(g.name || 'a gift') + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to ' + esc(ev.toName || 'you') + '</div>' +
+    '<div class="gift3d-name">' + esc(displayName(ev.fromName)) + ' sent ' + esc(g.name || 'a gift') + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to ' + esc(displayName(ev.toName)) + '</div>' +
     (g.price ? '<div class="gift3d-sub">' + fmt(g.price * (ev.qty || 1)) + ' coins</div>' : '') + '</div>';
   if (!APP_CONTROLS || APP_CONTROLS.sounds) {
     if (window.SFX && SFX.giftSound) SFX.giftSound(g.sound || 'gift');
@@ -1465,14 +1548,14 @@ async function openWallet() {
   } catch (e) { p.innerHTML = '<p class="muted">' + esc(e.message) + '</p>'; }
 }
 async function buyPackage(pkgId) {
-  const method = prompt('Payment method: Easypaisa, JazzCash, Visa or Google Play?', 'Easypaisa');
+  const method = await appPrompt('Payment Method', 'Payment method: Easypaisa, JazzCash, Visa or Google Play?', 'Easypaisa');
   if (!method) return;
   alert('After paying, you must upload the receipt. The owner approves it — coins are never credited from the screenshot alone.');
   const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
   input.onchange = async () => {
     const fd = new FormData();
     fd.append('packageId', pkgId); fd.append('method', method); fd.append('receipt', input.files[0]);
-    const res = await fetch('/api/wallet/recharge', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
+    const res = await fetch(API + '/api/wallet/recharge', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
     const d = await res.json();
     alert(res.ok ? 'Receipt sent! Wait for the owner to approve.' : (d.error || 'Failed'));
   };
@@ -1547,7 +1630,7 @@ function renderVipClub() {
     '<p class="vip-note">' + ic("lock") + ' ' + fmt(pointsNeeded) + ' more VIP points needed for this level &nbsp;•&nbsp; <a href="javascript:void(0)" onclick="openUpgradeGuide()">Upgrade Guide ›</a></p></div>';
   /* --- Status card: points, bonus points, offer, actions --- */
   h += '<div class="card vip-status-card"><div class="sec-head"><span class="eyebrow">Your status</span><h3>Points &amp; Rewards</h3></div>' +
-    '<div class="vip-points-row"><span class="vip-points-avatar">' + esc((ME && ME.name ? ME.name : 'U')[0].toUpperCase()) + '</span><span>VIP Points: <b>' + fmt(d.myPoints) + '</b> • Bonus Points: <b>' + fmt(d.myBonusPoints) + '</b></span><button class="btn earn-pill" style="background:' + sel.color + '" onclick="earnVipPoints()">Earn</button></div>' +
+    '<div class="vip-points-row"><span class="vip-points-avatar">' + esc(displayName(ME)[0].toUpperCase()) + '</span><span>VIP Points: <b>' + fmt(d.myPoints) + '</b> • Bonus Points: <b>' + fmt(d.myBonusPoints) + '</b></span><button class="btn earn-pill" style="background:' + sel.color + '" onclick="earnVipPoints()">Earn</button></div>' +
     '<div class="vip-progress-bar"><div style="width:' + nextPct + '%;background:' + sel.color + '"></div></div>' +
     '<p class="vip-points-sub">Progress to ' + (d.nextLevel ? 'VIP' + d.nextLevel.vip : 'the top') + ' • 31 days per level</p>' +
     '<div class="action-row"><button class="btn gold" onclick="earnVipPoints()">' + ic("star") + ' Earn Points</button> ' +
@@ -1624,7 +1707,7 @@ async function openBenefitDetail(name) {
     let extra = '';
     if (name === 'Colored Username') {
       extra = '<h4>How your name looks at each level</h4>' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v =>
-        '<div class="user-row"><span class="vip-color-' + v + '"><b>' + (ME && ME.name ? esc(ME.name) : 'YourName') + '</b></span><span class="muted">VIP' + v + ' — ' + (v === 1 ? 'Single Color' : v <= 4 ? 'Single Color and Shiny' : 'Colorful and Shiny') + '</span></div>').join('') +
+        '<div class="user-row"><span class="vip-color-' + v + '"><b>' + esc(displayName(ME)) + '</b></span><span class="muted">VIP' + v + ' — ' + (v === 1 ? 'Single Color' : v <= 4 ? 'Single Color and Shiny' : 'Colorful and Shiny') + '</span></div>').join('') +
         '<p class="muted">VIP 1–3 users need the latest app version to see colorful usernames.</p>';
     }
     if (name === 'Exclusive Entrance Effect') {
@@ -1868,7 +1951,7 @@ async function openInvite() {
   } catch (e) { alert(e.message); }
 }
 async function openAI() {
-  const q = prompt('Ask the AI assistant (rooms, coins, VIP, gifts...):');
+  const q = await appPrompt('AI Assistant', 'Ask the AI assistant (rooms, coins, VIP, gifts...):');
   if (!q) return;
   try {
     const d = await api('/api/ai', { method: 'POST', headers: headers(true), body: JSON.stringify({ text: q }) });
@@ -1876,7 +1959,7 @@ async function openAI() {
   } catch (e) { alert(e.message); }
 }
 async function openFeedback() {
-  const text = prompt('Your feedback for the owner:');
+  const text = await appPrompt('Feedback', 'Your feedback for the owner:');
   if (!text) return;
   await api('/api/feedback', { method: 'POST', headers: headers(true), body: JSON.stringify({ text }) });
   alert(' Thank you! Your feedback was sent to the owner.');
@@ -1890,7 +1973,7 @@ async function openSettings() {
 }
 function toggleSound(on) { window.SFX_MUTED = !on; }
 async function changePassword() {
-  const oldP = prompt('Old password:'); const newP = prompt('New password (6+ characters):');
+  const oldP = await appPrompt('Change Password', 'Old password:', '', 'password'); const newP = await appPrompt('Change Password', 'New password (6+ characters):', '', 'password');
   if (!oldP || !newP) return;
   try { await api('/api/v2/auth/change-password', { method: 'POST', headers: headers(true), body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) }); alert('Password changed!'); }
   catch (e) { alert(e.message); }
@@ -1899,7 +1982,7 @@ async function openNotifPrefs() {
   try {
     const d = await api('/api/v2/notifications/prefs', { headers: headers() });
     const prefs = d.prefs;
-    const key = prompt('Which notification to toggle? (friendRequests / messages / micInvites / gifts / mentions)\nCurrent: ' + JSON.stringify(prefs));
+    const key = await appPrompt('Notifications', 'Which notification to toggle? (friendRequests / messages / micInvites / gifts / mentions)\nCurrent: ' + JSON.stringify(prefs));
     if (!key || !(key in prefs)) return;
     await api('/api/v2/notifications/prefs', { method: 'POST', headers: headers(true), body: JSON.stringify({ [key]: !prefs[key] }) });
     alert('Preference saved.');
@@ -1911,10 +1994,10 @@ async function loadMoments() {
   try {
     const d = await api('/api/moments', { headers: headers() });
     document.getElementById('momentList').innerHTML = d.moments.map(m =>
-      '<div class="moment"><b>' + esc(m.name) + '</b> <span class="muted">' + new Date(m.at).toLocaleString() + '</span><p>' + esc(m.text) + '</p>' +
+      '<div class="moment"><b>' + esc(displayName(m)) + '</b> <span class="muted">' + new Date(m.at).toLocaleString() + '</span><p>' + esc(m.text) + '</p>' +
       (m.image ? '<img src="' + m.image + '" alt="moment photo">' : '') +
       '<div class="m-actions"><button onclick="likeMoment(' + m.id + ')">'+ic("heart")+' ' + m.likes.length + '</button><button onclick="commentMoment(' + m.id + ')">'+ic("chat")+' ' + m.comments.length + '</button></div>' +
-      m.comments.map(c => '<p class="muted"><b>' + esc(c.name) + ':</b> ' + esc(c.text) + '</p>').join('') + '</div>'
+      m.comments.map(c => '<p class="muted"><b>' + esc(displayName(c)) + ':</b> ' + esc(c.text) + '</p>').join('') + '</div>'
     ).join('') || '<p class="muted">No moments yet — post the first one!</p>';
   } catch (e) {}
 }
@@ -1927,7 +2010,7 @@ async function postMoment() {
 }
 async function likeMoment(id) { await api('/api/moments/' + id + '/like', { method: 'POST', headers: headers() }); loadMoments(); }
 async function commentMoment(id) {
-  const text = prompt('Your comment:');
+  const text = await appPrompt('Comment', 'Your comment:');
   if (!text) return;
   await api('/api/moments/' + id + '/comment', { method: 'POST', headers: headers(true), body: JSON.stringify({ text }) });
   loadMoments();
@@ -1970,7 +2053,7 @@ async function searchUsers() {
     const rows = await Promise.all(d.users.map(async u => {
       let f = null;
       try { f = await api('/api/users/' + u.id + '/follow-state', { headers: headers() }); } catch (e) {}
-      return '<div class="user-row"><span><b class="vip-color-' + (u.vip || 0) + '">' + esc(u.name) + '</b> • ID ' + u.id + (u.vip ? ' • '+ic("crown")+' VIP' + u.vip : '') + '</span><span>' + followBtnHtml(f, u.id) + ' <button class="btn" onclick="giftToUser(\'' + u.id + '\', \'' + esc(u.name) + '\')">'+ic("gift")+' Gift</button> <button class="btn" onclick="openThread(\'' + u.id + '\');switchTab(\'messages\')">'+ic("chat")+' Chat</button></span></div>';
+      return '<div class="user-row"><span><b class="vip-color-' + (u.vip || 0) + '">' + esc(displayName(u)) + '</b> • ID ' + u.id + (u.vip ? ' • '+ic("crown")+' VIP' + u.vip : '') + '</span><span>' + followBtnHtml(f, u.id) + ' <button class="btn" onclick="giftToUser(\'' + u.id + '\', \'' + esc(displayName(u)) + '\')">'+ic("gift")+' Gift</button> <button class="btn" onclick="openThread(\'' + u.id + '\');switchTab(\'messages\')">'+ic("chat")+' Chat</button></span></div>';
     }));
     document.getElementById('userList').innerHTML = rows.join('');
   } catch (e) {}
@@ -1997,18 +2080,18 @@ async function loadFriends() {
   try {
     const d = await api('/api/friends', { headers: headers() });
     el.innerHTML = '<h3>Friends (mutual follows)</h3>' + ((d.friends || []).map(f =>
-      '<div class="user-row"><span><b class="vip-color-' + (f.vip || 0) + '">' + esc(f.name) + '</b> • ID ' + f.id + '</span><button class="btn" onclick="openThread(\'' + f.id + '\');switchTab(\'messages\')">Message</button></div>'
+      '<div class="user-row"><span><b class="vip-color-' + (f.vip || 0) + '">' + esc(displayName(f)) + '</b> • ID ' + f.id + '</span><button class="btn" onclick="openThread(\'' + f.id + '\');switchTab(\'messages\')">Message</button></div>'
     ).join('') || '<p class="muted">No friends yet — follow someone and get a follow-back.</p>');
   } catch (e) {}
 }
-function giftToUser(id, name) { giftTarget = { userId: id, name }; showGiftPanel(); }
+function giftToUser(id, name) { giftTarget = { userId: id, name: displayName({ id, name }) }; showGiftPanel(); }
 async function loadRankings(kind, btn) {
   if (btn) { document.querySelectorAll('#tab-friends .mini-tab').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
   try {
     const d = await api('/api/v2/rankings/' + kind, { headers: headers() });
     const list = d.ranking || [];
     document.getElementById('rankList').innerHTML = list.map((r, i) =>
-      '<div class="rank-row"><span class="rank-num">' + (i + 1) + '</span><span><b>' + esc(r.name || r.id) + '</b>' + (r.vip ? ' '+ic("crown")+' VIP' + r.vip : '') + ' — ' + fmt(r.wealth || r.charm || r.level || r.xp || 0) + '</span></div>'
+      '<div class="rank-row"><span class="rank-num">' + (i + 1) + '</span><span><b>' + esc(displayName(r)) + '</b>' + (r.vip ? ' '+ic("crown")+' VIP' + r.vip : '') + ' — ' + fmt(r.wealth || r.charm || r.level || r.xp || 0) + '</span></div>'
     ).join('') || '<p class="muted">No ranking yet.</p>';
   } catch (e) {}
 }
@@ -2048,17 +2131,17 @@ async function ownerStats() {
     let vc = '';
     try {
       const v = await api('/api/owner/verification-codes', { headers: headers() });
-      vc = '<h3>Pending Verification Codes</h3>' + ((v.pending || []).map(p => '<div class="user-row"><span><b>' + esc(p.name) + '</b> • ID ' + p.id + ' • ' + esc(p.email) + (p.phone ? ' • ' + esc(p.phone) : '') + ' • Code: <b>' + esc(p.code || '—') + '</b>' + (p.expiresAt ? ' • expires ' + new Date(p.expiresAt).toLocaleTimeString() : '') + '</span></div>').join('') || '<p class="muted">No accounts waiting for verification.</p>');
+      vc = '<h3>Pending Verification Codes</h3>' + ((v.pending || []).map(p => '<div class="user-row"><span><b>' + esc(displayName(p)) + '</b> • ID ' + p.id + ' • ' + esc(p.email) + (p.phone ? ' • ' + esc(p.phone) : '') + ' • Code: <b>' + esc(p.code || '—') + '</b>' + (p.expiresAt ? ' • expires ' + new Date(p.expiresAt).toLocaleTimeString() : '') + '</span></div>').join('') || '<p class="muted">No accounts waiting for verification.</p>');
     } catch (e) { vc = '<p class="muted">Verification codes unavailable.</p>'; }
     document.getElementById('ownerPanel').innerHTML = '<div class="card"><h3>'+ic("chart")+' Dashboard</h3><p>Users: <b>' + d.totalUsers + '</b> • Rooms: <b>' + d.totalRooms + '</b> • Pending recharges: <b>' + d.pendingRecharges + '</b></p>' +
-      '<h3>Users</h3>' + d.users.slice(0, 20).map(u => '<div class="user-row"><span><b>' + esc(u.name) + '</b> • ID ' + u.id + ' • ' + fmt(u.coins) + ' coins' + (u.vip ? ' • VIP' + u.vip : '') + '</span></div>').join('') + vc + '</div>';
+      '<h3>Users</h3>' + d.users.slice(0, 20).map(u => '<div class="user-row"><span><b>' + esc(displayName(u)) + '</b> • ID ' + u.id + ' • ' + fmt(u.coins) + ' coins' + (u.vip ? ' • VIP' + u.vip : '') + '</span></div>').join('') + vc + '</div>';
   } catch (e) { alert(e.message); }
 }
 async function ownerRecharges() {
   try {
     const d = await api('/api/owner/recharges', { headers: headers() });
     document.getElementById('ownerPanel').innerHTML = '<div class="card"><h3>'+ic("card")+' Recharge Requests</h3>' +
-      (d.recharges.map(r => '<div class="user-row"><span><b>' + esc(r.name) + '</b> — $' + r.usd + ' = ' + fmt(r.coins) + ' coins • ' + r.method + ' • <b>' + r.status + '</b><br><a href="' + r.receipt + '" target="_blank">View receipt</a></span>' +
+      (d.recharges.map(r => '<div class="user-row"><span><b>' + esc(displayName(r)) + '</b> — $' + r.usd + ' = ' + fmt(r.coins) + ' coins • ' + r.method + ' • <b>' + r.status + '</b><br><a href="' + r.receipt + '" target="_blank">View receipt</a></span>' +
         (r.status === 'pending' ? '<span><button class="btn gold" onclick="decideRecharge(\'' + r.id + '\',\'approved\')">Approve</button> <button class="btn danger" onclick="decideRecharge(\'' + r.id + '\',\'rejected\')">Reject</button></span>' : '') + '</div>').join('') || '<p class="muted">No recharges.</p>') + '</div>';
   } catch (e) { alert(e.message); }
 }
@@ -2133,7 +2216,7 @@ async function previewEntry(vip) {
     const pv = await api('/api/owner/vip/preview', { headers: headers() });
     const l = pv.levels.find(x => x.vip === vip);
     if (!l) return;
-    showEntrance({ name: ME.name, vip: l.vip, banner: vipNameplateImg(l.vip), animal: l.emblem, entry: l.entry });
+    showEntrance({ name: displayName(ME), vip: l.vip, banner: vipNameplateImg(l.vip), animal: l.emblem, entry: l.entry });
   } catch (e) { alert(e.message); }
 }
 async function ownerAudit() {
@@ -2147,7 +2230,7 @@ async function ownerGiveCoins() {
   const userId = document.getElementById('ocUser').value.trim();
   const amount = Number(document.getElementById('ocAmount').value);
   if (!userId || !amount) return alert('Enter user ID and amount');
-  try { const d = await api('/api/owner/coins', { method: 'POST', headers: headers(true), body: JSON.stringify({ userId, amount }) }); alert('' + d.user.name + ' now has ' + fmt(d.user.coins) + ' coins'); }
+  try { const d = await api('/api/owner/coins', { method: 'POST', headers: headers(true), body: JSON.stringify({ userId, amount }) }); alert(displayName(d.user) + ' now has ' + fmt(d.user.coins) + ' coins'); }
   catch (e) { alert(e.message); }
 }
 async function ownerSetVip() {
@@ -2254,12 +2337,12 @@ async function openThemesStore(tab) {
   } catch (e) { alert(e.message); }
 }
 async function askSendItem(itemId) {
-  const friendId = prompt('Send to which friend? Enter their user ID:');
+  const friendId = await appPrompt('Send Item', 'Send to which friend? Enter their user ID:');
   if (!friendId) return;
   try {
     const d = await api('/api/v2/vipx/send-item', { method: 'POST', headers: headers(true), body: JSON.stringify({ itemId, toUserId: friendId }) });
     pendingItem = { itemId, toUserId: friendId };
-    if (confirm(d.confirmText + '?\n\nSend / Purchase')) {
+    if (await appConfirm(d.confirmText + '?\n\nSend / Purchase')) {
       const r = await api('/api/v2/vipx/send-item', { method: 'POST', headers: headers(true), body: JSON.stringify({ itemId, toUserId: friendId, confirm: true }) });
       alert('Sent! ' + d.item.name + ' is now in your friend\'s backpack.');
       loadMe();
@@ -2539,13 +2622,13 @@ function renderHonorsProfile() {
   const lux = Math.min(5, Math.floor((u.level || 1) / 10) + (u.vip >= 5 ? 2 : 0)); /* luxury grows with level + VIP */
   const honor = u.honorTitle ? '<div class="honor-banner" style="background:' + u.honorTitle.bg + '">' + esc(u.honorTitle.title) + '</div>' : '';
   const rankBadge = u.rankBadge ? '<div class="rank-badge-wrap" style="--rb-size:' + u.rankBadge.size + 'px"><img class="rank-badge-img" src="' + u.rankBadge.svg + '" alt="rank badge"><span class="rank-badge-text">' + esc(u.rankBadge.name) + '</span></div>' : '';
-  const cpBanner = d.cp ? '<div class="cp-banner">' + ic("heart") + ' ' + esc(d.cp.label) + ' — ' + d.cp.days + ' days <span class="cp-avatars">' + esc(u.name) + ' ' + ic("heart") + ' ' + esc(d.cp.partnerName) + '</span></div>' : '';
+  const cpBanner = d.cp ? '<div class="cp-banner">' + ic("heart") + ' ' + esc(d.cp.label) + ' — ' + d.cp.days + ' days <span class="cp-avatars">' + esc(displayName(u)) + ' ' + ic("heart") + ' ' + esc(displayName(d.cp.partnerName)) + '</span></div>' : '';
   let body = '';
   if (honorsTab === 'honors') {
     body = '<div class="gifts-received"><h3>' + ic("gift") + ' Gifts Received</h3><p class="gifts-total">' + fmt(d.giftsReceived.total) + ' gifts • ' + fmt(d.giftsReceived.coins) + ' coins</p>' +
       (d.giftsReceived.grid.length ? '<div class="gift-grid">' + d.giftsReceived.grid.map(g => '<div class="gift-item"><span class="g-icon">' + iconImg(g.svg) + '</span><span>' + esc(g.name) + ' x' + g.count + '</span><br><span class="g-price">' + fmt(g.price) + ' coins</span></div>').join('') + '</div>' : '<p class="muted">No gifts received yet.</p>') + '</div>';
   } else if (honorsTab === 'moments') {
-    body = '<h3>Moments</h3>' + (d.moments.length ? d.moments.map(m => '<div class="card"><b>' + esc(m.name) + '</b><p>' + esc(m.text || '') + '</p><p class="muted">' + fmt((m.likes || []).length) + ' likes</p></div>').join('') : '<p class="muted">No moments yet.</p>');
+    body = '<h3>Moments</h3>' + (d.moments.length ? d.moments.map(m => '<div class="card"><b>' + esc(displayName(m)) + '</b><p>' + esc(m.text || '') + '</p><p class="muted">' + fmt((m.likes || []).length) + ' likes</p></div>').join('') : '<p class="muted">No moments yet.</p>');
   } else if (honorsTab === 'about') {
     body = '<h3>About</h3><p>' + esc(u.bio || 'No bio yet.') + '</p><p class="muted">Country: ' + esc(u.country || '—') + ' • Gender: ' + esc(u.gender || '—') + '</p>' +
       (u.kit ? '<h3>VIP Kit — ' + esc(u.kit.emblem) + '</h3><p class="muted">Profile frame, chat bar, entry banner, name banner, profile cover and mic ring — all in ' + esc(u.kit.emblem) + ' style, 3D animated.</p>' : '');
@@ -2554,9 +2637,9 @@ function renderHonorsProfile() {
   }
   document.getElementById('mePanel').innerHTML = '<div class="card honors-profile lux-' + lux + '" style="background:' + (u.kit ? u.kit.profileCover.themeBg : '') + '">' +
     '<button class="btn ghost close-x" onclick="switchTab(\'party\')" title="Close">✕ Close</button>' +
-    '<div class="honors-frame"><div class="avatar honors-avatar' + (u.vip ? ' vip-frame' : '') + '">' + frameImgFor(u) + (u.vip && !(APP_CONTROLS && APP_CONTROLS.vipFrames === false) ? '<img class="frame-img vip-frame-img" src="' + ((u.kit && u.kit.profileFrame) ? u.kit.profileFrame.svg : vipFrameImg(u.vip)) + '" alt="VIP frame">' : '') + esc((u.name || 'A')[0].toUpperCase()) + '</div>' +
+    '<div class="honors-frame"><div class="avatar honors-avatar' + (u.vip ? ' vip-frame' : '') + '">' + frameImgFor(u) + (u.vip && !(APP_CONTROLS && APP_CONTROLS.vipFrames === false) ? '<img class="frame-img vip-frame-img" src="' + ((u.kit && u.kit.profileFrame) ? u.kit.profileFrame.svg : vipFrameImg(u.vip)) + '" alt="VIP frame">' : '') + esc(displayName(u)[0].toUpperCase()) + '</div>' +
     (u.vip >= 5 ? '<span class="honors-frame-glow"></span>' : '') + '</div>' +
-    '<h2 class="vip-color-' + (u.vip || 0) + '">' + esc(u.name) + '</h2>' +
+    '<h2 class="vip-color-' + (u.vip || 0) + '">' + esc(displayName(u)) + '</h2>' +
     (u.svip ? svipBadgeImg() : '') +
     honor +
     (u.vip ? vipBannerImg(u.vip) : '') +
@@ -2566,7 +2649,7 @@ function renderHonorsProfile() {
     cpBanner +
     '<div class="stats-row"><div><b>' + fmt(s.visitors) + '</b><span>Visitors</span></div><div><b>' + fmt(s.followers) + '</b><span>Followers</span></div><div><b>' + fmt(s.following) + '</b><span>Following</span></div></div>' +
     '<div class="action-row"><button class="btn" onclick="alert(\'Liked!\')">' + ic("heart") + ' Like</button>' +
-    (d.isMe ? '' : followBtnHtml(d.follow, u.id) + ' <button class="btn gold" onclick="openThread(\'' + u.id + '\')">Message</button> <button class="btn" onclick="giftToUser(\'' + u.id + '\', \'' + esc(u.name) + '\')">' + ic("gift") + ' Gift</button>') + '</div>' +
+    (d.isMe ? '' : followBtnHtml(d.follow, u.id) + ' <button class="btn gold" onclick="openThread(\'' + u.id + '\')">Message</button> <button class="btn" onclick="giftToUser(\'' + u.id + '\', \'' + esc(displayName(u)) + '\')">' + ic("gift") + ' Gift</button>') + '</div>' +
     (profileFromMic ? micProfileActionsHtml(d, u) : '') +
     (d.isMe ? (u.vip >= 10 ? '<div class="mic-profile-actions"><button class="btn" onclick="toggleAnonymous()">Anonymous Display (VIP10) — tap to toggle</button></div>' : '<p class="muted">' + ic("lock") + ' Anonymous Display is a VIP10 benefit.</p>') : '') +
     '<div class="tabs-mini">' + ['moments', 'honors', 'about', 'rooms'].map(t => '<button class="mini-tab' + (t === honorsTab ? ' active' : '') + '" onclick="honorsTab=\'' + t + '\';renderHonorsProfile()">' + t[0].toUpperCase() + t.slice(1) + '</button>').join('') + '</div>' +
@@ -2575,8 +2658,8 @@ function renderHonorsProfile() {
     '</div>';
 }
 function profileTab(t) { honorsTab = t; renderHonorsProfile(); }
-async function blockUser(id) { if (!confirm('Block this user? You will not see their messages or rooms.')) return; try { await api('/api/v2/extras/users/' + id + '/block', { method: 'POST', headers: headers() }); alert('User blocked.'); } catch (e) { alert(e.message); } }
-async function reportUser(id) { const reason = prompt('Why are you reporting this user?'); if (!reason) return; try { await api('/api/v2/extras/users/' + id + '/report', { method: 'POST', headers: headers(true), body: JSON.stringify({ reason }) }); alert(' Report sent to the owner. Thank you for keeping AZLAN WORLD CHAT safe.'); } catch (e) { alert(e.message); } }
+async function blockUser(id) { if (!(await appConfirm('Block this user? You will not see their messages or rooms.'))) return; try { await api('/api/v2/extras/users/' + id + '/block', { method: 'POST', headers: headers() }); alert('User blocked.'); } catch (e) { alert(e.message); } }
+async function reportUser(id) { const reason = await appPrompt('Report User', 'Why are you reporting this user?'); if (!reason) return; try { await api('/api/v2/extras/users/' + id + '/report', { method: 'POST', headers: headers(true), body: JSON.stringify({ reason }) }); alert(' Report sent to the owner. Thank you for keeping AZLAN WORLD CHAT safe.'); } catch (e) { alert(e.message); } }
 
 /* ---------------- 3D EMOJI ON MIC + ROOM THEMES STORE + ROOM ADMIN ---------------- */
 /* 3D emoji panel — tap any emoji and it shows on YOUR mic seat.
@@ -2629,7 +2712,7 @@ async function applyRoomTheme(id) {
 /* Room admin — the host makes an admin; Admin tag shows on their ID */
 async function makeRoomAdminPrompt() {
   if (!currentRoom) return;
-  const userId = prompt('User ID to make admin of this room:');
+  const userId = await appPrompt('Make Admin', 'User ID to make admin of this room:');
   if (!userId) return;
   try { const d = await api('/api/v2/updates/rooms/' + currentRoom.id + '/admin', { method: 'POST', headers: headers(true), body: JSON.stringify({ userId }) }); alert('Admin set! The Admin tag now shows on their ID.'); }
   catch (e) { alert(e.message); }
@@ -2664,7 +2747,7 @@ async function openStudio() {
 }
 function renderStudio() {
   const p = document.getElementById('ownerPanel'); if (!p || !STUDIO) return;
-  const tabs = [['design', 'Design'], ['content', 'Content'], ['settings', 'Settings']];
+  const tabs = [['design', 'Design'], ['content', 'Content'], ['lists', 'Manage Lists'], ['settings', 'Settings']];
   let html = '<div class="card studio"><h3>' + ic('edit') + ' Customization Studio</h3>' +
     '<p class="muted">Change anything in the app yourself — no coding. Changes apply live, immediately, for everyone.</p>' +
     '<div class="tabs-mini">' + tabs.map(t => '<button class="mini-tab' + (STUDIO_TAB === t[0] ? ' active' : '') + '" onclick="STUDIO_TAB=\'' + t[0] + '\';renderStudio()">' + t[1] + '</button>').join('') + '</div>' +
@@ -2674,6 +2757,7 @@ function renderStudio() {
   p.innerHTML = html;
   if (STUDIO_TAB === 'design') studioDesign();
   else if (STUDIO_TAB === 'content') studioContent();
+  else if (STUDIO_TAB === 'lists') studioLists();
   else studioSettings();
 }
 function studioMsg(t) { const el = document.getElementById('studioMsg'); if (el) el.textContent = t || ''; }
@@ -2716,7 +2800,7 @@ async function studioSaveDesign() {
   } catch (e) { studioMsg(e.message); }
 }
 async function studioReset() {
-  if (!confirm('Reset ALL design and content changes to defaults? (Added gifts/items stay.)')) return;
+  if (!(await appConfirm('Reset ALL design and content changes to defaults? (Added gifts/items stay.)'))) return;
   try {
     const d = await api('/api/owner/content/reset', { method: 'POST', headers: headers() });
     CONTENT_OVERRIDES = d.customization; applyDesign(CONTENT_OVERRIDES.design || {});
@@ -2751,7 +2835,8 @@ function studioToggleVip(v) {
   const l = (STUDIO.levels || []).find(x => x.vip === v); if (!l) return;
   const slotRow = (kind, label, url) =>
     '<div class="studio-row"><span>' + label + '</span><img class="studio-thumb" src="' + esc(url) + '" alt=""><span><input id="vipUrl-' + v + '-' + kind + '" value="' + esc(url) + '" style="width:180px"></span>' +
-    '<span><button class="btn" onclick="studioUploadBtn({kind:\'vip-' + kind + '\',vip:' + v + '})">Upload photo</button> <button class="btn" onclick="studioAiOpen({kind:\'vip-' + kind + '\',vip:' + v + '})">AI Search</button></span></div>';
+    '<span><button class="btn" onclick="studioUploadBtn({kind:\'vip-' + kind + '\',vip:' + v + '})">Upload photo</button> <button class="btn" onclick="studioAiOpen({kind:\'vip-' + kind + '\',vip:' + v + '})">AI Search</button></span></div>' +
+    studioVipArtVariants(v, kind);
   box.innerHTML =
     '<label class="studio-row"><span>Badge name</span><input id="vipName-' + v + '" value="' + esc(l.name) + '"></label>' +
     slotRow('badge', 'Badge photo', l.badge) + slotRow('frame', 'Frame', l.frame) + slotRow('crown', 'Crown', l.crown) + slotRow('nameplate', 'Nameplate', l.nameplate) +
@@ -2804,6 +2889,178 @@ async function studioAddShop() {
     const s = await api('/api/owner/content', { headers: headers() }); STUDIO = s; studioContent();
   } catch (e) { studioMsg(e.message); }
 }
+
+/* ============ OWNER MANAGE LISTS — Add / Remove / Reorder (2026-11-22) ==
+   Every list the owner manages gets Add, Remove (with a confirm step) and
+   Move up / Move down. Changes apply live immediately and persist on the
+   server; the order the owner sets is the order every user sees. VIP levels
+   are fixed at 1–12 — they can be reordered or hidden, never added or
+   deleted, and reordering never changes a level's price/points/benefits. */
+async function studioListsApi(path, body) {
+  return api('/api/owner/content' + path, { method: 'POST', headers: headers(true), body: JSON.stringify(body || {}) });
+}
+async function studioReload() {
+  const d = await api('/api/owner/content', { headers: headers() });
+  STUDIO = d;
+  if (STUDIO_TAB === 'lists') studioLists();
+  else if (STUDIO_TAB === 'content') studioContent();
+}
+function studioListsState() { return (STUDIO && STUDIO.lists) || { order: {}, hidden: {}, custom: {}, vipArt: {} }; }
+function studioOrdered(items, order, idOf) {
+  const byId = new Map(items.map(it => [String(idOf(it)), it]));
+  const out = [];
+  (order || []).forEach(id => { const it = byId.get(String(id)); if (it) { out.push(it); byId.delete(String(id)); } });
+  items.forEach(it => { if (byId.has(String(idOf(it)))) out.push(it); });
+  return out;
+}
+function studioIsHidden(kind, id) { const h = studioListsState().hidden[kind] || []; return h.map(String).includes(String(id)); }
+function studioListItems(kind) {
+  const st = studioListsState();
+  if (kind === 'vip') return studioOrdered(STUDIO.levels || [], st.order.vip, l => l.vip).filter(l => !studioIsHidden('vip', l.vip));
+  if (kind === 'gifts') return studioOrdered(STUDIO.gifts || [], st.order.gifts, g => g.id).filter(g => !studioIsHidden('gifts', g.id));
+  if (kind === 'shop') return studioOrdered(STUDIO.shop || [], st.order.shop, i => i.id).filter(i => !studioIsHidden('shop', i.id));
+  if (kind === 'ids') return studioListItems('shop').filter(i => i.category === 'Unique ID');
+  if (kind === 'rooms') return studioOrdered(STUDIO.rooms || [], st.order.rooms, r => r.id);
+  if (kind === 'announcements') return studioOrdered(STUDIO.announcements || [], st.order.announcements, b => b.id);
+  return [];
+}
+function studioHiddenItems(kind) {
+  if (kind === 'vip') return (STUDIO.levels || []).filter(l => studioIsHidden('vip', l.vip));
+  if (kind === 'gifts') return (STUDIO.gifts || []).filter(g => studioIsHidden('gifts', g.id));
+  if (kind === 'shop') return (STUDIO.shop || []).filter(i => studioIsHidden('shop', i.id));
+  return [];
+}
+async function studioListMove(kind, id, dir) {
+  if (kind === 'ids') {
+    const ids = studioListItems('ids').map(i => String(i.id));
+    const i = ids.indexOf(String(id)); const j = i + dir;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    const t = ids[i]; ids[i] = ids[j]; ids[j] = t;
+    /* Merge back into the full shop order: non-ID items stay in place, the
+       ID slots take the new ID order. */
+    const full = studioListItems('shop').map(x => String(x.id));
+    const idSet = new Set(ids); let k = 0;
+    const merged = full.map(x => idSet.has(x) ? ids[k++] : x);
+    try { const d = await studioListsApi('/lists/order', { kind: 'shop', order: merged }); STUDIO.lists = d.lists; studioLists(); studioMsg('Order saved — live for everyone now.'); } catch (e) { studioMsg(e.message); }
+    return;
+  }
+  const items = studioListItems(kind);
+  const ids = items.map(it => String(kind === 'vip' ? it.vip : it.id));
+  const i = ids.indexOf(String(id));
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return;
+  const t = ids[i]; ids[i] = ids[j]; ids[j] = t;
+  try { const d = await studioListsApi('/lists/order', { kind, order: ids }); STUDIO.lists = d.lists; studioLists(); studioMsg('Order saved — live for everyone now.'); } catch (e) { studioMsg(e.message); }
+}
+async function studioListRemove(kind, id, label) {
+  const ok = await appConfirm('Remove ' + label + '? Built-in items are hidden and can be restored later; your own added items and rooms are deleted for good.');
+  if (!ok) return;
+  try {
+    const d = await studioListsApi('/lists/remove', { kind: kind === 'ids' ? 'shop' : kind, id });
+    if (d.lists) STUDIO.lists = d.lists;
+    await studioReload();
+    studioMsg('Removed (' + (d.removed || '') + ') — live now.');
+  } catch (e) { studioMsg(e.message); }
+}
+async function studioListRestore(kind, id) {
+  try { const d = await studioListsApi('/lists/restore', { kind: kind === 'ids' ? 'shop' : kind, id }); STUDIO.lists = d.lists; await studioReload(); studioMsg('Restored — live now.'); } catch (e) { studioMsg(e.message); }
+}
+function studioLists() {
+  const el = document.getElementById('studioBody'); if (!el) return;
+  const row = (kind, id, inner, label) =>
+    '<div class="studio-row"><span>' + inner + '</span><span class="studio-list-btns">' +
+    '<button class="btn" title="Move up" onclick="studioListMove(\'' + kind + '\',\'' + id + '\',-1)">↑</button>' +
+    '<button class="btn" title="Move down" onclick="studioListMove(\'' + kind + '\',\'' + id + '\',1)">↓</button>' +
+    '<button class="btn danger" title="Remove" onclick="studioListRemove(\'' + kind + '\',\'' + id + '\',\'' + esc(label).replace(/\'/g, '') + '\')">✕</button></span></div>';
+  const hiddenRow = (kind, id, inner) =>
+    '<div class="studio-row studio-hidden-row"><span>' + inner + '</span><button class="btn gold" onclick="studioListRestore(\'' + kind + '\',\'' + id + '\')">Restore</button></div>';
+  let html = '<h3>Manage Lists — Add, Remove, Reorder</h3><p class="muted">Everything you change here applies live, immediately, for everyone — no coding, no redeploy. The order you set is the order users see. Built-in items you remove are hidden (restore them below); items you added yourself are deleted for good.</p>';
+  html += '<h3>VIP Levels (1–12)</h3><p class="muted">Reorder or hide a level. VIP levels cannot be added or deleted, and moving one never changes its price, points or benefits.</p>';
+  studioListItems('vip').forEach(l => {
+    html += row('vip', l.vip, '<img class="studio-thumb" src="' + esc(l.badge) + '" alt=""> <b>VIP ' + l.vip + ' — ' + esc(l.name) + '</b> <span class="muted">' + fmt(l.price) + ' coins • ' + fmt(l.points) + ' pts</span>', 'VIP ' + l.vip);
+  });
+  studioHiddenItems('vip').forEach(l => { html += hiddenRow('vip', l.vip, '<b>VIP ' + l.vip + ' — ' + esc(l.name) + '</b> <span class="muted">(hidden)</span>'); });
+  html += '<h3>Gifts</h3>';
+  studioListItems('gifts').forEach(g => {
+    html += row('gifts', g.id, '<img class="studio-thumb" src="' + esc(g.svg || 'assets/icons/gift.svg') + '" alt=""> <b>' + esc(g.name) + '</b> <span class="muted">' + fmt(g.price) + ' coins</span>', g.name);
+  });
+  studioHiddenItems('gifts').forEach(g => { html += hiddenRow('gifts', g.id, '<b>' + esc(g.name) + '</b> <span class="muted">(hidden)</span>'); });
+  html += '<div class="card"><h3>Add a New Gift</h3><input id="studioListNewGiftName" placeholder="Gift name"><input id="studioListNewGiftPrice" type="number" placeholder="Price in coins"><button class="btn gold" onclick="studioListAddGift()">Add Gift</button></div>';
+  html += '<h3>Store Items</h3>';
+  studioListItems('shop').forEach(it => {
+    html += row('shop', it.id, '<b>' + esc(it.name) + '</b> <span class="muted">' + fmt(it.price) + ' coins • ' + esc(it.category || '') + '</span>', it.name);
+  });
+  studioHiddenItems('shop').forEach(it => { html += hiddenRow('shop', it.id, '<b>' + esc(it.name) + '</b> <span class="muted">(hidden)</span>'); });
+  html += '<div class="card"><h3>Add a New Store Item</h3><input id="studioListNewShopName" placeholder="Item name"><input id="studioListNewShopPrice" type="number" placeholder="Price in coins"><input id="studioListNewShopCat" placeholder="Category (e.g. Theme)"><button class="btn gold" onclick="studioListAddShop()">Add Item</button></div>';
+  html += '<h3>Unique IDs</h3><p class="muted">Special ID numbers users can buy. Add one, reorder them, or remove one.</p>';
+  studioListItems('ids').forEach(it => {
+    html += row('ids', it.id, '<b>' + esc(it.name) + '</b> <span class="muted">' + fmt(it.price) + ' coins</span>', it.name);
+  });
+  html += '<div class="card"><h3>Add a New Unique ID</h3><input id="studioListNewIdName" placeholder="ID number (e.g. 10000007)"><input id="studioListNewIdPrice" type="number" placeholder="Price in coins"><button class="btn gold" onclick="studioListAddId()">Add Unique ID</button></div>';
+  html += '<h3>Rooms</h3><p class="muted">Reorder rooms (the order users see in Party) or remove a room. Create rooms from the Party tab.</p>';
+  studioListItems('rooms').forEach(r => {
+    html += row('rooms', r.id, '<b>' + esc(r.name || 'Room') + '</b> <span class="muted">ID ' + r.id + ' • ' + (r.members || 0) + ' members</span>', 'room ' + (r.name || r.id));
+  });
+  html += '<button class="btn gold" onclick="createRoomPrompt()">+ Create a New Room</button>';
+  html += '<h3>Announcements</h3><p class="muted">Messages shown to everyone on the platform (the broadcast feed).</p>';
+  studioListItems('announcements').forEach(b => {
+    html += row('announcements', b.id, '<span>' + esc(b.text || '') + '</span> <span class="muted">' + (b.at ? new Date(b.at).toLocaleDateString() : '') + '</span>', 'announcement');
+  });
+  html += '<div class="card"><h3>Add an Announcement</h3><input id="studioListNewAnnText" placeholder="Announcement text"><button class="btn gold" onclick="studioListAddAnn()">Add Announcement</button></div>';
+  el.innerHTML = html;
+}
+async function studioListAddGift() {
+  const name = (document.getElementById('studioListNewGiftName') || {}).value;
+  const price = (document.getElementById('studioListNewGiftPrice') || {}).value;
+  try { const d = await studioListsApi('/lists/add', { kind: 'gifts', item: { name, price: Number(price) } }); await studioReload(); studioMsg('Gift added: ' + d.gift.name + ' — live now.'); } catch (e) { studioMsg(e.message); }
+}
+async function studioListAddShop() {
+  const name = (document.getElementById('studioListNewShopName') || {}).value;
+  const price = (document.getElementById('studioListNewShopPrice') || {}).value;
+  const category = (document.getElementById('studioListNewShopCat') || {}).value;
+  try { const d = await studioListsApi('/lists/add', { kind: 'shop', item: { name, price: Number(price), category } }); await studioReload(); studioMsg('Store item added: ' + d.item.name + ' — live now.'); } catch (e) { studioMsg(e.message); }
+}
+async function studioListAddId() {
+  const name = (document.getElementById('studioListNewIdName') || {}).value;
+  const price = (document.getElementById('studioListNewIdPrice') || {}).value;
+  try { const d = await studioListsApi('/lists/add', { kind: 'ids', item: { name, price: Number(price) } }); await studioReload(); studioMsg('Unique ID added: ' + d.item.name + ' — live now.'); } catch (e) { studioMsg(e.message); }
+}
+async function studioListAddAnn() {
+  const text = (document.getElementById('studioListNewAnnText') || {}).value;
+  try { await studioListsApi('/lists/add', { kind: 'announcements', item: { text } }); await studioReload(); studioMsg('Announcement added — live now.'); } catch (e) { studioMsg(e.message); }
+}
+/* VIP art variants: each VIP level's badge / frame / crown / nameplate can
+   hold several art options; the FIRST is the active one everywhere. */
+function studioVipArtVariants(v, kind) {
+  const variants = (((STUDIO.lists || {}).vipArt || {})[String(v)] || {})[kind] || [];
+  if (!variants.length) return '';
+  return '<div class="studio-variants">' + variants.map((u, i) =>
+    '<span class="studio-variant' + (i === 0 ? ' active' : '') + '"><img src="' + esc(u) + '" alt="">' +
+    (i === 0 ? '<b>Active</b>' : '<button class="btn" title="Make active" onclick="studioVipArt(' + v + ',\'' + kind + '\',\'set-active\',' + i + ')">★</button>') +
+    '<button class="btn" title="Move up" onclick="studioVipArt(' + v + ',\'' + kind + '\',\'move\',' + i + ',-1)">↑</button>' +
+    '<button class="btn" title="Move down" onclick="studioVipArt(' + v + ',\'' + kind + '\',\'move\',' + i + ',1)">↓</button>' +
+    '<button class="btn danger" title="Remove" onclick="studioVipArt(' + v + ',\'' + kind + '\',\'remove\',' + i + ')">✕</button></span>'
+  ).join('') +
+  '<span class="studio-variant-add"><input id="vipArtUrl-' + v + '-' + kind + '" placeholder="Image URL"><button class="btn" onclick="studioVipArtAdd(' + v + ',\'' + kind + '\')">Add</button> <button class="btn" onclick="studioUploadBtn({kind:\'vip-art\',vip:' + v + ',slot:\'' + kind + '\'})">Upload</button> <button class="btn" onclick="studioAiOpen({kind:\'vip-art\',vip:' + v + ',slot:\'' + kind + '\'})">AI Search</button></span></div>';
+}
+async function studioVipArt(v, slot, action, index, dir) {
+  try {
+    const d = await studioListsApi('/lists/vip-art', { vip: Number(v), slot, action, index, dir: dir === -1 ? 'up' : 'down' });
+    STUDIO.lists = d.lists; await studioReload();
+    if (STUDIO_TAB === 'content') { const box = document.getElementById('vipEdit-' + v); if (box) studioToggleVip(Number(v)); }
+    studioMsg('VIP ' + v + ' ' + slot + ' updated — live now.');
+  } catch (e) { studioMsg(e.message); }
+}
+async function studioVipArtAdd(v, slot) {
+  const url = (document.getElementById('vipArtUrl-' + v + '-' + slot) || {}).value || '';
+  if (!url) { studioMsg('Paste an image URL first, or use Upload / AI Search.'); return; }
+  try {
+    const d = await studioListsApi('/lists/vip-art', { vip: Number(v), slot, url, action: 'add' });
+    STUDIO.lists = d.lists; await studioReload();
+    if (STUDIO_TAB === 'content') { const box = document.getElementById('vipEdit-' + v); if (box) studioToggleVip(Number(v)); }
+    studioMsg('Art option added — live now.');
+  } catch (e) { studioMsg(e.message); }
+}
 function studioSettings() {
   const el = document.getElementById('studioBody'); if (!el) return;
   const c = STUDIO.customization || {};
@@ -2834,7 +3091,7 @@ function studioUploadBtn(slot) {
     studioMsg('Uploading photo…');
     try {
       const fd = new FormData(); fd.append('image', f);
-      const res = await fetch('/api/owner/content/upload', { method: 'POST', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd });
+      const res = await fetch(API + '/api/owner/content/upload', { method: 'POST', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Upload failed');
       await studioApplySlot(slot, d.url);
@@ -2844,6 +3101,12 @@ function studioUploadBtn(slot) {
   input.click();
 }
 async function studioApplySlot(slot, url) {
+  if (slot.kind === 'vip-art') {
+    await studioListsApi('/lists/vip-art', { vip: slot.vip, slot: slot.slot, url, action: 'add' });
+    await studioReload();
+    if (STUDIO_TAB === 'content') { const box = document.getElementById('vipEdit-' + slot.vip); if (box) studioToggleVip(slot.vip); }
+    return;
+  }
   await api('/api/owner/content', { method: 'POST', headers: headers(true), body: JSON.stringify({ apply: { slot, url } }) });
   await loadCustomization();
   if (slot.kind === 'new-gift') { const el = document.getElementById('studioNewGiftSvg'); if (el) el.value = url; return; }
@@ -2859,7 +3122,7 @@ async function studioApplySlot(slot, url) {
 function studioAiOpen(slot) {
   STUDIO_AI_SLOT = slot;
   const area = document.getElementById('studioAiArea'); if (!area) return;
-  const label = slot.kind === 'gift' ? 'gift ' + slot.id : slot.kind === 'shop' ? 'store item ' + slot.id : slot.kind === 'new-gift' ? 'new gift' : 'VIP ' + slot.vip + ' ' + slot.kind.replace('vip-', '');
+  const label = slot.kind === 'gift' ? 'gift ' + slot.id : slot.kind === 'shop' ? 'store item ' + slot.id : slot.kind === 'new-gift' ? 'new gift' : slot.kind === 'vip-art' ? 'VIP ' + slot.vip + ' ' + slot.slot + ' art option' : 'VIP ' + slot.vip + ' ' + slot.kind.replace('vip-', '');
   area.innerHTML = '<div class="card studio-ai"><h3>' + ic('ai') + ' AI Search — for: ' + esc(label) + '</h3>' +
     '<p class="muted">Type what you want (e.g. "golden dragon badge", "red fire frame", "luxury gift"). Tap a design to apply it to this slot instantly.</p>' +
     '<div class="studio-row"><input id="studioAiQ" placeholder="golden dragon badge…" onkeydown="if(event.key===\'Enter\')studioAiGo()"><button class="btn gold" onclick="studioAiGo()">Search</button></div>' +
@@ -2919,7 +3182,7 @@ async function toggleGiftControl(id, enabled) { try { await api('/api/controls/o
 async function toggleBenefitControl(name, enabled) { try { await api('/api/controls/owner/benefit', { method: 'POST', headers: headers(true), body: JSON.stringify({ benefit: name, enabled }) }); openOwnerControls(); } catch (e) { alert(e.message); } }
 async function toggleVipControl(vip, enabled) { try { await api('/api/controls/owner/vip-level', { method: 'POST', headers: headers(true), body: JSON.stringify({ vip, enabled }) }); openOwnerControls(); } catch (e) { alert(e.message); } }
 async function setPriceControl(kind, id, price) { try { await api('/api/controls/owner/price', { method: 'POST', headers: headers(true), body: JSON.stringify({ kind, id, price: Number(price) }) }); alert('Price updated: ' + fmt(Number(price))); } catch (e) { alert(e.message); } }
-async function resetControls() { if (!confirm('Reset ALL owner controls to defaults?')) return; try { await api('/api/controls/owner/reset', { method: 'POST', headers: headers() }); alert('Controls reset.'); openOwnerControls(); } catch (e) { alert(e.message); } }
+async function resetControls() { if (!(await appConfirm('Reset ALL owner controls to defaults?'))) return; try { await api('/api/controls/owner/reset', { method: 'POST', headers: headers() }); alert('Controls reset.'); openOwnerControls(); } catch (e) { alert(e.message); } }
 
 
 /* Auto-login if a token is saved */
