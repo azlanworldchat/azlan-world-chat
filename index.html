@@ -101,12 +101,15 @@
     </div>
   </header>
   <div id="announce" class="announce hidden"></div>
+  <!-- BACKGROUND LIVE MINI-PLAYER: appears when you leave a room to the
+       menu — you are still live in the room, tap to go back, or Leave. -->
+  <div id="bgMiniPlayer" class="bg-mini-player hidden"></div>
 
   <!-- PARTY -->
   <div id="tab-party" class="tab-page">
     <div id="honorBanner"></div>
     <div class="room-hero">
-      <div><span class="eyebrow">Live now</span><h2>Voice Rooms</h2></div>
+      <div><span class="eyebrow">Live now</span><h2>Voice Rooms</h2><p class="simple-hint">Tap a room to join and talk — voice only, no video.</p></div>
       <button class="btn gold" onclick="createRoomPrompt()">+ Create Room</button>
     </div>
     <input id="roomSearch" placeholder="Search rooms..." oninput="searchRooms()">
@@ -151,7 +154,8 @@
         <button class="btn" onclick="openMicStyles()"><img class="ic" src="assets/icons/mic.svg" alt=""> Mic Style</button>
         <button class="btn" onclick="openMicWaves()"><img class="ic" src="assets/icons/wave.svg" alt=""> Mic Wave</button>
         <button class="btn" onclick="openVoiceSettings(true)"><img class="ic" src="assets/icons/room/speaker.svg" alt=""> Voice Settings</button>
-        <button class="btn danger" onclick="leaveRoom()"><img class="ic" src="assets/icons/room/leave-room.svg" alt=""> Leave Room</button>
+        <button class="btn danger" onclick="leaveRoom()"><img class="ic" src="assets/icons/room/leave-room.svg" alt=""> Leave to Menu — stay live</button>
+        <button class="btn danger" onclick="leaveRoomFully()"><img class="ic" src="assets/icons/room/leave-room.svg" alt=""> Leave Room Fully</button>
       </div>
       <div id="voiceNotes"></div>
       <!-- ROOM BOTTOM BAR — exactly 8 controls ONLY (owner rule): (1) Speaker
@@ -184,6 +188,7 @@
   <!-- DISCOVER -->
   <div id="tab-discover" class="tab-page hidden">
     <h2>Discover &mdash; Moments</h2>
+    <p class="simple-hint">See what people shared. Write your own moment below.</p>
     <div class="card">
       <textarea id="momentText" placeholder="Share a moment..." rows="2"></textarea>
       <button class="btn gold" onclick="postMoment()">Post Moment</button>
@@ -194,6 +199,7 @@
   <!-- MESSAGES -->
   <div id="tab-messages" class="tab-page hidden">
     <h2>Messages</h2>
+    <p class="simple-hint">Your chats are here. Tap a person to open the chat.</p>
     <div id="inboxList"></div>
     <div id="chatThread" class="hidden">
       <button class="btn ghost" onclick="closeThread()">&larr; Back</button>
@@ -209,6 +215,7 @@
   <!-- FRIENDS / SEARCH -->
   <div id="tab-friends" class="tab-page hidden">
     <h2>Friends &amp; Search</h2>
+    <p class="simple-hint">Search people by name or ID, then tap Follow to add them.</p>
     <input id="userSearch" placeholder="Search by name or ID..." oninput="searchUsers()">
     <div id="userList"></div>
     <div id="friendsList"></div>
@@ -224,11 +231,13 @@
   <!-- ME -->
   <div id="tab-me" class="tab-page hidden">
     <div class="profile-card">
+      <button class="btn gold edit-profile-btn me-edit-btn" onclick="openEditProfile()" title="Edit your profile"><img class="ic" src="assets/icons/edit.svg" alt=""> Edit Profile</button>
       <div id="myAvatar" class="avatar">A</div>
       <h2 id="myName">&mdash;</h2>
       <p id="myUid" class="muted"></p>
       <p id="myVipBadge"></p>
       <p id="myBio" class="muted"></p>
+      <p class="simple-hint">This is you. Tap Edit Profile above to change your name, country and more.</p>
       <div class="stats-row">
         <div><b id="statCoins">0</b><span>Coins</span></div>
         <div><b id="statDiamonds">0</b><span>Diamonds</span></div>

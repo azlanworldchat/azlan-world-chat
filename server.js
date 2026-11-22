@@ -140,6 +140,12 @@ if (!db.settings.controls) db.settings.controls = { animations: true, sounds: tr
 (function backfill() {
  const fresh = blankDb();
  let changed = false;
+ for (const u of db.users) {
+  if (u.tag === undefined) { u.tag = ''; changed = true; }
+  if (u.dob === undefined) { u.dob = null; changed = true; }
+  if (u.frameId === undefined) { u.frameId = u.profileFrame || null; changed = true; }
+  if (u.cardSkinId === undefined) { u.cardSkinId = null; changed = true; }
+ }
  for (const g of fresh.gifts) if (!db.gifts.find(x => x.id === g.id)) { db.gifts.push(g); changed = true; }
  for (const i of fresh.shop) if (!db.shop.find(x => x.id === i.id)) { db.shop.push(i); changed = true; }
  if (changed) save();
@@ -160,7 +166,7 @@ if (!db.users.find(u => u.email === OWNER_EMAIL)) {
   password: bcrypt.hashSync(OWNER_DEFAULT_PASSWORD, 10),
   coins: 0, diamonds: 0, charm: 0, wealth: 0, vip: 11, vipUntil: null, // owner: VIP 11 PERMANENT (never "No VIP yet")
   level: 42, followers: [], following: [], inventory: [],
-  bio: 'Owner of AZLAN WORLD CHAT', gender: 'Male', country: 'Pakistan',
+  bio: 'Owner of AZLAN WORLD CHAT', gender: 'Male', country: 'Pakistan', tag: '', dob: null, frameId: null, cardSkinId: null,
   createdAt: new Date().toISOString(), banned: false, deviceId: null, verified: true,
   lastDaily: null, inviteCode: 'AZLAN1', invitedBy: null, totalRecharged: 0
  });
@@ -202,27 +208,47 @@ function ownerOnly(req, res, next) {
 }
 function publicUser(u) {
  if (!u) return null;
- /* PRIVACY (owner rule 2026-11-22): email, phone, verification code and
-    device id are PRIVATE — visible only to the owner (ownerUser below) or
-    to the user themself. Every public response (profiles, user search,
+ /* PRIVACY (owner rule 2026-11-22, extended 2026-11-22 profile edit):
+    email, phone, verification code, device id, date of birth and gender are
+    PRIVATE — visible only to the user themself (ownUser below, used only by
+    GET/PUT /api/me). Every public response (profiles, user search,
     rankings, rooms, leaderboards) goes through this function, so private
     details can never leak to another user's client. */
- const { password, email, phone, verificationCode, verificationExpires, deviceId, ...rest } = u;
+ const { password, email, phone, verificationCode, verificationExpires, deviceId, dob, gender, ...rest } = u;
  /* NAME SAFETY (null-name fix 2026-11-22): a name can never leave the server
     as null/undefined/empty or the literal strings "null"/"undefined" — every
     consumer of a user record shows a real display name instead. */
  rest.name = displayNameOf(u);
+ rest.displayName = rest.name;
+ /* Profile fields every public view may show (never phone/email/dob/gender). */
+ rest.country = u.country || '';
+ rest.tag = u.tag || '';
+ rest.bio = u.bio || '';
+ rest.frameId = u.frameId || u.profileFrame || null;
+ rest.cardSkinId = u.cardSkinId || null;
+ rest.profileFrame = rest.frameId;
  /* OWNER VIP FLOOR: the owner is always at least VIP 11 (permanent). A fresh
     database seeds the owner at VIP 11, but an older record may still hold 0 —
     never report the owner as "no VIP". */
  if (u.role === 'owner') rest.vip = Math.max(u.vip || 0, 11);
  return rest;
 }
+/* Own-profile view: public fields PLUS gender and date of birth, which are
+   private and shown only on the owner's own profile / edit screen.
+   Used ONLY by GET /api/me and PUT /api/me (both derive the user from the
+   session token). Never used on any route that shows another user. */
+function ownUser(u) {
+ if (!u) return null;
+ const p = publicUser(u);
+ p.gender = u.gender || '';
+ p.dob = u.dob || null;
+ return p;
+}
 /* Owner-only view: the owner sees email + phone in the Owner Portal
    (verification codes, VIP list, stats). Never used on public routes. */
 function ownerUser(u) {
  if (!u) return null;
- const { password, verificationCode, verificationExpires, ...rest } = u;
+ const { password, verificationCode, verificationExpires, dob, gender, ...rest } = u;
  rest.name = displayNameOf(u);
  if (u.role === 'owner') rest.vip = Math.max(u.vip || 0, 11);
  return rest;
@@ -252,6 +278,100 @@ function cleanNameInput(name) {
  if (!n || n.toLowerCase() === 'null' || n.toLowerCase() === 'undefined') return null;
  return n;
 }
+/* ---------------- profile edit validation (2026-11-22) ----------------
+   Fixed country list (client edit screen uses the same list). Gender and
+   date of birth are private: they are stored, but publicUser() never emits
+   them — only ownUser() (GET/PUT /api/me) does. */
+const PROFILE_GENDERS = ['Male', 'Female', 'Other', 'Prefer not to say'];
+const PROFILE_COUNTRIES = ['USA', 'Pakistan', 'UK', 'UAE', 'Saudi Arabia', 'Canada', 'Australia', 'India', 'Bangladesh', 'Brazil', 'Afghanistan', 'China', 'Egypt', 'France', 'Germany', 'Indonesia', 'Iran', 'Iraq', 'Italy', 'Japan', 'Kenya', 'Kuwait', 'Malaysia', 'Morocco', 'Nepal', 'Netherlands', 'New Zealand', 'Nigeria', 'Oman', 'Philippines', 'Qatar', 'Russia', 'South Africa', 'South Korea', 'Spain', 'Sri Lanka', 'Sweden', 'Thailand', 'Turkey', 'Ukraine', 'Vietnam', 'Yemen'];
+function validDob(v) {
+ if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+ const [y, m, d] = v.split('-').map(Number);
+ const dt = new Date(Date.UTC(y, m - 1, d));
+ if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return false;
+ return dt.getTime() <= Date.now();
+}
+/* A frame / card skin may only be equipped if the user owns it: it is in
+   their shop inventory, it is a VIP frame/card for a VIP level they hold,
+   or (owner only) the owner frame. Anything else is rejected. */
+function ownsFrameOrCard(u, id, kind) {
+ if (!id) return true;
+ const inv = u.inventory || [];
+ if (inv.includes(id)) return true;
+ if (id === 'owner-frame' && u.role === 'owner') return true;
+ const m = /^vip-(frame|card)-(\d+)$/.exec(id);
+ if (m && m[1] === kind && Number(m[2]) >= 1 && Number(m[2]) <= 12 && (u.vip || 0) >= Number(m[2])) return true;
+ return false;
+}
+/* Validate a profile-edit body. Returns { error } on the first bad field,
+   or { fields } with only the cleaned, storable values. The `displayName`
+   field is strict (empty / too long / "null" -> 400); the legacy `name`
+   field stays lenient (bad values are ignored, never stored) so the
+   2026-11-22 null-name fix keeps passing. */
+function validateProfileEdit(body, u) {
+ const fields = {};
+ if (body.displayName !== undefined) {
+  const clean = cleanNameInput(body.displayName);
+  if (!clean) return { error: 'Name cannot be empty' };
+  if (clean.length > 30) return { error: 'Name must be 30 characters or fewer' };
+  fields.name = clean;
+ }
+ if (body.gender !== undefined) {
+  if (body.gender === '' || body.gender === null) fields.gender = '';
+  else if (!PROFILE_GENDERS.includes(body.gender)) return { error: 'Gender must be Male, Female, Other, or Prefer not to say' };
+  else fields.gender = body.gender;
+ }
+ if (body.dob !== undefined) {
+  if (body.dob === '' || body.dob === null) fields.dob = null;
+  else if (!validDob(body.dob)) return { error: 'Date of birth must be a real date (YYYY-MM-DD) and not in the future' };
+  else fields.dob = body.dob;
+ }
+ if (body.country !== undefined) {
+  if (body.country === '' || body.country === null) fields.country = '';
+  else if (!PROFILE_COUNTRIES.includes(body.country)) return { error: 'Please pick a country from the list' };
+  else fields.country = body.country;
+ }
+ if (body.tag !== undefined) {
+  if (typeof body.tag !== 'string') return { error: 'Tag must be text' };
+  if (body.tag.length > 20) return { error: 'Tag must be 20 characters or fewer' };
+  fields.tag = body.tag.trim();
+ }
+ if (body.bio !== undefined) {
+  if (typeof body.bio !== 'string') return { error: 'Bio must be text' };
+  if (body.bio.length > 200) return { error: 'Bio must be 200 characters or fewer' };
+  fields.bio = body.bio.trim();
+ }
+ if (body.frameId !== undefined) {
+  const v = body.frameId === '' ? null : body.frameId;
+  if (v !== null && (typeof v !== 'string' || !ownsFrameOrCard(u, v, 'frame'))) return { error: 'You do not own that profile frame yet — buy it in the shop first' };
+  fields.frameId = v;
+ }
+ if (body.cardSkinId !== undefined) {
+  const v = body.cardSkinId === '' ? null : body.cardSkinId;
+  if (v !== null && (typeof v !== 'string' || !ownsFrameOrCard(u, v, 'card'))) return { error: 'You do not own that profile card skin yet — buy it in the shop first' };
+  fields.cardSkinId = v;
+ }
+ return { fields };
+}
+function applyProfileEdit(req, res) {
+ const u = me(req);
+ const body = req.body || {};
+ /* The session token decides who is edited. A userId/id in the body that
+    names anyone else is an attempt to edit another user's profile -> 403.
+    (A matching id is harmless and ignored.) */
+ const claimed = body.userId || body.id;
+ if (claimed && String(claimed) !== String(u.id)) return res.status(403).json({ error: 'You can only edit your own profile' });
+ const v = validateProfileEdit(body, u);
+ if (v.error) return res.status(400).json({ error: v.error });
+ /* Legacy `name` field: lenient — a clean value is accepted, a bad one
+    ("null", empty) is ignored and never stored (null-name fix). */
+ const legacy = cleanNameInput(body.name);
+ if (legacy && !v.fields.name) v.fields.name = legacy;
+ Object.assign(u, v.fields);
+ if (v.fields.frameId !== undefined) u.profileFrame = v.fields.frameId;
+ save();
+ res.json({ user: ownUser(u) });
+}
 function notify(userId, text, extra) {
  db.notifications.unshift({ id: Date.now() + Math.random(), userId, text, at: new Date().toISOString(), read: false, ...(extra || {}) });
  save();
@@ -274,7 +394,7 @@ app.post('/api/auth/register', (req, res) => {
   verified: isGuest, verificationCode: isGuest ? null : code, verificationExpires: isGuest ? null : Date.now() + 10 * 60 * 1000,
   coins: bonus, diamonds: 0, charm: 0, wealth: 0, vip: 0, vipUntil: null,
   level: 1, followers: [], following: [], inventory: [],
-  bio: '', gender: '', country: '', createdAt: new Date().toISOString(),
+  bio: '', gender: '', country: '', tag: '', dob: null, frameId: null, cardSkinId: null, createdAt: new Date().toISOString(),
   banned: false, deviceId: req.body.deviceId || null,
   lastDaily: null, inviteCode: 'AZ' + Math.random().toString(36).slice(2, 7).toUpperCase(),
   invitedBy: inviteCode || null, totalRecharged: 0
@@ -338,13 +458,13 @@ app.post('/api/owner/enter', (req, res) => {
  res.json({ token: tokenFor(owner), user: publicUser(owner) });
 });
 
-app.get('/api/me', auth, (req, res) => res.json({ user: publicUser(me(req)) }));
-app.put('/api/me', auth, (req, res) => {
- const u = me(req); const { name, bio, gender, country } = req.body || {};
- const cleanName = cleanNameInput(name);
- if (cleanName) u.name = cleanName; if (bio !== undefined) u.bio = bio;
- if (gender) u.gender = gender; if (country) u.country = country;
- save(); res.json({ user: publicUser(u) });
+app.get('/api/me', auth, (req, res) => res.json({ user: ownUser(me(req)) }));
+/* Profile edit — the user is derived ONLY from the session token. Editing
+   anyone else's profile (body userId/id, or PUT /api/users/:otherId) is 403. */
+app.put('/api/me', auth, applyProfileEdit);
+app.put('/api/users/:id', auth, (req, res) => {
+ if (String(req.params.id) !== String(me(req).id)) return res.status(403).json({ error: 'You can only edit your own profile' });
+ applyProfileEdit(req, res);
 });
 app.get('/api/users/:id', auth, (req, res) => {
  const u = db.users.find(x => x.id === req.params.id);
@@ -403,7 +523,7 @@ function enrichRoom(room) {
   const u = db.users.find(x => x.id === id);
   if (!u) return { id, name: 'User ' + id, vip: 0, anonymous: false };
   /* NAME SAFETY: never emit a null name in a seat/member snapshot. */
-  return { id: u.id, name: u.anonymous ? 'Anonymous' : displayNameOf(u), vip: u.role === 'owner' ? Math.max(u.vip || 0, 11) : (u.vip || 0), svip: !!u.svip, anonymous: !!u.anonymous, micSticker: u.micSticker || null, micAnimation: u.micAnimation || null, vipCustom: u.vipCustom || {}, micStyle: u.micStyle || 'default', micWave: u.micWave || 'default', micEmoji: u.micEmoji || null, profileFrame: u.profileFrame || null, level: u.level || 1, isOwner: u.role === 'owner', isHost: room.hostId === u.id, isAdmin: (room.admins || []).includes(u.id), honorTitle: require('./server/vip').honorTitleFor(u.wealth || 0) };
+  return { id: u.id, name: u.anonymous ? 'Anonymous' : displayNameOf(u), displayName: u.anonymous ? 'Anonymous' : displayNameOf(u), vip: u.role === 'owner' ? Math.max(u.vip || 0, 11) : (u.vip || 0), svip: !!u.svip, anonymous: !!u.anonymous, micSticker: u.micSticker || null, micAnimation: u.micAnimation || null, vipCustom: u.vipCustom || {}, micStyle: u.micStyle || 'default', micWave: u.micWave || 'default', micEmoji: u.micEmoji || null, profileFrame: u.frameId || u.profileFrame || null, frameId: u.frameId || u.profileFrame || null, cardSkinId: u.cardSkinId || null, country: u.country || '', tag: u.tag || '', bio: u.bio || '', level: u.level || 1, isOwner: u.role === 'owner', isHost: room.hostId === u.id, isAdmin: (room.admins || []).includes(u.id), honorTitle: require('./server/vip').honorTitleFor(u.wealth || 0) };
  };
  const members = (room.members || []).map(info)
   .sort((a, b) => (b.vip || 0) - (a.vip || 0)); // VIP first — front row
@@ -468,6 +588,16 @@ app.post('/api/rooms/:id/leave-seat', auth, (req, res) => {
  const room = db.rooms.find(r => r.id === req.params.id);
  const u = me(req);
  room.seats = room.seats.filter(s => s.userId !== u.id); save(); res.json({ room: enrichRoom(room) });
+});
+/* Leave a room fully (background-mode "Leave Room"): removes the user from
+   the members list and their mic seat, so the room no longer counts them. */
+app.post('/api/rooms/:id/leave', auth, (req, res) => {
+ const room = db.rooms.find(r => r.id === req.params.id);
+ if (!room) return res.status(404).json({ error: 'Room not found' });
+ const u = me(req);
+ room.members = (room.members || []).filter(m => m !== u.id);
+ room.seats = (room.seats || []).filter(s => s.userId !== u.id);
+ save(); res.json({ ok: true, room: enrichRoom(room) });
 });
 app.post('/api/rooms/:id/chat', auth, (req, res) => {
  const room = db.rooms.find(r => r.id === req.params.id);

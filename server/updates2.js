@@ -195,8 +195,12 @@ module.exports = function (ctx) {
   const rooms = (db.rooms || []).filter(r => r.hostId === u.id).map(r => ({ id: r.id, name: r.name, topic: r.topic, level: r.level || 1, members: (r.members || []).length }));
   res.json({
    user: {
-    id: u.id, name: u.anonymous ? 'Anonymous' : displayNameOf(u), bio: u.bio || '', gender: u.gender || '',
-    country: u.country || '', vip, svip: !!u.svip, level: u.level || 1, levelTier: levelTier(u.level || 1),
+    id: u.id, name: u.anonymous ? 'Anonymous' : displayNameOf(u), displayName: u.anonymous ? 'Anonymous' : displayNameOf(u), bio: u.bio || '',
+    /* Gender is private — shown only on your own profile (isMe). Date of
+       birth, phone and email are never sent here at all. */
+    gender: viewer.id === u.id ? (u.gender || '') : '',
+    country: u.country || '', tag: u.tag || '', frameId: u.frameId || u.profileFrame || null, cardSkinId: u.cardSkinId || null,
+    vip, svip: !!u.svip, level: u.level || 1, levelTier: levelTier(u.level || 1),
     honorTitle: honorTitleFor(u.wealth || 0), banner: vip > 0 ? BANNERS[vip - 1] : null,
     svipBadge: u.svip ? (SVIP_BADGES[10] || null) : null,
     rankBadge: (vip >= 1 && vip <= 7) ? { svg: 'assets/vip/rank-badge.svg', name: RANK_BADGES[vip], size: rankBadgeSize(vip) } : null,

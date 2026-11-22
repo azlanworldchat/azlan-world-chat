@@ -1172,3 +1172,39 @@ body.in-room .say-input input { font-size: 12px; }
 .studio-variant .btn { padding: 2px 6px; min-width: 0; font-size: 12px; }
 .studio-variant-add { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .studio-variant-add input { width: 150px; }
+
+/* ============ BACKGROUND LIVE MINI-PLAYER (2026-11-22) ============
+   Stays visible above the bottom nav while you are still live in a room
+   after leaving to the menu. Green dot = live. */
+.bg-mini-player { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; background: #0d3b2e; color: #fff; border-radius: 14px; padding: 10px 12px; margin: 8px 0; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.bg-mini-player .bg-live-dot { width: 12px; height: 12px; min-width: 12px; border-radius: 50%; background: #2fd67a; box-shadow: 0 0 0 3px rgba(47,214,122,.35); animation: bgLivePulse 1.6s ease infinite; }
+@keyframes bgLivePulse { 0%,100% { box-shadow: 0 0 0 3px rgba(47,214,122,.35); } 50% { box-shadow: 0 0 0 7px rgba(47,214,122,.12); } }
+.bg-mini-player .bg-mini-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.bg-mini-player .bg-mini-text b { font-size: 13px; }
+.bg-mini-player .bg-mini-text span { font-size: 12px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bg-mini-player .bg-mini-btn { flex: 1; min-height: 44px; padding: 10px 6px; margin: 0; white-space: nowrap; font-size: 13px; }
+
+/* ============ EDIT PROFILE (2026-11-22) ============ */
+.edit-profile-btn { min-height: 44px; }
+.me-edit-btn { position: absolute; top: 12px; right: 12px; }
+.profile-card { position: relative; }
+.edit-profile .edit-topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.edit-profile .edit-topbar h3 { font-size: 18px; }
+.edit-avatar-wrap { position: relative; width: 110px; margin: 6px auto 14px; }
+.edit-avatar { width: 110px; height: 110px; font-size: 44px; margin: 0 auto; }
+.edit-cam-badge { position: absolute; right: 0; bottom: 4px; width: 44px; height: 44px; border-radius: 50%; background: #19b8a6; border: 3px solid #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.edit-cam-badge img { width: 22px; height: 22px; }
+.edit-label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 2px; }
+.edit-hint { font-size: 11px; color: var(--muted); margin: 2px 0 4px; }
+.edit-save-big { width: 100%; min-height: 48px; margin-top: 14px; font-size: 15px; }
+
+/* ============ SIMPLICITY PASS (2026-11-22) ============
+   Bigger tap targets (min 44px), plain helper wording, obvious actions.
+   No feature removed — only easier to find and tap. */
+.simple-hint { color: var(--muted); font-size: 13px; margin: 4px 0 8px; line-height: 1.4; }
+.btn, .icon-btn, .mini-tab, .room-tab, .rb-btn { min-height: 44px; }
+.bottom-nav button { min-height: 52px; padding: 10px 2px; }
+input, select, textarea { min-height: 44px; font-size: 14px; }
+.room-join { width: 100%; min-height: 48px; font-size: 15px; margin-top: 10px; }
+.room-card h3 { font-size: 16px; }
+.tab-page h2 { font-size: 20px; }

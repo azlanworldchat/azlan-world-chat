@@ -29,6 +29,19 @@ let roomFeedTimer = null, notifTimer = null, lastNotifId = 0, notifInit = false;
 let roomTabFilter = 'all';
 let roomMuted = false;
 let profileFromMic = false;
+/* ---------------- BACKGROUND LIVE MODE (2026-11-22) ----------------
+   Leaving a room to the menu does NOT kill the session: the user stays
+   joined (voice keeps running), a mini-player stays visible in the app,
+   and a persistent notification shows in the phone's notification bar.
+   bgRoom = the room we are still joined to while looking at the menu.
+   bgKicked = true when the server says we were removed from that room. */
+let bgRoom = null;
+let bgKicked = false;
+let bgNotifOn = false;
+/* Country list for the Edit Profile screen — same list as the server
+   (server.js PROFILE_COUNTRIES); the server re-checks every value. */
+const PROFILE_COUNTRIES = ['USA', 'Pakistan', 'UK', 'UAE', 'Saudi Arabia', 'Canada', 'Australia', 'India', 'Bangladesh', 'Brazil', 'Afghanistan', 'China', 'Egypt', 'France', 'Germany', 'Indonesia', 'Iran', 'Iraq', 'Italy', 'Japan', 'Kenya', 'Kuwait', 'Malaysia', 'Morocco', 'Nepal', 'Netherlands', 'New Zealand', 'Nigeria', 'Oman', 'Philippines', 'Qatar', 'Russia', 'South Africa', 'South Korea', 'Spain', 'Sri Lanka', 'Sweden', 'Thailand', 'Turkey', 'Ukraine', 'Vietnam', 'Yemen'];
+const PROFILE_GENDERS = ['Male', 'Female', 'Other', 'Prefer not to say'];
 let verifyUserId = null;
 const VIP_ANIMALS = { 1: 'Sword Shield', 2: 'Twin White Wolves', 3: 'Emerald Sword', 4: 'Twin Blue Wolves', 5: 'Dark Wings', 6: 'White Tigers', 7: 'Twin Lions', 8: 'Golden Dragons', 9: 'Golden Lion', 10: 'Golden Phoenix', 11: 'Fire Lion', 12: 'Hooded King' };
 /* Custom-drawn icons (original SVG art, no emoji anywhere in the app) */
@@ -631,7 +644,7 @@ function renderRooms(rooms) {
   el.innerHTML = rooms.map(r =>
     '<div class="room-card" onclick="joinRoom(\'' + r.id + '\')"><h3>' + esc(r.name) + '</h3>' +
     '<div class="room-meta"><span class="chip">' + ic("mic") + ' ' + esc(r.topic || 'Chat') + '</span><span class="chip">' + ic("users") + ' ' + (r.members || []).length + ' members</span><span class="chip">Lv.' + (r.level || 1) + '</span><span class="chip">ID ' + r.id + '</span></div>' +
-    '<button class="btn gold room-join">Join Room ›</button></div>'
+    '<button class="btn gold room-join">Join Room — tap to talk ›</button></div>'
   ).join('');
 }
 async function searchRooms() {
@@ -652,6 +665,9 @@ async function joinRoom(id) {
   try {
     const d = await api('/api/rooms/' + id + '/join', { method: 'POST', headers: headers() });
     currentRoom = d.room;
+    /* Joining a room clears any background room (we are back inside one). */
+    if (bgRoom && bgRoom.id !== id) { bgRoom = null; bgKicked = false; renderBgMiniPlayer(); await clearBgNotification(); }
+    else if (bgRoom) { bgRoom = null; bgKicked = false; renderBgMiniPlayer(); await clearBgNotification(); }
     roomTabFilter = 'all'; roomGiftEvents = [];
     show('roomView', true); show('voiceSettingsView', false);
     /* Hide EVERY other tab page (party/discover/messages/friends/me/owner):
@@ -676,7 +692,100 @@ async function joinRoom(id) {
     joinAgoraChannel(currentRoom.id);
   } catch (e) { alert(e.message); }
 }
-function leaveRoom() { if (roomFeedTimer) { clearInterval(roomFeedTimer); roomFeedTimer = null; } leaveAgoraChannel(); document.body.classList.remove('in-room'); currentRoom = null; show('roomView', false); show('tab-party', true); loadRooms(); }
+/* ---------------- BACKGROUND LIVE MODE: mini-player + notification ----
+   leaveRoom() = go to the menu but STAY IN THE ROOM (voice keeps running
+   in the background). leaveRoomFully() = leave for real: voice stops, the
+   mini-player and the phone notification go away. */
+function bgRoomName() { return bgRoom ? bgRoom.name : ''; }
+function renderBgMiniPlayer() {
+  const bar = document.getElementById('bgMiniPlayer');
+  if (!bar) return;
+  if (!bgRoom) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
+  bar.classList.remove('hidden');
+  const kicked = bgKicked;
+  bar.innerHTML = '<span class="bg-live-dot" aria-hidden="true"></span>' +
+    '<span class="bg-mini-text"><b>' + (kicked ? 'You were removed from this room' : 'Live in background') + '</b>' +
+    '<span>' + esc(bgRoom.name) + ' • Mic: ' + (micOn ? 'ON' : 'OFF') + '</span></span>' +
+    '<button class="btn gold bg-mini-btn" onclick="returnToRoom()">Back to Room</button>' +
+    (kicked ? '<button class="btn bg-mini-btn" onclick="rejoinBgRoom()">Rejoin</button>' : '<button class="btn bg-mini-btn" onclick="toggleMic();renderBgMiniPlayer()">' + (micOn ? 'Mute Mic' : 'Unmute Mic') + '</button>') +
+    '<button class="btn danger bg-mini-btn" onclick="leaveRoomFully()">Leave Room</button>';
+}
+async function rejoinBgRoom() {
+  if (!bgRoom) return;
+  const id = bgRoom.id;
+  bgRoom = null; bgKicked = false; renderBgMiniPlayer(); await clearBgNotification();
+  await joinRoom(id);
+}
+function returnToRoom() {
+  if (!bgRoom) return;
+  currentRoom = bgRoom; bgRoom = null; bgKicked = false;
+  renderBgMiniPlayer(); clearBgNotification();
+  document.body.classList.add('in-room');
+  ['party', 'discover', 'messages', 'friends', 'me', 'owner'].forEach(t => show('tab-' + t, false));
+  show('voiceSettingsView', false); show('roomView', true);
+  renderRoomHeader(); renderMicGrid(); renderRoomChat(); renderVoiceNotes(); renderOnlineUsers();
+  startRoomFeedPoll();
+}
+/* The phone notification bar: on the APK this is a real persistent system
+   notification via @capacitor/local-notifications (ongoing, tap = open the
+   app). On the web there is no system notification, so the browser
+   Notification API is used when the user allowed it — otherwise the
+   in-app mini-player + "Background mode ON" banner is the indicator, and
+   the app never pretends a system notification exists. */
+function bgNotifPlugin() {
+  try { return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) || (window.LocalNotifications) || null; } catch (e) { return null; }
+}
+async function requestBgNotificationPermission() {
+  const p = bgNotifPlugin();
+  if (p && p.requestPermissions) { try { await p.requestPermissions(); } catch (e) {} return; }
+  if ('Notification' in window && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch (e) {} }
+}
+async function showBgNotification() {
+  if (!bgRoom) return;
+  const title = 'Azlan World Chat • Running in background';
+  const body = bgKicked ? ('You were removed from ' + bgRoom.name) : ('Still live in ' + bgRoom.name + ' — tap to return to the room');
+  const p = bgNotifPlugin();
+  if (p && p.schedule) {
+    try {
+      await p.schedule({ notifications: [{ id: 1, title, body, ongoing: true, autoCancel: false, smallIcon: 'ic_launcher', sound: null }] });
+      bgNotifOn = true; return;
+    } catch (e) { /* fall through to the web path */ }
+  }
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try { new Notification(title, { body, tag: 'awc-bg-live' }); bgNotifOn = true; return; } catch (e) {}
+  }
+  bgNotifOn = false;
+}
+async function clearBgNotification() {
+  const p = bgNotifPlugin();
+  if (p && p.cancel) { try { await p.cancel({ notifications: [{ id: 1 }] }); } catch (e) {} }
+  bgNotifOn = false;
+}
+async function leaveRoom() {
+  /* Minimise to the menu — stay joined, voice keeps running in the
+     background, mini-player + phone notification keep the room live. */
+  if (!currentRoom) return;
+  bgRoom = currentRoom; bgKicked = false; currentRoom = null;
+  document.body.classList.remove('in-room');
+  show('roomView', false); show('tab-party', true);
+  renderBgMiniPlayer();
+  await requestBgNotificationPermission();
+  await showBgNotification();
+  loadRooms();
+}
+async function leaveRoomFully() {
+  /* Leave for real: stop voice, stop the poll, clear mini-player and the
+     phone notification. */
+  const id = (bgRoom && bgRoom.id) || (currentRoom && currentRoom.id);
+  if (roomFeedTimer) { clearInterval(roomFeedTimer); roomFeedTimer = null; }
+  try { await leaveAgoraChannel(); } catch (e) {}
+  document.body.classList.remove('in-room');
+  currentRoom = null; bgRoom = null; bgKicked = false;
+  await clearBgNotification();
+  renderBgMiniPlayer();
+  show('roomView', false); show('tab-party', true); loadRooms();
+  if (id) { try { await api('/api/rooms/' + id + '/leave', { method: 'POST', headers: headers() }); } catch (e) {} }
+}
 /* Room header — Yalla-style top bar: host photo + name + ID on the left,
    trophy/level pill + member count on the right, inbox / share / power
    icons top-right. The room name stays on top with the gold wing badge. */
@@ -691,7 +800,7 @@ function renderRoomHeader() {
     '<span class="member-pill">' + ic('users') + ' ' + members.length + '</span>' +
     '<button class="icon-btn" onclick="showNotifications()" title="Inbox">' + ic('bell') + '</button>' +
     '<button class="icon-btn" onclick="shareRoom()" title="Share room">' + ic('invite') + '</button>' +
-    '<button class="icon-btn" onclick="leaveRoom()" title="Exit room"><img class="ic" src="assets/icons/power.svg" alt="Exit"></button></div></div>';
+    '<button class="icon-btn" onclick="leaveRoom()" title="Go to menu — stay live in this room in the background"><img class="ic" src="assets/icons/power.svg" alt="Exit to menu"></button></div></div>';
   renderPkBar(); renderRoomTabs(); renderWelcomeBox();
 }
 /* Welcome message box under the announcement (always visible in the room). */
@@ -824,13 +933,26 @@ function startRoomFeedPoll() {
   pollRoomGiftFeed();
 }
 async function pollRoomGiftFeed() {
-  if (!currentRoom) return;
+  const room = currentRoom || bgRoom;
+  if (!room) return;
   try {
     /* PERFORMANCE: one light poll request (chat + members + seats + gift
-       feed) instead of the full room list every 5 seconds. */
-    const d = await api('/api/rooms/' + currentRoom.id + '/poll', { headers: headers() });
+       feed) instead of the full room list every 5 seconds. While the room
+       is in the background (mini-player), the same poll watches for a kick:
+       if we are no longer a member, the mini-player + notification say so. */
+    const d = await api('/api/rooms/' + room.id + '/poll', { headers: headers() });
     const fresh = d.room;
     if (!fresh) return;
+    if (bgRoom && !currentRoom) {
+      const stillIn = (fresh.members || []).some(m => m.id === ME.id);
+      bgRoom = fresh; /* keep the background room's member list fresh */
+      if (!stillIn && !bgKicked) {
+        bgKicked = true;
+        renderBgMiniPlayer(); await showBgNotification();
+        if (roomFeedTimer) { clearInterval(roomFeedTimer); roomFeedTimer = null; }
+      } else renderBgMiniPlayer();
+      return;
+    }
     const oldMembers = (currentRoom.members || []).map(m => m.id);
     fresh.members.forEach(m => { if (!oldMembers.includes(m.id)) addWelcomeMessage(m.name, false); });
     const prevChatId = lastChatId;
@@ -915,7 +1037,7 @@ async function takeSeat(s) {
 /* Profile opened from the mic seat — shows Mic Mute / Mic Leave for my own
    seat, or Remove from Mic for host/admin viewing someone else. */
 function openMicProfile(userId) { openProfile(userId, true); }
-function backToRoom() { if (currentRoom) { ['party', 'discover', 'messages', 'friends', 'me', 'owner'].forEach(t => show('tab-' + t, false)); show('voiceSettingsView', false); show('roomView', true); } }
+function backToRoom() { if (bgRoom && !currentRoom) { returnToRoom(); return; } if (currentRoom) { ['party', 'discover', 'messages', 'friends', 'me', 'owner'].forEach(t => show('tab-' + t, false)); show('voiceSettingsView', false); show('roomView', true); } }
 async function micMuteFromProfile() { if (micOn) await toggleMic(); backToRoom(); }
 async function micLeaveFromProfile() {
   try { const d = await api('/api/rooms/' + currentRoom.id + '/leave-seat', { method: 'POST', headers: headers() }); currentRoom = d.room; renderMicGrid(); }
@@ -2630,13 +2752,14 @@ function renderHonorsProfile() {
   } else if (honorsTab === 'moments') {
     body = '<h3>Moments</h3>' + (d.moments.length ? d.moments.map(m => '<div class="card"><b>' + esc(displayName(m)) + '</b><p>' + esc(m.text || '') + '</p><p class="muted">' + fmt((m.likes || []).length) + ' likes</p></div>').join('') : '<p class="muted">No moments yet.</p>');
   } else if (honorsTab === 'about') {
-    body = '<h3>About</h3><p>' + esc(u.bio || 'No bio yet.') + '</p><p class="muted">Country: ' + esc(u.country || '—') + ' • Gender: ' + esc(u.gender || '—') + '</p>' +
+    body = '<h3>About</h3><p>' + esc(u.bio || 'No bio yet.') + '</p><p class="muted">Country: ' + esc(u.country || '—') + (d.isMe && u.gender ? ' • Gender: ' + esc(u.gender) : '') + (u.tag ? ' • Tag: ' + esc(u.tag) : '') + '</p>' +
       (u.kit ? '<h3>VIP Kit — ' + esc(u.kit.emblem) + '</h3><p class="muted">Profile frame, chat bar, entry banner, name banner, profile cover and mic ring — all in ' + esc(u.kit.emblem) + ' style, 3D animated.</p>' : '');
   } else {
     body = '<h3>Rooms</h3>' + (d.rooms.length ? d.rooms.map(r => '<div class="user-row" onclick="joinRoom(\'' + r.id + '\')"><span><b>' + esc(r.name) + '</b> • ' + esc(r.topic || 'Chat') + ' • Lv.' + r.level + ' • ' + r.members + ' members</span></div>').join('') : '<p class="muted">No rooms yet.</p>');
   }
   document.getElementById('mePanel').innerHTML = '<div class="card honors-profile lux-' + lux + '" style="background:' + (u.kit ? u.kit.profileCover.themeBg : '') + '">' +
     '<button class="btn ghost close-x" onclick="switchTab(\'party\')" title="Close">✕ Close</button>' +
+    (d.isMe ? '<button class="btn gold edit-profile-btn" onclick="openEditProfile()" title="Edit your profile">' + ic('edit') + ' Edit Profile</button>' : '') +
     '<div class="honors-frame"><div class="avatar honors-avatar' + (u.vip ? ' vip-frame' : '') + '">' + frameImgFor(u) + (u.vip && !(APP_CONTROLS && APP_CONTROLS.vipFrames === false) ? '<img class="frame-img vip-frame-img" src="' + ((u.kit && u.kit.profileFrame) ? u.kit.profileFrame.svg : vipFrameImg(u.vip)) + '" alt="VIP frame">' : '') + esc(displayName(u)[0].toUpperCase()) + '</div>' +
     (u.vip >= 5 ? '<span class="honors-frame-glow"></span>' : '') + '</div>' +
     '<h2 class="vip-color-' + (u.vip || 0) + '">' + esc(displayName(u)) + '</h2>' +
@@ -2658,6 +2781,76 @@ function renderHonorsProfile() {
     '</div>';
 }
 function profileTab(t) { honorsTab = t; renderHonorsProfile(); }
+/* ---------------- EDIT PROFILE (2026-11-22) ----------------
+   Own profile only: the Edit button appears on YOUR profile (Me tab and
+   the honors profile when isMe). Layout follows the reference: top bar
+   with back arrow + "Edit" + Save, round photo with a camera badge, then
+   UserName, Gender, Date of Birth, Country, Tag, Bio, Profile Frame,
+   Profile Card Skin. Date of birth and gender are private — they are
+   sent only to /api/me and never shown on anyone else's profile. */
+async function openEditProfile() {
+  switchTab('me');
+  const p = document.getElementById('mePanel');
+  p.innerHTML = '<div class="card"><p class="muted">Loading your profile…</p></div>';
+  try {
+    const d = await api('/api/me', { headers: headers() });
+    const me = d.user;
+    let shopItems = [];
+    try { const s = await api('/api/shop', { headers: headers() }); shopItems = s.items || []; } catch (e) {}
+    const inv = ME.inventory || [];
+    const ownedFrames = shopItems.filter(i => inv.includes(i.id) && i.category === 'Frame');
+    const ownedCards = shopItems.filter(i => inv.includes(i.id) && (i.category === 'Profile Card' || i.category === 'Chat Box'));
+    const vipFrames = [];
+    for (let v = 1; v <= (ME.vip || 0); v++) vipFrames.push({ id: 'vip-frame-' + v, name: 'VIP' + v + ' Frame — ' + (VIP_ANIMALS[v] || '') });
+    const frameOpts = [{ id: '', name: 'No frame' }]
+      .concat(ownedFrames.map(i => ({ id: i.id, name: i.name })))
+      .concat(vipFrames)
+      .concat(ME.role === 'owner' ? [{ id: 'owner-frame', name: 'Owner Frame' }] : []);
+    if (me.frameId && !frameOpts.some(o => o.id === me.frameId)) frameOpts.push({ id: me.frameId, name: 'Current frame (' + me.frameId + ')' });
+    const cardOpts = [{ id: '', name: 'No card skin' }]
+      .concat(ownedCards.map(i => ({ id: i.id, name: i.name })));
+    for (let v = 1; v <= (ME.vip || 0); v++) cardOpts.push({ id: 'vip-card-' + v, name: 'VIP' + v + ' Card Skin' });
+    if (me.cardSkinId && !cardOpts.some(o => o.id === me.cardSkinId)) cardOpts.push({ id: me.cardSkinId, name: 'Current card (' + me.cardSkinId + ')' });
+    const opt = (list, cur) => list.map(o => '<option value="' + esc(o.id) + '"' + (o.id === (cur || '') ? ' selected' : '') + '>' + esc(o.name) + '</option>').join('');
+    const field = (label, inner, hint) => '<label class="edit-label">' + label + '</label>' + inner + (hint ? '<p class="edit-hint">' + hint + '</p>' : '');
+    p.innerHTML = '<div class="card edit-profile">' +
+      '<div class="edit-topbar"><button class="icon-btn" onclick="openProfile()" title="Back" aria-label="Back">' + ic('back') + '</button><h3>Edit</h3><button class="btn gold" onclick="saveEditProfile()">Save</button></div>' +
+      '<div class="edit-avatar-wrap"><div class="avatar edit-avatar">' + esc(displayName(me)[0].toUpperCase()) + '</div>' +
+      '<button class="edit-cam-badge" onclick="openGifPhoto()" title="Change profile photo (GIF photo)">' + ic('camera') + '</button></div>' +
+      field('UserName', '<input id="epName" type="text" maxlength="30" value="' + esc(me.name || '') + '" placeholder="Your name">') +
+      field('Gender', '<select id="epGender">' + [''].concat(PROFILE_GENDERS).map(g => '<option value="' + g + '"' + (me.gender === g ? ' selected' : '') + '>' + (g || 'Prefer not to say') + '</option>').join('') + '</select>', 'Only you can see this.') +
+      field('Date of Birth', '<input id="epDob" type="date" value="' + esc(me.dob || '') + '">', 'Only you can see this. Format: year-month-day.') +
+      field('Country', '<select id="epCountry"><option value="">— Pick your country —</option>' + PROFILE_COUNTRIES.map(c => '<option' + (me.country === c ? ' selected' : '') + '>' + c + '</option>').join('') + '</select>') +
+      field('Tag', '<input id="epTag" type="text" maxlength="20" value="' + esc(me.tag || '') + '" placeholder="A short tag, e.g. Steam">') +
+      field('Bio', '<textarea id="epBio" maxlength="200" rows="2" placeholder="Write a short bio…">' + esc(me.bio || '') + '</textarea>') +
+      field('Profile Frame', '<select id="epFrame">' + opt(frameOpts, me.frameId) + '</select>', 'Only frames you own are listed — buy more in the Premium Shop.') +
+      field('Profile Card Skin', '<select id="epCard">' + opt(cardOpts, me.cardSkinId) + '</select>', 'Only card skins you own are listed.') +
+      '<p id="epMsg" class="msg"></p>' +
+      '<button class="btn gold edit-save-big" onclick="saveEditProfile()">Save Changes</button>' +
+      '<button class="btn ghost" onclick="openProfile()">Cancel</button></div>';
+  } catch (e) { p.innerHTML = '<div class="card"><p class="msg">' + esc(e.message) + '</p><button class="btn" onclick="openProfile()">Back to Profile</button></div>'; }
+}
+async function saveEditProfile() {
+  const msg = document.getElementById('epMsg');
+  const body = {
+    displayName: document.getElementById('epName').value.trim(),
+    gender: document.getElementById('epGender').value,
+    dob: document.getElementById('epDob').value,
+    country: document.getElementById('epCountry').value,
+    tag: document.getElementById('epTag').value.trim(),
+    bio: document.getElementById('epBio').value.trim(),
+    frameId: document.getElementById('epFrame').value || null,
+    cardSkinId: document.getElementById('epCard').value || null
+  };
+  try {
+    const d = await api('/api/me', { method: 'PUT', headers: headers(true), body: JSON.stringify(body) });
+    ME = d.user;
+    if (msg) msg.textContent = '';
+    alert('Profile saved!');
+    loadMe();
+    openProfile();
+  } catch (e) { if (msg) msg.textContent = e.message; else alert(e.message); }
+}
 async function blockUser(id) { if (!(await appConfirm('Block this user? You will not see their messages or rooms.'))) return; try { await api('/api/v2/extras/users/' + id + '/block', { method: 'POST', headers: headers() }); alert('User blocked.'); } catch (e) { alert(e.message); } }
 async function reportUser(id) { const reason = await appPrompt('Report User', 'Why are you reporting this user?'); if (!reason) return; try { await api('/api/v2/extras/users/' + id + '/report', { method: 'POST', headers: headers(true), body: JSON.stringify({ reason }) }); alert(' Report sent to the owner. Thank you for keeping AZLAN WORLD CHAT safe.'); } catch (e) { alert(e.message); } }
 
