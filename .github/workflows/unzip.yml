@@ -12,9 +12,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Reassemble split ZIP if present
         run: |
-          if ls azlan-world-chat-source.zip.part-* >/dev/null 2>&1; then
+          if [ -f azlan-world-chat-source.zip.part-aa ] && [ -f azlan-world-chat-source.zip.part-ab ] && [ -f azlan-world-chat-source.zip.part-ac ] && [ -f azlan-world-chat-source.zip.part-ad ] && [ -f azlan-world-chat-source.zip.part-ae ] && [ -f azlan-world-chat-source.zip.part-af ] && [ -f azlan-world-chat-source.zip.part-ag ]; then
             cat azlan-world-chat-source.zip.part-* > azlan-world-chat-source.zip
             rm azlan-world-chat-source.zip.part-*
+          else
+            echo "Split ZIP incomplete - waiting for all 7 parts (aa-ag)"
           fi
       - name: Extract ZIP to repo root
         run: |
