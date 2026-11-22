@@ -22,6 +22,40 @@ function ic(name) { return '<img class="ic" src="assets/icons/' + name + '.svg" 
 function iconImg(v) { if (!v) return ic('gift'); if (typeof v === 'string' && v.indexOf('.svg') !== -1) return '<img class="ic" src="' + v + '" alt="">'; return ic('gift'); }
 function vipEmblemImg(v) { return '<img class="vip-emblem-img" src="assets/vip/vip' + (v || 1) + '.svg" alt="VIP' + (v || 1) + '">'; }
 function vipEmblemMini(v) { return '<img class="vip-emblem-mini" src="assets/vip/vip' + (v || 1) + '.svg" alt="">'; }
+/* Rank banner (shows with the user's ID) + SVIP badge (shows with the name) */
+function vipBannerImg(v, cls) { return '<img class="' + (cls || 'rank-banner-img') + '" src="assets/vip/banner' + (v || 1) + '.svg" alt="VIP' + (v || 1) + ' banner">'; }
+function svipBadgeImg(cls) { return '<img class="' + (cls || 'svip-badge-img') + '" src="assets/vip/banner-svip10.svg" alt="SVIP">'; }
+/* Level pill — colours start low and grow into luxury as the level rises */
+function levelTierOf(level) {
+  const l = level || 1;
+  if (l >= 50) return { name: 'Legend', cls: 'lv-legend' };
+  if (l >= 40) return { name: 'Red-Gold', cls: 'lv-redgold' };
+  if (l >= 30) return { name: 'Purple', cls: 'lv-purple' };
+  if (l >= 20) return { name: 'Gold', cls: 'lv-gold' };
+  if (l >= 10) return { name: 'Silver', cls: 'lv-silver' };
+  return { name: 'Bronze', cls: 'lv-bronze' };
+}
+function levelPill(level) { const t = levelTierOf(level); return '<span class="level-pill ' + t.cls + '">Lv.' + (level || 1) + '</span>'; }
+/* Owner / Admin tags — written with the user's ID */
+function roleTag(u) {
+  if (!u) return '';
+  if (u.isOwner || u.role === 'owner') return '<span class="tag-owner">Owner</span>';
+  if (u.isAdmin) return '<span class="tag-admin">Admin</span>';
+  return '';
+}
+function vipTagHtml(u) {
+  if (!u) return '';
+  let h = '';
+  if (u.svip) h += '<span class="tag-svip">SVIP</span>';
+  else if (u.vip) h += '<span class="tag-vip">VIP' + u.vip + '</span>';
+  return h;
+}
+function frameImgFor(u) {
+  if (!u) return '';
+  if (u.profileFrame === 'owner-frame') return '<img class="frame-img owner-frame-img" src="assets/vip/owner-frame.svg" alt="Owner frame">';
+  return '';
+}
+let honorsData = null, honorsTab = 'honors';
 
 function headers(json) {
   const h = {};
@@ -154,14 +188,22 @@ async function loadAnnouncement() {
 }
 
 /* ---------------- entrance effect ---------------- */
+/* ENTRY EFFECT — RULE: the entry (animal, luxury car, anything) is SEPARATE and
+   clearly VISIBLE on its own. The whole effect lasts only 2–3 seconds, never
+   more. It closes BY ITSELF 1–2 seconds later — auto-close, no user action. */
 function showEntrance(user) {
   const fx = document.getElementById('entranceFx');
   if (user.vip) {
-    fx.innerHTML = '<div class="entrance-dragon">' + vipEmblemImg(user.vip) + '</div><div class="entrance-banner">' + ic('crown') + ' ' + esc(user.name) + ' entered — VIP' + user.vip + ' • ' + (VIP_ANIMALS[user.vip] || '') + '</div>';
+    const animCls = user.vip >= 5 ? ' vip5-anim' : '';
+    fx.innerHTML = '<div class="entrance-standalone' + animCls + '">' +
+      (user.banner ? '<img class="entrance-banner-img" src="' + user.banner + '" alt="VIP banner">' : '<div class="entrance-dragon">' + vipEmblemImg(user.vip) + '</div>') +
+      '<div class="entrance-name' + animCls + '">' + esc(user.name) + ' entered</div>' +
+      '<div class="entrance-sub">' + ic('crown') + ' VIP' + user.vip + (user.animal ? ' • ' + esc(user.animal) : '') + '</div></div>';
   } else {
-    fx.innerHTML = '<div class="entrance-text">"+ic("sparkle")+" ' + esc(user.name) + ' entered "+ic("sparkle")+"<br><span style="font-size:18px">Welcome to AZLAN WORLD CHAT</span></div>';
+    fx.innerHTML = '<div class="entrance-standalone"><div class="entrance-text">' + ic('sparkle') + ' ' + esc(user.name) + ' entered ' + ic('sparkle') + '<br><span style="font-size:18px">Welcome to AZLAN WORLD CHAT</span></div></div>';
   }
   fx.classList.remove('hidden'); fx.classList.remove('play'); void fx.offsetWidth; fx.classList.add('play');
+  /* Auto-close after 2.5 seconds — the user never closes it. */
   setTimeout(() => fx.classList.add('hidden'), 2500);
   window.SFX && SFX.join();
 }
@@ -228,18 +270,38 @@ async function joinRoom(id) {
     document.getElementById('roomName').textContent = currentRoom.name;
     document.getElementById('roomMeta').textContent = 'ID ' + currentRoom.id + ' • Lv.' + (currentRoom.level || 1) + ' • ' + (currentRoom.topic || '');
     const stage = document.querySelector('.room-stage');
-    if (stage) stage.className = 'room-stage' + (ME.roomTheme && ME.roomTheme !== 'default' ? ' theme-' + ME.roomTheme : '');
-    renderMicGrid(); renderRoomChat(); renderVoiceNotes(); renderOnlineUsers();
-    if (d.entrance) showEntrance({ name: d.entrance.name, vip: d.entrance.vip });
+    if (stage) {
+      stage.className = 'room-stage' + (ME.roomTheme && ME.roomTheme !== 'default' ? ' theme-' + ME.roomTheme : '') + (currentRoom.hostTheme ? ' theme-' + currentRoom.hostTheme : '');
+      const bg = document.getElementById('roomBg');
+      if (bg) bg.style.backgroundImage = currentRoom.hostTheme ? 'url(assets/themes/' + currentRoom.hostTheme + '.svg)' : '';
+    }
+    renderRoomHeader(); renderMicGrid(); renderRoomChat(); renderVoiceNotes(); renderOnlineUsers();
+    if (d.entrance) showEntrance({ name: d.entrance.name, vip: d.entrance.vip, banner: d.entrance.banner, animal: d.entrance.animal });
     window.SFX && SFX.join();
     joinAgoraChannel(currentRoom.id);
   } catch (e) { alert(e.message); }
 }
 function leaveRoom() { currentRoom = null; show('roomView', false); show('tab-party', true); loadRooms(); }
+/* Room header: icon + name + ID, trophy count, host + shortcuts */
+function renderRoomHeader() {
+  const el = document.getElementById('roomHeader'); if (!el || !currentRoom) return;
+  const host = (currentRoom.members || []).find(m => m.id === currentRoom.hostId);
+  el.innerHTML = '<div class="rh-left"><span class="rh-icon">' + ic('mic') + '</span><span><b>' + esc(currentRoom.name) + '</b><br><span class="muted">ID: ' + currentRoom.id + '</span></span></div>' +
+    '<div class="rh-right"><span class="rh-trophy">' + ic('trophy') + ' ' + fmt((currentRoom.xp || 0) * 10) + '</span>' +
+    '<button class="icon-btn" onclick="openHonorTitles()" title="Honor System">' + ic('trophy') + '</button>' +
+    '<button class="icon-btn" onclick="openEvents()" title="Yalla Season">' + ic('party') + '</button>' +
+    '<button class="icon-btn" onclick="switchTab(\'messages\')" title="Message">' + ic('chat') + '</button>' +
+    '<button class="icon-btn" onclick="openLucky()" title="Fruit Party">' + ic('lucky') + '</button></div>';
+  const ann = document.getElementById('roomAnnounce');
+  if (ann) ann.innerHTML = '<b>Announcement:</b> Welcome to ' + esc(currentRoom.name) + ' — enjoy the party!';
+  const wel = document.getElementById('roomWelcome');
+  if (wel) wel.textContent = 'Welcome to AZLAN WORLD CHAT. Please respect each other and chat in a decent manner.';
+}
 function renderMicGrid() {
   const grid = document.getElementById('micGrid');
   let html = '';
-  for (let s = 0; s < 8; s++) {
+  /* Host seat 1 on top, then mic seats 2–11 as purple UFO/glass domes */
+  for (let s = 1; s <= 11; s++) {
     const seat = (currentRoom.seats || []).find(x => x.seat === s);
     if (seat) {
       const u = seat.user || {};
@@ -249,10 +311,18 @@ function renderMicGrid() {
       const styleCls = u.micStyle && u.micStyle !== 'default' ? ' style-' + u.micStyle : '';
       const waveCls = u.micWave && u.micWave !== 'default' ? ' wave-' + u.micWave : '';
       const sticker = u.micSticker ? '<span class="seat-sticker">' + iconImg(u.micSticker.icon) + '</span>' : '';
+      const emoji = u.micEmoji ? '<span class="seat-emoji"><img src="' + u.micEmoji.svg + '" alt="' + esc(u.micEmoji.name) + '"></span>' : '';
       const ringStyle = ring ? ' style="border-color:' + ring + ';box-shadow:0 0 16px ' + ring + '"' : '';
-      html += '<div class="mic-seat taken vip' + vip + styleCls + waveCls + (seat.micOn ? ' speaking' : '') + '"' + ringStyle + ' onclick="takeSeat(' + s + ')">' + sticker + '<span class="seat-avatar">'+ic("mic")+'</span><span class="seat-name">' + esc(name) + '</span><span>' + (seat.micOn ? ''+ic("volume")+'' : ''+ic("mic-off")+'') + (vip ? ' '+ic("crown")+'VIP' + vip : '') + '</span></div>';
+      const speaking = seat.micOn ? ' speaking' : '';
+      const frame = u.profileFrame === 'owner-frame' ? '<img class="seat-frame" src="assets/vip/owner-frame.svg" alt="Owner frame">' : '';
+      html += '<div class="mic-seat ufo taken vip' + vip + styleCls + waveCls + speaking + (s === 1 ? ' host-seat' : '') + '"' + ringStyle + ' onclick="takeSeat(' + s + ')">' + frame + sticker + emoji +
+        '<span class="seat-avatar">' + (u.micEmoji ? '' : ic('mic')) + '</span>' +
+        '<span class="seat-name vip-color-' + vip + '">' + esc(name) + '</span>' +
+        '<span class="seat-tags">' + roleTag(u) + ' ' + vipTagHtml(u) + (vip ? ' VIP' + vip : '') + '</span>' +
+        '<span class="seat-num">' + s + '</span>' +
+        '<span>' + (seat.micOn ? '' + ic('volume') + '' : '' + ic('mic-off') + '') + '</span></div>';
     } else {
-      html += '<div class="mic-seat" onclick="takeSeat(' + s + ')"><span class="seat-avatar">'+ic("plus")+'</span><span>Seat ' + (s + 1) + '</span></div>';
+      html += '<div class="mic-seat ufo" onclick="takeSeat(' + s + ')"><span class="seat-avatar">' + ic('plus') + '</span><span class="seat-num">' + s + '</span></div>';
     }
   }
   grid.innerHTML = html;
@@ -267,8 +337,9 @@ function renderOnlineUsers() {
   const members = (currentRoom.members || []).slice().sort((a, b) => (b.vip || 0) - (a.vip || 0));
   const total = members.length;
   el.innerHTML = '<p class="muted">'+ic("users")+' Online Users: ' + total + '</p>' + members.map(m =>
-    '<span class="online-user' + (m.vip ? ' vip-first' : '') + '"><span class="ou-avatar">' + esc((m.name || 'U')[0].toUpperCase()) + '</span><span class="' + (m.vip ? 'vip-color-' + m.vip : '') + '">' + esc(m.name || 'User') + '</span>' + (m.vip ? '<span>'+ic("crown")+'VIP' + m.vip + '</span>' : '') + (m.micSticker ? '<span class="ou-sticker">' + iconImg(m.micSticker.icon) + '</span>' : '') + '</span>'
-  ).join('');
+    '<span class="online-user' + (m.vip ? ' vip-first' : '') + '" onclick="openProfile(\'' + m.id + '\')"><span class="ou-avatar">' + esc((m.name || 'U')[0].toUpperCase()) + '</span><span class="' + (m.vip ? 'vip-color-' + m.vip : '') + '">' + esc(m.name || 'User') + '</span>' + roleTag(m) + ' ' + vipTagHtml(m) + ' ' + levelPill(m.level) + (m.micSticker ? '<span class="ou-sticker">' + iconImg(m.micSticker.icon) + '</span>' : '') + (m.micEmoji ? '<span class="ou-sticker"><img src="' + m.micEmoji.svg + '" alt=""></span>' : '') + '</span>'
+  ).join('') +
+  (currentRoom.hostId === ME.id || ME.role === 'owner' ? '<p class="muted">Host tools: tap a user above to open their profile, or <button class="btn ghost" onclick="makeRoomAdminPrompt()">Make Admin</button></p>' : '');
 }
 async function takeSeat(s) {
   try {
@@ -506,7 +577,8 @@ function renderVipClub() {
       '<p class="vip-emblem-name">' + esc(sel.emblem) + '</p>' +
       '<div class="vip-progress-line"><div class="vip-progress-dot" style="left:' + vipPct + '%;background:' + sel.color + '"></div></div>' +
       '<p>' + ic("lock") + ' ' + fmt(pointsNeeded) + ' more VIP points needed for this level</p>' +
-      (sel.vip === 1 ? '<button class="btn ghost" onclick="alert(\'Upgrade Guide: earn VIP points by recharging ($1 = 10 VIP points), daily sign-in and tasks. VIP1 needs 2,400 points and lasts 31 days.\')">Upgrade Guide ›</button>' : '') +
+      '<button class="btn ghost" onclick="openUpgradeGuide()">Upgrade Guide ›</button> ' +
+      '<button class="btn gold" onclick="openVipCenter(' + sel.vip + ')">' + ic("crown") + ' VIP Center — VIP' + sel.vip + ' Benefits</button>' +
       '<div class="vip-points-card">' +
       '<div class="vip-points-row"><span class="vip-points-avatar">' + esc((ME && ME.name ? ME.name : 'U')[0].toUpperCase()) + '</span><span>VIP Points: <b>' + fmt(d.myPoints) + '</b></span><button class="btn earn-pill" style="background:' + sel.color + '" onclick="earnVipPoints()">Earn</button></div>' +
       '<div class="vip-progress-bar"><div style="width:' + vipPct + '%;background:' + sel.color + '"></div></div>' +
@@ -570,21 +642,69 @@ function renderVipClub() {
     '<button class="btn" onclick="openBroadcasts()">'+ic("announce")+' Broadcasts</button>' +
     '</div></div>';
 }
+/* Benefit detail page — dark header "VIP Benefits", 5 round icons on top,
+   cream card below with the benefit title in the middle. */
+const BENEFIT_TOP_ICONS = ['crown', 'mic', 'gift', 'star', 'sparkle'];
 async function openBenefitDetail(name) {
   try {
     const d = await api('/api/v2/vip/benefit/' + encodeURIComponent(name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')), { headers: headers() });
     const p = document.getElementById('mePanel');
-    p.innerHTML = '<div class="card"><button class="btn ghost" onclick="renderVipClub()">← Back to VIP Club</button>' +
-      '<h3>'+ic("sparkle")+' ' + esc(d.title) + '</h3><p>' + esc(d.desc) + '</p>' +
-      (d.note ? '<p class="muted">' + esc(d.note) + '</p>' : '') +
+    let extra = '';
+    if (name === 'Colored Username') {
+      extra = '<h4>How your name looks at each level</h4>' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v =>
+        '<div class="user-row"><span class="vip-color-' + v + '"><b>' + (ME && ME.name ? esc(ME.name) : 'YourName') + '</b></span><span class="muted">VIP' + v + ' — ' + (v === 1 ? 'Single Color' : v <= 4 ? 'Single Color and Shiny' : 'Colorful and Shiny') + '</span></div>').join('') +
+        '<p class="muted">VIP 1–3 users need the latest app version to see colorful usernames.</p>';
+    }
+    if (name === 'Exclusive Entrance Effect') {
+      extra = '<h4>Your entrance</h4><p>When you enter a room, your rank banner sweeps across the room with your name — for 2–3 seconds only, then it closes by itself.</p>' +
+        (ME && ME.vip ? vipBannerImg(ME.vip) : '<p class="muted">Get VIP to unlock your entrance banner.</p>');
+    }
+    if (name === 'Exclusive Gifts') {
+      extra = '<h4>Privilege gifts</h4><p class="muted">V5 white beast 5,999 • V4 blue dragon 4,999 • V3 palace 3,999 • V2 car 2,999 • V1 flowers 799, car 1,999, blue car 3,499, castle 2,499</p><button class="btn gold" onclick="openVipGiftShop()">Open VIP Gift Shop</button>';
+    }
+    p.innerHTML = '<div class="benefit-detail"><div class="benefit-detail-head"><button class="btn ghost" onclick="renderVipClub()">← Back to VIP Club</button><h3>VIP Benefits</h3><div class="benefit-top-icons">' +
+      BENEFIT_TOP_ICONS.map(i => '<span class="benefit-top-ico">' + ic(i) + '</span>').join('') + '</div></div>' +
+      '<div class="benefit-cream-card"><h3>' + ic("sparkle") + ' ' + esc(d.title) + '</h3><p>' + esc(d.desc) + '</p>' +
+      (d.note ? '<p class="muted">' + esc(d.note) + '</p>' : '') + extra +
       (name === 'Exclusive Mic Animation' ? '<button class="btn gold" onclick="useMicAnimation()">Use it Now</button>' : '') +
-      (name === 'Exclusive Gifts' ? '<button class="btn gold" onclick="openVipGiftShop()">Open VIP Gift Shop</button>' : '') +
       (name === 'Anonymous Display' ? '<button class="btn gold" onclick="toggleAnonymous()">Toggle Anonymous Display</button>' : '') +
-      '</div>';
+      '</div></div>';
   } catch (e) {
-    // No detail page for this benefit yet — show the name only
     document.getElementById('mePanel').innerHTML = '<div class="card"><button class="btn ghost" onclick="renderVipClub()">← Back to VIP Club</button><h3>'+ic("sparkle")+' ' + esc(name) + '</h3><p class="muted">A VIP' + vipSelected + ' benefit. Upgrade your VIP level to unlock more!</p></div>';
   }
+}
+/* VIP Center — one level's 6 benefits, Identification (6/6), price, Join VIP */
+async function openVipCenter(level) {
+  try {
+    const d = await api('/api/v2/updates/vip-center/' + level, { headers: headers() });
+    const l = d.level;
+    const p = document.getElementById('mePanel');
+    const icons = ['crown', 'frame', 'sparkle', 'wave', 'chatbox', 'card'];
+    p.innerHTML = '<div class="card vip-center" style="background:' + l.themeBg + ';border-color:' + l.color + '">' +
+      '<button class="btn ghost" onclick="renderVipClub()">← Back to VIP Club</button><h3>VIP Center</h3>' +
+      '<div class="tabs-mini">' + [1, 2, 3, 4, 5].map(v => '<button class="mini-tab' + (v === level ? ' active' : '') + '" onclick="openVipCenter(' + v + ')">VIP' + v + '</button>').join('') + '</div>' +
+      '<div style="text-align:center"><div class="vip-badge-big" style="animation:dragonGlow 2s infinite">' + vipEmblemImg(level) + '</div>' +
+      '<h3 style="color:' + l.color + '">VIP' + level + ' — ' + esc(l.emblem) + '</h3></div>' +
+      '<div class="identification-banner">' + ic("crown") + ' Identification (' + d.identification + ')</div>' +
+      '<div class="benefit-grid-6">' + d.benefits.map((b, i) => '<div class="benefit-cell"><span class="benefit-ico">' + ic(icons[i]) + '</span><span>' + esc(b.name) + '</span><br><span class="muted">' + esc(b.desc) + '</span></div>').join('') + '</div>' +
+      '<p class="muted">Exclusive privilege — each VIP level gets its own version of these 6 benefits in its own colours and animal.</p>' +
+      '<p class="vip-price">' + fmt(d.price) + ' Coins / 30 DAYS</p>' +
+      (d.myVip === level ? '<p>' + ic("check") + ' Your current level</p>' : '<button class="btn gold" onclick="buyVip(' + level + ')">Join VIP</button>') +
+      '</div>';
+  } catch (e) { alert(e.message); }
+}
+/* Upgrade Guide popup — exact stages from the screenshot */
+async function openUpgradeGuide() {
+  try {
+    const d = await api('/api/v2/updates/upgrade-guide', { headers: headers() });
+    const g = d.guide;
+    const p = document.getElementById('mePanel');
+    p.innerHTML = '<div class="card upgrade-guide"><button class="btn ghost close-x" onclick="renderVipClub()">✕ Close</button>' +
+      '<h3>Upgrade Guide</h3><p>' + esc(g.text) + '</p>' +
+      '<table class="guide-table"><tr><th>Stage</th><th>VIP Points Required</th><th>Remaining</th><th>Discount</th></tr>' +
+      g.stages.map(s => '<tr><td>' + esc(s.days) + '</td><td><b>' + fmt(s.points) + '</b></td><td>' + esc(s.remaining) + '</td><td><b>' + esc(s.discount) + '</b></td></tr>').join('') +
+      '</table><p class="muted">Upgrading early needs fewer VIP points.</p></div>';
+  } catch (e) { alert(e.message); }
 }
 async function openVipGiftShop() {
   try {
@@ -674,6 +794,10 @@ async function openShop() {
     const d = await api('/api/shop', { headers: headers() });
     const disc = ME.vip ? ' (your VIP' + ME.vip + ' discount applies!)' : '';
     p.innerHTML = '<div class="card"><h3>'+ic("shop")+' Premium Shop' + disc + '</h3>' +
+      '<div class="user-row"><span><img class="gift-svg-img" src="assets/vip/owner-frame.svg" alt="Owner frame"> <b>Owner Frame</b> — golden winged frame, "OWNER" written on it — <b>Owner only</b></span>' +
+      (ME.role === 'owner' ? '<button class="btn gold" onclick="equipOwnerFrame()">Equip — FREE</button>' : '<button class="btn" disabled>Owner only</button>') + '</div>' +
+      '<div class="user-row"><span><img class="gift-svg-img" src="assets/frames/special-user.svg" alt="Special User frame"> <b>Special User Frame</b> — crown frame for your profile</span><button class="btn gold" onclick="alert(\'Special User frames are in the store — pick one from the VIP Club custom items.\')">View</button></div>' +
+      '<div class="user-row"><span>' + ic("theme") + ' <b>Room Background Themes</b> — 9 luxury themes, 1,000,000 coins (VIP 500,000)</span><button class="btn gold" onclick="openRoomThemes()">Open Themes</button></div>' +
       d.items.map(i => '<div class="user-row"><span>' + iconImg(i.icon || 'assets/icons/shop.svg') + ' <b>' + esc(i.name) + '</b> — ' + i.category + ' — <b>' + fmt(i.price) + ' coins</b></span><button class="btn gold" onclick="buyShop(\'' + i.id + '\')">Buy</button></div>').join('') + '</div>';
   } catch (e) { p.innerHTML = '<p class="muted">' + esc(e.message) + '</p>'; }
 }
@@ -1276,26 +1400,119 @@ let pendingLang = null;
 function pickLanguage(l) { pendingLang = l; document.querySelectorAll('.lang-row').forEach(r => { const name = r.querySelector('span').textContent; const on = name === l; r.classList.toggle('selected', on); const c = r.querySelector('.lang-check'); if (c) c.remove(); if (on) r.insertAdjacentHTML('beforeend', '<span class="lang-check">' + ic('check') + '</span>'); }); }
 async function saveLanguage() { if (!pendingLang) { alert('Pick a language first.'); return; } await setLanguage(pendingLang); }
 async function setLanguage(l) { try { await api('/api/v2/extras/language', { method: 'POST', headers: headers(true), body: JSON.stringify({ lang: l }) }); ME.language = l; alert('Language: ' + l); } catch (e) { alert(e.message); } }
+/* ---------------- HONORS PROFILE (like Yalla Honors profiles) ---------------- */
 async function openProfile(userId) {
   const id = userId || ME.id;
   try {
-    const d = await api('/api/v2/extras/profile/' + id, { headers: headers() });
+    const d = await api('/api/v2/updates/honors/' + id, { headers: headers() });
+    honorsData = d; honorsTab = 'honors';
     switchTab('me');
-    const u = d.user;
-    document.getElementById('mePanel').innerHTML = '<div class="card"><div class="profile-card">' +
-      '<div class="avatar' + (u.vip ? ' vip-frame' : '') + '">' + esc((u.name || 'A')[0].toUpperCase()) + '</div>' +
-      '<h2 class="vip-color-' + (u.vip || 0) + '">' + esc(u.name) + '</h2><p class="muted">ID: ' + u.id + (u.vip ? ' • '+ic("crown")+' VIP' + u.vip + ' • ' + (VIP_ANIMALS[u.vip] || '') : '') + (u.honorTitle ? ' • '+ic("crown")+' ' + esc(u.honorTitle) : '') + '</p>' +
-      '<p class="muted">' + esc(u.bio || '') + '</p>' +
-      '<p>'+ic("coin")+' Wealth Lv.' + d.wealthLevel.level + ' • '+ic("star")+' Level ' + (u.level || 1) + '</p>' +
-      '<p>' + (d.badges.map(b => '<span class="badge-chip">' + iconImg(b.icon) + ' ' + esc(b.name) + '</span>').join('') || '<span class="muted">No badges worn</span>') + '</p>' +
-      '<div class="stats-row"><div><b>' + fmt(d.stats.coins) + '</b><span>Coins</span></div><div><b>' + fmt(d.stats.charm) + '</b><span>Charm</span></div><div><b>' + fmt(d.stats.wealth) + '</b><span>Wealth</span></div></div></div>' +
-      '<h3>'+ic("users")+' Followers (' + d.followers.length + ')</h3>' + (d.followers.map(f => '<div class="user-row"><span>' + esc(f.name) + (f.vip ? ' '+ic("crown")+'VIP' + f.vip : '') + '</span></div>').join('') || '<p class="muted">No followers yet.</p>') +
-      '<h3>'+ic("heart")+' Following (' + d.following.length + ')</h3>' + (d.following.map(f => '<div class="user-row"><span>' + esc(f.name) + (f.vip ? ' '+ic("crown")+'VIP' + f.vip : '') + '</span></div>').join('') || '<p class="muted">Not following anyone yet.</p>') +
-      (id !== ME.id ? '<button class="btn" onclick="followUser(\'' + id + '\')">Follow</button> <button class="btn" onclick="giftToUser(\'' + id + '\', \'' + esc(u.name) + '\')">'+ic("gift")+' Gift</button> <button class="btn danger" onclick="blockUser(\'' + id + '\')">'+ic("ban")+' Block</button> <button class="btn danger" onclick="reportUser(\'' + id + '\')">'+ic("report")+' Report</button>' : '') + '</div>';
+    renderHonorsProfile();
   } catch (e) { alert(e.message); }
 }
+function renderHonorsProfile() {
+  const d = honorsData; if (!d) return;
+  const u = d.user, s = d.stats;
+  const lux = Math.min(5, Math.floor((u.level || 1) / 10) + (u.vip >= 5 ? 2 : 0)); /* luxury grows with level + VIP */
+  const honor = u.honorTitle ? '<div class="honor-banner" style="background:' + u.honorTitle.bg + '">' + esc(u.honorTitle.title) + '</div>' : '';
+  const rankBadge = u.rankBadge ? '<div class="rank-badge-wrap" style="--rb-size:' + u.rankBadge.size + 'px"><img class="rank-badge-img" src="' + u.rankBadge.svg + '" alt="rank badge"><span class="rank-badge-text">' + esc(u.rankBadge.name) + '</span></div>' : '';
+  const cpBanner = d.cp ? '<div class="cp-banner">' + ic("heart") + ' ' + esc(d.cp.label) + ' — ' + d.cp.days + ' days <span class="cp-avatars">' + esc(u.name) + ' ' + ic("heart") + ' ' + esc(d.cp.partnerName) + '</span></div>' : '';
+  let body = '';
+  if (honorsTab === 'honors') {
+    body = '<div class="gifts-received"><h3>' + ic("gift") + ' Gifts Received</h3><p class="gifts-total">' + fmt(d.giftsReceived.total) + ' gifts • ' + fmt(d.giftsReceived.coins) + ' coins</p>' +
+      (d.giftsReceived.grid.length ? '<div class="gift-grid">' + d.giftsReceived.grid.map(g => '<div class="gift-item"><span class="g-icon">' + iconImg(g.svg) + '</span><span>' + esc(g.name) + ' x' + g.count + '</span><br><span class="g-price">' + fmt(g.price) + ' coins</span></div>').join('') + '</div>' : '<p class="muted">No gifts received yet.</p>') + '</div>';
+  } else if (honorsTab === 'moments') {
+    body = '<h3>Moments</h3>' + (d.moments.length ? d.moments.map(m => '<div class="card"><b>' + esc(m.name) + '</b><p>' + esc(m.text || '') + '</p><p class="muted">' + fmt((m.likes || []).length) + ' likes</p></div>').join('') : '<p class="muted">No moments yet.</p>');
+  } else if (honorsTab === 'about') {
+    body = '<h3>About</h3><p>' + esc(u.bio || 'No bio yet.') + '</p><p class="muted">Country: ' + esc(u.country || '—') + ' • Gender: ' + esc(u.gender || '—') + '</p>' +
+      (u.kit ? '<h3>VIP Kit — ' + esc(u.kit.emblem) + '</h3><p class="muted">Profile frame, chat bar, entry banner, name banner, profile cover and mic ring — all in ' + esc(u.kit.emblem) + ' style, 3D animated.</p>' : '');
+  } else {
+    body = '<h3>Rooms</h3>' + (d.rooms.length ? d.rooms.map(r => '<div class="user-row" onclick="joinRoom(\'' + r.id + '\')"><span><b>' + esc(r.name) + '</b> • ' + esc(r.topic || 'Chat') + ' • Lv.' + r.level + ' • ' + r.members + ' members</span></div>').join('') : '<p class="muted">No rooms yet.</p>');
+  }
+  document.getElementById('mePanel').innerHTML = '<div class="card honors-profile lux-' + lux + '" style="background:' + (u.kit ? u.kit.profileCover.themeBg : '') + '">' +
+    '<button class="btn ghost close-x" onclick="switchTab(\'party\')" title="Close">✕ Close</button>' +
+    '<div class="honors-frame"><div class="avatar honors-avatar' + (u.vip ? ' vip-frame' : '') + '">' + frameImgFor(u) + esc((u.name || 'A')[0].toUpperCase()) + '</div>' +
+    (u.vip >= 5 ? '<span class="honors-frame-glow"></span>' : '') + '</div>' +
+    '<h2 class="vip-color-' + (u.vip || 0) + '">' + esc(u.name) + '</h2>' +
+    (u.svip ? svipBadgeImg() : '') +
+    honor +
+    (u.vip ? vipBannerImg(u.vip) : '') +
+    rankBadge +
+    '<p class="muted">ID: ' + u.id + ' <button class="btn ghost" onclick="navigator.clipboard && navigator.clipboard.writeText(\'' + u.id + '\');alert(\'ID copied: ' + u.id + '\')">Copy</button>' + (u.country ? ' • ' + esc(u.country) : '') + ' • ' + levelPill(u.level) + ' ' + roleTag(u) + ' ' + vipTagHtml(u) + '</p>' +
+    '<p class="muted">' + esc(u.bio || '') + '</p>' +
+    cpBanner +
+    '<div class="stats-row"><div><b>' + fmt(s.visitors) + '</b><span>Visitors</span></div><div><b>' + fmt(s.followers) + '</b><span>Following</span></div><div><b>' + fmt(s.following) + '</b><span>Followers</span></div></div>' +
+    '<div class="action-row"><button class="btn" onclick="alert(\'Liked!\')">' + ic("heart") + ' Like</button>' +
+    (d.isMe ? '' : '<button class="btn" onclick="followUser(\'' + u.id + '\')">+ Follow</button> <button class="btn gold" onclick="openThread(\'' + u.id + '\')">Message</button> <button class="btn" onclick="giftToUser(\'' + u.id + '\', \'' + esc(u.name) + '\')">' + ic("gift") + ' Gift</button>') + '</div>' +
+    '<div class="tabs-mini">' + ['moments', 'honors', 'about', 'rooms'].map(t => '<button class="mini-tab' + (t === honorsTab ? ' active' : '') + '" onclick="honorsTab=\'' + t + '\';renderHonorsProfile()">' + t[0].toUpperCase() + t.slice(1) + '</button>').join('') + '</div>' +
+    body +
+    (d.isMe ? '' : '<div class="action-row"><button class="btn danger" onclick="blockUser(\'' + u.id + '\')">' + ic("ban") + ' Block</button> <button class="btn danger" onclick="reportUser(\'' + u.id + '\')">' + ic("report") + ' Report</button></div>') +
+    '</div>';
+}
+function profileTab(t) { honorsTab = t; renderHonorsProfile(); }
 async function blockUser(id) { if (!confirm('Block this user? You will not see their messages or rooms.')) return; try { await api('/api/v2/extras/users/' + id + '/block', { method: 'POST', headers: headers() }); alert('User blocked.'); } catch (e) { alert(e.message); } }
 async function reportUser(id) { const reason = prompt('Why are you reporting this user?'); if (!reason) return; try { await api('/api/v2/extras/users/' + id + '/report', { method: 'POST', headers: headers(true), body: JSON.stringify({ reason }) }); alert(' Report sent to the owner. Thank you for keeping AZLAN WORLD CHAT safe.'); } catch (e) { alert(e.message); } }
+
+/* ---------------- 3D EMOJI ON MIC + ROOM THEMES STORE + ROOM ADMIN ---------------- */
+/* 3D emoji panel — tap any emoji and it shows on YOUR mic seat.
+   RULE: only ONE emoji shows on the mic at a time — a new pick replaces the old one. */
+async function openEmojiPanel() {
+  try {
+    const d = await api('/api/v2/updates/emoji-panel', { headers: headers() });
+    const p = document.getElementById('mePanel');
+    p.innerHTML = '<div class="card"><button class="btn ghost" onclick="switchTab(\'party\')">← Back</button><h3>' + ic('sparkle') + ' 3D Emojis — put one on your mic</h3>' +
+      '<p class="muted">' + esc(d.note) + '</p>' +
+      '<div class="emoji-grid">' + d.emojis.map(e => '<div class="emoji-item' + (d.mine && d.mine.id === e.id ? ' selected' : '') + '" onclick="setMicEmoji(\'' + e.id + '\')"><img src="' + e.svg + '" alt="' + esc(e.name) + '"><span>' + esc(e.name) + '</span><br><span class="muted">' + esc(e.desc) + '</span></div>').join('') + '</div>' +
+      '<button class="btn ghost" onclick="setMicEmoji(null)">Remove my mic emoji</button></div>';
+    switchTab('me');
+  } catch (e) { alert(e.message); }
+}
+async function setMicEmoji(id) {
+  try {
+    const d = await api('/api/v2/updates/mic-emoji', { method: 'POST', headers: headers(true), body: JSON.stringify({ emojiId: id }) });
+    if (ME) ME.micEmoji = d.micEmoji;
+    alert(d.micEmoji ? 'Mic emoji: ' + d.micEmoji.name + ' — it shows on your mic seat now!' : 'Mic emoji removed.');
+    if (currentRoom) { const r = await api('/api/rooms/' + currentRoom.id + '/join', { method: 'POST', headers: headers() }); currentRoom = r.room; renderMicGrid(); }
+    openEmojiPanel();
+  } catch (e) { alert(e.message); }
+}
+/* Room background themes store — 1,000,000 coins, VIP 500,000, owner FREE */
+let roomThemeTab = 'Themes';
+async function openRoomThemes() {
+  try {
+    const d = await api('/api/v2/updates/room-themes', { headers: headers() });
+    const p = document.getElementById('mePanel');
+    const list = roomThemeTab === 'Themes' ? d.themes : d.themes.filter(t => t.tab === roomThemeTab.toLowerCase() || (roomThemeTab === 'Romance' && t.tab === 'romance') || (roomThemeTab === 'ModernLives' && t.tab === 'modern') || (roomThemeTab === 'Nature' && t.tab === 'nature') || (roomThemeTab === 'Scenery' && t.tab === 'scenery'));
+    p.innerHTML = '<div class="card"><button class="btn ghost" onclick="openVipClub()">← Back to VIP Club</button><h3>' + ic('theme') + ' Room Themes</h3>' +
+      '<p class="muted">Buy a theme and apply it to your room. Every theme: <b>' + fmt(d.myPrice) + ' coins</b>' + (d.isVip ? ' (VIP discount — you pay 500,000)' : ' (VIP users pay only 500,000)') + (d.isOwner ? ' — FREE for the owner' : '') + '</p>' +
+      '<div class="tabs-mini">' + d.tabs.map(t => '<button class="mini-tab' + (t === roomThemeTab ? ' active' : '') + '" onclick="roomThemeTab=\'' + t + '\';openRoomThemes()">' + t + '</button>').join('') + '</div>' +
+      '<div class="theme-grid">' + (list.length ? list.map(t => '<div class="theme-card"><img class="theme-thumb" src="' + t.svg + '" alt="' + esc(t.name) + '"><b>' + esc(t.name) + '</b><br><span class="muted">' + esc(t.desc) + '</span><br><span class="g-price">' + fmt(t.price) + ' coins</span><br>' +
+        (t.applied ? '<button class="btn" disabled>Using</button>' : t.owned ? '<button class="btn gold" onclick="applyRoomTheme(\'' + t.id + '\')">Apply</button>' : '<button class="btn gold" onclick="buyRoomTheme(\'' + t.id + '\')">Purchase</button>') + '</div>').join('') : '<p class="muted">No themes in this tab yet.</p>') + '</div>' +
+      '<p class="muted">Balance: <b>' + fmt(d.myCoins) + ' coins</b> <button class="btn ghost" onclick="openWallet()">Recharge ›</button></p></div>';
+    switchTab('me');
+  } catch (e) { alert(e.message); }
+}
+async function buyRoomTheme(id) {
+  try { const d = await api('/api/v2/updates/room-themes/buy', { method: 'POST', headers: headers(true), body: JSON.stringify({ themeId: id }) }); alert('Theme bought! Paid ' + fmt(d.paid || 0) + ' coins.'); openRoomThemes(); }
+  catch (e) { alert(e.message); }
+}
+async function applyRoomTheme(id) {
+  try { const d = await api('/api/v2/updates/room-themes/apply', { method: 'POST', headers: headers(true), body: JSON.stringify({ themeId: id }) }); if (ME) ME.roomTheme = id; alert(d.note); openRoomThemes(); }
+  catch (e) { alert(e.message); }
+}
+/* Room admin — the host makes an admin; Admin tag shows on their ID */
+async function makeRoomAdminPrompt() {
+  if (!currentRoom) return;
+  const userId = prompt('User ID to make admin of this room:');
+  if (!userId) return;
+  try { const d = await api('/api/v2/updates/rooms/' + currentRoom.id + '/admin', { method: 'POST', headers: headers(true), body: JSON.stringify({ userId }) }); alert('Admin set! The Admin tag now shows on their ID.'); }
+  catch (e) { alert(e.message); }
+}
+/* OWNER frame in the Premium Shop — owner only, "OWNER" written on it */
+async function equipOwnerFrame() {
+  try { const d = await api('/api/v2/updates/owner-frame/equip', { method: 'POST', headers: headers() }); alert('Owner Frame equipped! It shows on your profile photo, on the mic, and to anyone who visits your profile.'); if (ME) ME.profileFrame = 'owner-frame'; }
+  catch (e) { alert(e.message); }
+}
 
 /* ---------------- OWNER: Total Control panel ---------------- */
 async function openOwnerControls() {

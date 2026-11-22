@@ -235,6 +235,87 @@ const BONUS_STORE = [
  { id: 'bp6', name: 'Marquis (7 days)', points: 5000, icon: 'assets/icons/crown.svg' }
 ];
 
+/* ---------- NEW: rank banners, kits, honor titles, upgrade guide (2026-11-22) ---------- */
+/* Rank banners — the banner shown depends on the user's RANK and shows with
+   their ID. Original SVG art in assets/vip/banner*.svg (self-drawn). */
+const BANNERS = [
+ { vip: 1, name: 'VIP 1 Banner', animal: 'White Horse', svg: 'assets/vip/banner1.svg', colors: 'teal crystal', desc: 'Teal crystal banner with a white horse on top.' },
+ { vip: 2, name: 'VIP 2 Banner', animal: 'Golden Eagle', svg: 'assets/vip/banner2.svg', colors: 'gold amber', desc: 'Gold banner with a golden eagle on top.' },
+ { vip: 3, name: 'VIP 3 Banner', animal: 'Golden Wolf', svg: 'assets/vip/banner3.svg', colors: 'deep blue crystal', desc: 'Deep blue crystal banner with a golden wolf on top.' },
+ { vip: 4, name: 'VIP 4 Banner', animal: 'Gold-Red Crown', svg: 'assets/vip/banner4.svg', colors: 'gold-red', desc: 'Gold-red banner with a crown medal.' },
+ { vip: 5, name: 'VIP 5 Banner', animal: 'Purple Wings', svg: 'assets/vip/banner5.svg', colors: 'purple', desc: 'Purple banner with winged medal.' },
+ { vip: 6, name: 'VIP 6 Banner', animal: 'Crowned Lion', svg: 'assets/vip/banner6.svg', colors: 'red', desc: 'Red banner with a crowned golden lion and flames.' },
+ { vip: 7, name: 'VIP 7 Banner', animal: 'Phoenix', svg: 'assets/vip/banner7.svg', colors: 'orange fire', desc: 'Orange fire banner with a phoenix on top.' },
+ { vip: 8, name: 'VIP 8 Banner', animal: 'Crown + Dragons', svg: 'assets/vip/banner8.svg', colors: 'red', desc: 'Red banner with a crown and two golden dragons.' },
+ { vip: 9, name: 'VIP 9 Banner', animal: 'Golden Lion', svg: 'assets/vip/banner9.svg', colors: 'gold-red', desc: 'Gold-red banner with a golden lion and flames.' },
+ { vip: 10, name: 'VIP 10 Banner', animal: 'Flaming Dragon', svg: 'assets/vip/banner10.svg', colors: 'fire-gold', desc: 'Fire-gold banner with a flaming dragon.' },
+ { vip: 11, name: 'VIP 11 Banner', animal: 'Thunder Dragon', svg: 'assets/vip/banner11.svg', colors: 'thunder', desc: 'Thunder banner with a lightning dragon.' }
+];
+/* SVIP badges — shown WITH the user's name. SVIP9 is 3D animated. */
+const SVIP_BADGES = {
+ 9: { name: 'SVIP9', animal: 'Flaming Phoenix', svg: 'assets/vip/banner-svip9.svg', animated3d: true, desc: 'Flaming phoenix with peacock feathers — 3D animated, shows with the name.' },
+ 10: { name: 'SVIP10', animal: 'Golden Dragon', svg: 'assets/vip/banner-svip10.svg', animated3d: true, desc: 'Golden dragon head with lightning — shows with the name.' }
+};
+/* Flaming winged rank badges — run ONLY on the PROFILE page where the VIP
+   rank is written, in 3D animation, for VIP 1–7. Bigger rank = bigger animation. */
+const RANK_BADGES = { 1: 'Champion', 2: 'Runner-up', 3: 'Top 4', 4: 'Top 8', 5: 'Top 17', 6: 'Top 24', 7: 'Top 32' };
+function rankBadgeSize(vip) { return 60 + (vip || 1) * 14; } /* px — grows with rank */
+/* VIP kit per level — every level has its own full kit in its own colours/animal:
+   profile badge/frame, chat bar, entry banner, name banner, profile cover,
+   and the plain round golden mic ring that BLINKS/pulses in 3D while speaking. */
+function vipKit(vip) {
+ const e = EMBLEMS[vip] || EMBLEMS[1];
+ const b = BANNERS[vip - 1] || BANNERS[0];
+ return {
+  vip, emblem: e.emblem, animal: b.animal, color: e.color, color2: e.color2, themeBg: e.themeBg,
+  profileFrame: { name: e.emblem + ' Profile Frame', svg: e.svg },
+  chatBar: { name: e.emblem + ' Chat Bar', color: e.color, color2: e.color2 },
+  entryBanner: { name: b.name, svg: b.svg, animal: b.animal },
+  nameBanner: { name: e.emblem + ' Name Banner', svg: b.svg },
+  profileCover: { name: e.emblem + ' Profile Cover', themeBg: e.themeBg, color: e.color },
+  micRing: { name: (MIC_RINGS[vip] || MIC_RINGS[1]).name, color: (MIC_RINGS[vip] || MIC_RINGS[1]).color, animated3d: true, blink: true }
+ };
+}
+/* Honor titles — earned by spending/gifting level (wealth). */
+function honorTitleFor(wealth) {
+ const w = wealth || 0;
+ if (w >= 5000000) return { title: 'Billionaire', color: '#ffd24a', bg: 'linear-gradient(90deg,#7a5a00,#ffd24a,#7a5a00)' };
+ if (w >= 1000000) return { title: 'King of Gold', color: '#ff2d55', bg: 'linear-gradient(90deg,#8a0000,#ff2d55,#8a0000)' };
+ if (w >= 200000) return { title: 'Prestige VIP', color: '#a06bff', bg: 'linear-gradient(90deg,#5b2ea6,#a06bff,#5b2ea6)' };
+ if (w >= 50000) return { title: 'Elite Patron', color: '#2fd6a3', bg: 'linear-gradient(90deg,#0f7a5c,#2fd6a3,#0f7a5c)' };
+ return null;
+}
+/* Upgrade Guide — early upgrade needs fewer VIP points. */
+const UPGRADE_GUIDE = {
+ text: 'Upgrading early requires fewer VIP points. The VIP points required for different stages within your current VIP validity period are as follows:',
+ stages: [
+  { days: 'Day 1 - Day 30', points: 2400, remaining: '31 days remaining', discount: '20% OFF' },
+  { days: 'Day 31 - Day 60', points: 2700, remaining: 'Not started', discount: '10% OFF' },
+  { days: 'Day 61 - Day 90', points: 3000, remaining: 'Not started', discount: '0% OFF' }
+ ]
+};
+/* VIP2 benefits example (VIP Center) — each level gets its own version in its
+   own colours/animal: Membership, Customized Headwear, Entrance Effects,
+   Mic Wave, Exclusive Bubble, Room Card. */
+const VIP_CENTER_BENEFITS = [
+ { id: 'membership', name: 'Membership', desc: 'Your VIP membership pill, shown with your name everywhere.' },
+ { id: 'headwear', name: 'Customized Headwear', desc: 'A winged headwear ring in your VIP colours, worn on your avatar.' },
+ { id: 'entrance', name: 'Entrance Effects', desc: '"User name is coming" — a winged banner when you enter a room.' },
+ { id: 'micwave', name: 'Mic Wave', desc: 'A coloured circle wave around your avatar while you speak on mic.' },
+ { id: 'bubble', name: 'Exclusive Bubble', desc: 'Your own VIP chat bubble with wings, in your VIP colours.' },
+ { id: 'roomcard', name: 'Room Card', desc: 'A VIP profile card in your colours, shown when anyone opens you in a room.' }
+];
+/* Level tiers — colours start low and grow into more luxury as level rises. */
+const LEVEL_TIERS = [
+ { min: 1, max: 9, name: 'Bronze', color: '#cd7f32', bg: 'linear-gradient(90deg,#3a2410,#cd7f32)' },
+ { min: 10, max: 19, name: 'Silver', color: '#aebfd6', bg: 'linear-gradient(90deg,#232c3d,#aebfd6)' },
+ { min: 20, max: 29, name: 'Gold', color: '#ffd24a', bg: 'linear-gradient(90deg,#7a5a00,#ffd24a)' },
+ { min: 30, max: 39, name: 'Purple', color: '#a06bff', bg: 'linear-gradient(90deg,#2b1155,#a06bff)' },
+ { min: 40, max: 49, name: 'Red-Gold', color: '#ff6b4a', bg: 'linear-gradient(90deg,#571505,#ff6b4a)' },
+ { min: 50, max: 9999, name: 'Legend', color: '#ff2d55', bg: 'linear-gradient(90deg,#ff2d55,#ffd24a,#7a5cff)' }
+];
+function levelTier(level) { return LEVEL_TIERS.find(t => level >= t.min && level <= t.max) || LEVEL_TIERS[0]; }
+
 module.exports = function (ctx) {
  const { db, save, notify } = ctx;
  const router = express.Router();
@@ -313,7 +394,7 @@ module.exports = function (ctx) {
   u.coins -= cost; u.wealth += cost;
   recipients.forEach(id => {
    const to = db.users.find(x => x.id === id);
-   if (to) { to.charm += gift.price * n; to.wealth += cost; }
+   if (to) { to.charm += gift.price * n; to.wealth += cost; to.giftsReceived = (to.giftsReceived || 0) + n; to.giftsReceivedCoins = (to.giftsReceivedCoins || 0) + cost; to.giftsReceivedBy = to.giftsReceivedBy || {}; to.giftsReceivedBy[gift.id] = (to.giftsReceivedBy[gift.id] || 0) + n; }
   });
   const broadcast = cost >= 100000;
   u.giftsSent = (u.giftsSent || 0) + n; u.biggestGift = Math.max(u.biggestGift || 0, cost);
@@ -522,3 +603,13 @@ module.exports.MIC_RINGS = MIC_RINGS;
 module.exports.USERNAME_STYLES = USERNAME_STYLES;
 module.exports.VIP_GIFTS = VIP_GIFTS;
 module.exports.benefitsForLevel = benefitsForLevel;
+module.exports.BANNERS = BANNERS;
+module.exports.SVIP_BADGES = SVIP_BADGES;
+module.exports.RANK_BADGES = RANK_BADGES;
+module.exports.rankBadgeSize = rankBadgeSize;
+module.exports.vipKit = vipKit;
+module.exports.honorTitleFor = honorTitleFor;
+module.exports.UPGRADE_GUIDE = UPGRADE_GUIDE;
+module.exports.VIP_CENTER_BENEFITS = VIP_CENTER_BENEFITS;
+module.exports.LEVEL_TIERS = LEVEL_TIERS;
+module.exports.levelTier = levelTier;

@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="AZLAN WORLD CHAT">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>AZLAN WORLD CHAT</title>
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -101,6 +101,10 @@
   <div id="roomView" class="tab-page hidden">
     <button class="btn ghost" onclick="leaveRoom()">&larr; Leave room</button>
     <div class="room-stage">
+      <div id="roomBg" class="room-bg" aria-hidden="true"></div>
+      <div id="roomHeader" class="room-header"></div>
+      <div id="roomAnnounce" class="room-announce"></div>
+      <div id="roomWelcome" class="room-welcome"></div>
       <h2 id="roomName">Room</h2>
       <p id="roomMeta" class="muted"></p>
       <div id="micGrid" class="mic-grid"></div>
@@ -126,6 +130,16 @@
       <div class="chat-input">
         <input id="chatText" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendRoomChat()">
         <button class="btn gold" onclick="sendRoomChat()">Send</button>
+      </div>
+      <div class="room-bottom-bar">
+        <button class="icon-btn" onclick="toggleMic()" title="Speaker"><img class="ic" src="assets/icons/volume.svg" alt=""></button>
+        <button class="icon-btn" onclick="toggleMic()" title="Mic"><img class="ic" src="assets/icons/mic.svg" alt=""></button>
+        <button class="icon-btn" onclick="openEmojiPanel()" title="3D Emoji on Mic"><img class="ic" src="assets/icons/smile.svg" alt=""></button>
+        <button class="icon-btn" onclick="document.getElementById('chatText').focus()" title="Chat"><img class="ic" src="assets/icons/chat.svg" alt=""></button>
+        <button class="icon-btn" onclick="openRoomThemes()" title="Menu"><img class="ic" src="assets/icons/menu.svg" alt=""></button>
+        <button class="icon-btn" onclick="alert('Raise your hand to request the mic!')" title="Raise Hand"><img class="ic" src="assets/icons/hand.svg" alt=""></button>
+        <button class="icon-btn" onclick="showGiftPanel()" title="Gift"><img class="ic" src="assets/icons/gift.svg" alt=""></button>
+        <button class="icon-btn" onclick="openVipClub()" title="More"><img class="ic" src="assets/icons/grid.svg" alt=""></button>
       </div>
     </div>
   </div>

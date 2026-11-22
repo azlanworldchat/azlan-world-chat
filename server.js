@@ -269,12 +269,13 @@ function enrichRoom(room) {
  const info = (id) => {
   const u = db.users.find(x => x.id === id);
   if (!u) return { id, name: 'User ' + id, vip: 0, anonymous: false };
-  return { id: u.id, name: u.anonymous ? 'Anonymous' : u.name, vip: u.vip || 0, anonymous: !!u.anonymous, micSticker: u.micSticker || null, micAnimation: u.micAnimation || null, vipCustom: u.vipCustom || {}, micStyle: u.micStyle || 'default', micWave: u.micWave || 'default' };
+  return { id: u.id, name: u.anonymous ? 'Anonymous' : u.name, vip: u.vip || 0, svip: !!u.svip, anonymous: !!u.anonymous, micSticker: u.micSticker || null, micAnimation: u.micAnimation || null, vipCustom: u.vipCustom || {}, micStyle: u.micStyle || 'default', micWave: u.micWave || 'default', micEmoji: u.micEmoji || null, profileFrame: u.profileFrame || null, level: u.level || 1, isOwner: u.role === 'owner', isHost: room.hostId === u.id, isAdmin: (room.admins || []).includes(u.id), honorTitle: require('./server/vip').honorTitleFor(u.wealth || 0) };
  };
  const members = (room.members || []).map(info)
   .sort((a, b) => (b.vip || 0) - (a.vip || 0)); // VIP first — front row
- const seats = (room.seats || []).map(s => ({ ...s, user: info(s.userId) }));
- return { ...room, members, seats };
+ const seats = (room.seats || []).map(s => ({ ...s, seat: s.seat === 0 ? 1 : s.seat, user: info(s.userId) }));
+ const host = db.users.find(x => x.id === room.hostId);
+ return { ...room, members, seats, hostTheme: host ? (host.roomTheme || null) : null, admins: room.admins || [] };
 }
 app.get('/api/rooms', auth, (req, res) => res.json({ rooms: db.rooms.map(enrichRoom) }));
 app.post('/api/rooms', auth, (req, res) => {
@@ -285,7 +286,8 @@ app.post('/api/rooms', auth, (req, res) => {
  u.roomsCreated = (u.roomsCreated || 0) + 1;
  const room = {
   id: rid(), name, topic: topic || 'Chat', isPrivate: !!isPrivate, hostId: u.id,
-  level: 1, xp: 0, members: [u.id], seats: [{ seat: 0, userId: u.id, micOn: true }],
+  admins: [u.id],
+  level: 1, xp: 0, members: [u.id], seats: [{ seat: 1, userId: u.id, micOn: true }],
   chat: [], voiceNotes: [], music: null, createdAt: new Date().toISOString()
  };
  db.rooms.push(room); save(); audit(u.id, 'room-create', name);
@@ -297,13 +299,13 @@ app.post('/api/rooms/:id/join', auth, (req, res) => {
  if (!room) return res.status(404).json({ error: 'Room not found' });
  if (room.blocked && room.blocked.includes(u.id)) return res.status(403).json({ error: 'You are blocked from this room.' });
  if (!room.members.includes(u.id)) room.members.push(u.id);
- save(); res.json({ room: enrichRoom(room), entrance: u.vip ? { name: u.anonymous ? 'Anonymous' : u.name, vip: u.vip, emblem: require('./server/vip').VIP_LEVELS[u.vip - 1].emblem } : null });
+ save(); res.json({ room: enrichRoom(room), entrance: u.vip ? { name: u.anonymous ? 'Anonymous' : u.name, vip: u.vip, emblem: require('./server/vip').VIP_LEVELS[u.vip - 1].emblem, banner: require('./server/vip').BANNERS[u.vip - 1].svg, animal: require('./server/vip').BANNERS[u.vip - 1].animal } : null });
 });
 app.post('/api/rooms/:id/seat', auth, (req, res) => {
  const room = db.rooms.find(r => r.id === req.params.id);
  const u = me(req); const { seat, micOn } = req.body || {};
  if (!room) return res.status(404).json({ error: 'Room not found' });
- if (seat < 0 || seat > 7) return res.status(400).json({ error: 'Seats are 0–7 (8 seats)' });
+ if (seat < 1 || seat > 11) return res.status(400).json({ error: 'Seats are 1–11 (host seat 1 + mic seats 2–11)' });
  room.seats = room.seats.filter(s => s.userId !== u.id);
  if (room.seats.find(s => s.seat === seat)) return res.status(400).json({ error: 'Seat taken' });
  room.seats.push({ seat, userId: u.id, micOn: micOn !== false });
@@ -371,6 +373,8 @@ app.post('/api/gifts/send', auth, (req, res) => {
  const cost = Math.floor(gift.price * n * (1 - discountPct / 100));
  if (u.coins < cost) return res.status(400).json({ error: 'Not enough coins' });
  u.coins -= cost; u.wealth += cost; to.charm += gift.charm * n; to.wealth += cost;
+ to.giftsReceived = (to.giftsReceived || 0) + n; to.giftsReceivedCoins = (to.giftsReceivedCoins || 0) + cost;
+ to.giftsReceivedBy = to.giftsReceivedBy || {}; to.giftsReceivedBy[gift.id] = (to.giftsReceivedBy[gift.id] || 0) + n;
  u.giftsSent = (u.giftsSent || 0) + n; u.biggestGift = Math.max(u.biggestGift || 0, cost);
  // CP intimacy grows when partners gift each other
  const pair = db.cpPairs.find(p => (p.a === u.id && p.b === to.id) || (p.a === to.id && p.b === u.id));
@@ -752,6 +756,7 @@ app.use('/api/v2/vip', require('./server/vip')(ctx));      // VIP Club service
 app.use('/api/v2/vipx', require('./server/vip-extras')(ctx));   // VIP extras: mic styles/waves, themes store, coupons, broadcasts
 app.use('/api/controls', require('./server/controls')(ctx));    // owner control panel (read + owner)
 app.use('/api/v2/extras', require('./server/extras')(ctx));    // achievements, badges, titles, wealth, events, legal, profiles
+app.use('/api/v2/updates', require('./server/updates2')(ctx)); // 2026-11-22 upgrade: honors profile, rank banners, room themes, mic emoji, owner frame, VIP Center
 
 /* Catch-all LAST — serves the PWA for any non-API route. (Must stay after
   all /api mounts above, otherwise API GET requests would return index.html.) */

@@ -55,6 +55,8 @@ module.exports = function (ctx) {
   const cost = Math.floor(gift.price * n * (1 - discountPct / 100));
   if (u.coins < cost) return res.status(400).json({ error: 'Not enough coins' });
   u.coins -= cost; u.wealth += cost; to.charm += gift.charm * n; to.wealth += cost;
+  to.giftsReceived = (to.giftsReceived || 0) + n; to.giftsReceivedCoins = (to.giftsReceivedCoins || 0) + cost;
+  to.giftsReceivedBy = to.giftsReceivedBy || {}; to.giftsReceivedBy[gift.id] = (to.giftsReceivedBy[gift.id] || 0) + n;
   u.giftsSent = (u.giftsSent || 0) + n; u.biggestGift = Math.max(u.biggestGift || 0, cost);
   const broadcast = cost >= 100000;
   save();

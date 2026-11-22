@@ -405,3 +405,90 @@ body { background: linear-gradient(160deg, #1e0b3d, #12061f 45%, #241040); }
 .event-date-pill { display: inline-block; background: #eee; color: #555; border-radius: 12px; padding: 3px 10px; font-size: 12px; margin-bottom: 8px; }
 .event-banner { height: 110px; border-radius: 10px; background-size: cover; background-position: center; margin-bottom: 10px; }
 .event-card-white a { color: #00b3a4; }
+
+/* ============ 2026-11-22 UPGRADE: Honors profile, rank banners, UFO seats, themes ============ */
+/* --- Honors profile --- */
+.honors-profile { position: relative; overflow: hidden; }
+.honors-frame { position: relative; display: inline-block; }
+.honors-avatar { width: 96px; height: 96px; font-size: 44px; position: relative; }
+.honors-frame-glow { position: absolute; inset: -14px; border-radius: 50%; background: radial-gradient(circle, rgba(255,210,74,.5), transparent 70%); animation: dragonGlow 2s infinite; pointer-events: none; }
+.honor-banner { display: inline-block; padding: 6px 22px; border-radius: 20px; color: #fff; font-weight: 900; letter-spacing: 1px; margin: 6px 0; box-shadow: 0 0 18px rgba(255,210,74,.6); }
+.rank-banner-img { width: 100%; max-width: 340px; display: block; margin: 8px auto; }
+.svip-badge-img { width: 92px; display: block; margin: 4px auto; animation: dragonGlow 2s infinite; }
+.rank-badge-wrap { position: relative; display: inline-block; margin: 8px auto; }
+.rank-badge-img { width: var(--rb-size, 88px); animation: rankFlame 1.6s ease-in-out infinite; filter: drop-shadow(0 0 12px rgba(255,122,26,.8)); }
+.rank-badge-text { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-weight: 900; color: #ffd24a; text-shadow: 0 0 8px #000; font-size: 13px; white-space: nowrap; }
+@keyframes rankFlame { 0%,100% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(255,122,26,.6)); } 50% { transform: scale(1.08); filter: drop-shadow(0 0 20px rgba(255,122,26,1)); } }
+.cp-banner { background: linear-gradient(90deg, #a31340, #ff5a8a); color: #fff; border-radius: 14px; padding: 8px 12px; margin: 8px 0; font-weight: 700; }
+.cp-avatars { display: block; font-size: 13px; opacity: .9; }
+.action-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.close-x { float: right; }
+.gifts-total { font-size: 18px; font-weight: 800; color: var(--gold2); }
+/* --- Level pills: colours start low, grow into luxury --- */
+.level-pill { display: inline-block; padding: 2px 10px; border-radius: 14px; font-weight: 800; font-size: 12px; color: #fff; }
+.lv-bronze { background: linear-gradient(90deg,#3a2410,#cd7f32); }
+.lv-silver { background: linear-gradient(90deg,#232c3d,#aebfd6); color: #111; }
+.lv-gold { background: linear-gradient(90deg,#7a5a00,#ffd24a); color: #231a00; }
+.lv-purple { background: linear-gradient(90deg,#2b1155,#a06bff); }
+.lv-redgold { background: linear-gradient(90deg,#571505,#ff6b4a); }
+.lv-legend { background: linear-gradient(90deg,#ff2d55,#ffd24a,#7a5cff); animation: shine 2.5s linear infinite; background-size: 200% auto; }
+/* --- Owner / Admin / VIP / SVIP tags --- */
+.tag-owner { background: #e63946; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 900; }
+.tag-admin { background: #4aa8ff; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 900; }
+.tag-vip { background: linear-gradient(90deg,#ffd24a,#ff7a1a); color: #231a00; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 900; }
+.tag-svip { background: linear-gradient(90deg,#2b5cff,#a06bff); color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 900; }
+/* --- Entrance effect: separate, clearly visible, 2–3s, auto-closes --- */
+.entrance-standalone { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.entrance-banner-img { width: min(92vw, 420px); animation: entranceSweep 2.4s ease forwards; filter: drop-shadow(0 0 24px rgba(255,210,74,.9)); }
+.entrance-name { font-size: 30px; font-weight: 900; color: #ffd24a; text-shadow: 0 0 24px rgba(255,210,74,.9); }
+.entrance-name.vip5-anim, .entrance-standalone.vip5-anim .entrance-name { background: linear-gradient(90deg,#ff5a8a,#ffd24a,#4ade80,#4aa8ff,#b678ff,#ff5a8a); -webkit-background-clip: text; background-clip: text; color: transparent; background-size: 200% auto; animation: shine 1.2s linear infinite; }
+.entrance-sub { font-size: 16px; font-weight: 700; color: #fff; }
+@keyframes entranceSweep { 0% { transform: translateX(-60vw) scale(.7); opacity: 0; } 18% { transform: translateX(0) scale(1.1); opacity: 1; } 75% { transform: translateX(0) scale(1); opacity: 1; } 100% { transform: translateX(60vw) scale(.9); opacity: 0; } }
+/* --- Room header / announcement / welcome / bottom bar --- */
+.room-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.rh-left { display: flex; align-items: center; gap: 8px; }
+.rh-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,210,74,.2); display: flex; align-items: center; justify-content: center; }
+.rh-right { display: flex; align-items: center; gap: 6px; }
+.rh-trophy { font-weight: 800; color: var(--gold2); }
+.room-announce { background: rgba(0,0,0,.45); border: 1px solid #00d0c0; color: #7fe7f2; border-radius: 12px; padding: 8px 12px; margin: 8px 0; }
+.room-welcome { background: rgba(0,0,0,.35); border-radius: 12px; padding: 8px 12px; margin: 8px 0; color: #bfe9f2; font-size: 14px; }
+.room-bottom-bar { display: flex; justify-content: space-around; align-items: center; background: rgba(0,0,0,.45); border-radius: 16px; padding: 8px 4px; margin-top: 12px; position: sticky; bottom: 0; }
+.room-bg { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: .35; pointer-events: none; border-radius: 18px; }
+/* --- UFO mic seats: host seat 1 on top, seats 2–11 as purple glass domes --- */
+.mic-grid { grid-template-columns: repeat(5, 1fr); }
+.mic-seat.ufo { border-radius: 50% 50% 22px 22px; background: radial-gradient(circle at 50% 28%, #b678ff, #4a2d8a 60%, #1a1033 100%); min-height: 96px; }
+.mic-seat.ufo::after { content: none; }
+.mic-seat.host-seat { grid-column: 1 / -1; min-height: 110px; border-radius: 22px; }
+.mic-seat.speaking { animation: micPulse 1s ease-out infinite; }
+@keyframes micPulse { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,.7); } 70% { box-shadow: 0 0 0 16px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
+.seat-emoji { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); width: 44px; height: 44px; z-index: 3; animation: giftBob 1.8s ease-in-out infinite; }
+.seat-emoji img { width: 100%; height: 100%; }
+.seat-frame { position: absolute; inset: -12px; width: calc(100% + 24px); height: calc(100% + 24px); pointer-events: none; z-index: 2; }
+.seat-num { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.8); font-size: 12px; }
+.seat-tags { font-size: 11px; display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
+/* --- Emoji panel --- */
+.emoji-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.emoji-item { border: 2px solid var(--border); border-radius: 14px; padding: 10px; text-align: center; cursor: pointer; }
+.emoji-item.selected { border-color: var(--gold); box-shadow: 0 0 14px rgba(255,210,74,.6); }
+.emoji-item img { width: 64px; height: 64px; }
+/* --- Room themes store --- */
+.theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.theme-card { border: 2px solid var(--border); border-radius: 14px; padding: 10px; text-align: center; }
+.theme-card .theme-thumb { width: 100%; border-radius: 10px; }
+.g-price { color: var(--gold2); font-weight: 800; }
+/* --- Benefit detail page: dark header, 5 round icons, cream card --- */
+.benefit-detail-head { background: #14101f; border-radius: 16px 16px 0 0; padding: 14px; text-align: center; }
+.benefit-top-icons { display: flex; justify-content: center; gap: 10px; margin-top: 8px; }
+.benefit-top-ico { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,210,74,.15); border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; }
+.benefit-cream-card { background: #fdf6e3; color: #231a00; border-radius: 0 0 16px 16px; padding: 16px; }
+.benefit-cream-card h3 { color: #7a5a00; }
+/* --- VIP Center --- */
+.vip-center { text-align: center; }
+.identification-banner { background: linear-gradient(90deg, #ff5a8a, #a06bff); color: #fff; border-radius: 20px; padding: 8px; font-weight: 800; margin: 10px 0; }
+.benefit-grid-6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
+/* --- Upgrade Guide --- */
+.upgrade-guide { position: relative; }
+.guide-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; }
+.guide-table th, .guide-table td { border: 1px solid var(--border); padding: 8px; text-align: left; }
+.guide-table th { background: rgba(255,210,74,.15); }
+@media (max-width: 380px) { .mic-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; } .theme-grid { grid-template-columns: 1fr; } .benefit-grid-6 { grid-template-columns: repeat(2, 1fr); } }
