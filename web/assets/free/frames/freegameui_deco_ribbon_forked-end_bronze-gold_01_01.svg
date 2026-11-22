@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <!-- 1. 奥の尻尾（左右、燕尾に切る。1パスに統合） -->
+  <path d="M48,108 H6 L24,138 L6,168 H48 Z M208,108 H250 L232,138 L250,168 H208 Z" fill="#8B5A2B"/>
+  <!-- 2. 折り返し（左） -->
+  <path d="M48,152 H70 V168 Z" fill="#4A2E14"/>
+  <!-- 3. 折り返し（右） -->
+  <path d="M208,152 H186 V168 Z" fill="#4A2E14"/>
+  <!-- 4. 前面の帯 -->
+  <rect x="48" y="92" width="160" height="60" fill="#B87333"/>
+  <!-- 5. 上側の光 -->
+  <rect x="48" y="92" width="160" height="14" fill="#D89555"/>
+  <!-- 6. 縁取り（金・明） -->
+  <rect x="48" y="99" width="160" height="3" fill="#FFE066"/>
+  <!-- 7. 縁取り（金・基準） -->
+  <rect x="48" y="142" width="160" height="3" fill="#D4AF37"/>
+</svg>

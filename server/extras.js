@@ -184,7 +184,7 @@ module.exports = function (ctx) {
   res.json(p);
  });
  router.get('/about', (req, res) => res.json({
-  app: 'AZLAN WORLD CHAT', version: '1.0.0', owner: 'Azlan',
+  app: 'AZLAN WORLD CHAT', version: '1.1.0', owner: 'Azlan',
   desc: 'A global real-time voice social platform — voice rooms, gifts, VIP, friends and fun, built for everyone.',
   contact: 'Customer Service inside the app',
   legal: ['privacy', 'terms', 'childsafety']

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+  <!-- ダイヤモンド本体シルエット: クラウン(尖頂)+ガードル(最大幅)+パビリオン(底点)。中央にファセット識別穴(evenodd)を抜く -->
+  <path fill-rule="evenodd" fill="white"
+    d="M64 14 L96 40 L104 46 L64 100 L24 46 L32 40 Z
+       M64 28 L84 44 L64 60 L44 44 Z"/>
+  <!-- 支柱: ダイヤ底点と台座を接続し単一シルエット化 -->
+  <rect x="57" y="98" width="14" height="12" fill="white"/>
+  <!-- 台座バンド: 最上位帯を示す短い支持ベース -->
+  <rect x="46" y="106" width="36" height="12" rx="2" fill="white"/>
+</svg>

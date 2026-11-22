@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>VIP 1–12 Visual Preview — AZLAN WORLD CHAT</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, sans-serif; font-size: 13px; background: #fff; color: #1c1c1c; }
+  header { padding: 14px; background: linear-gradient(180deg, #fff8e1, #fff); border-bottom: 2px solid #d4af37; position: sticky; top: 0; z-index: 10; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  h1 .gold { color: #a67c00; }
+  .muted { color: #6b6b6b; }
+  .btn { display: inline-block; background: #fff; color: #1c1c1c; border: 1px solid #e3d9b8; border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: 700; text-decoration: none; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+  .btn.gold { background: linear-gradient(180deg, #ffe27a, #d4af37); border-color: #a67c00; }
+  main { padding: 12px; max-width: 960px; margin: 0 auto; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 12px; }
+  th, td { border: 1px solid #e3d9b8; padding: 5px 8px; text-align: left; }
+  th { background: #fff8e1; }
+  section.lvl { border: 1px solid #e3d9b8; border-radius: 14px; padding: 12px; margin: 14px 0; background: #fff; box-shadow: 0 3px 10px rgba(0,0,0,.08); }
+  section.lvl.vip12 { border: 3px solid #d4af37; background: linear-gradient(180deg, #fffdf5, #f9f1ff); }
+  section.lvl h2 { font-size: 15px; margin: 0 0 2px; }
+  .tag { font-size: 11px; color: #6b6b6b; font-weight: 400; }
+  .assets { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin: 10px 0; }
+  figure { margin: 0; text-align: center; }
+  figcaption { font-size: 11px; color: #6b6b6b; margin-top: 2px; max-width: 130px; }
+  figure img { max-width: 130px; height: auto; display: block; margin: 0 auto; }
+  figure img.tall { max-width: 96px; }
+  .frame-demo { position: relative; width: 130px; height: 130px; }
+  /* LIVING BADGES — layered motion over the photorealistic badge art (same as the app): breathe / blink / sway / roar / flame / wing-shimmer. Layered 2.5D motion, not a rendered 3D video. Pauses off-screen. */
+  .living-badge { position: relative; display: inline-block; line-height: 0; animation: lbSway 2s ease-in-out infinite; transform-origin: 50% 60%; }
+  .living-badge img { display: block; animation: lbBreathe 1.8s ease-in-out infinite; transform-origin: 50% 85%; }
+  .living-badge.lb-shield, .living-badge.lb-wings { animation: lbWingSway 1.8s ease-in-out infinite; }
+  .living-badge.lb-roar { animation: lbSway 2s ease-in-out infinite, lbRoar 1.8s ease-in-out infinite; }
+  .living-badge .lb-fx { position: absolute; pointer-events: none; }
+  .living-badge .lb-glow { left: 16%; right: 16%; top: 24%; height: 16%; background:
+    radial-gradient(ellipse 18% 60% at 30% 50%, rgba(255,255,255,.9), rgba(251,191,36,.55) 45%, transparent 75%),
+    radial-gradient(ellipse 18% 60% at 70% 50%, rgba(255,255,255,.9), rgba(251,191,36,.55) 45%, transparent 75%);
+    animation: lbGlow 1.8s ease-in-out infinite; mix-blend-mode: screen; }
+  .living-badge.lb-vip4 .lb-glow, .living-badge.lb-vip11 .lb-glow { background:
+    radial-gradient(ellipse 18% 60% at 30% 50%, rgba(255,255,255,.9), rgba(96,165,250,.6) 45%, transparent 75%),
+    radial-gradient(ellipse 18% 60% at 70% 50%, rgba(255,255,255,.9), rgba(96,165,250,.6) 45%, transparent 75%); }
+  .living-badge.lb-vip7 .lb-glow, .living-badge.lb-vip10 .lb-glow { background:
+    radial-gradient(ellipse 18% 60% at 30% 50%, rgba(255,255,255,.9), rgba(248,113,113,.6) 45%, transparent 75%),
+    radial-gradient(ellipse 18% 60% at 70% 50%, rgba(255,255,255,.9), rgba(248,113,113,.6) 45%, transparent 75%); }
+  .living-badge.lb-vip1 .lb-glow, .living-badge.lb-vip3 .lb-glow { background:
+    radial-gradient(ellipse 18% 60% at 30% 50%, rgba(255,255,255,.9), rgba(52,211,153,.55) 45%, transparent 75%),
+    radial-gradient(ellipse 18% 60% at 70% 50%, rgba(255,255,255,.9), rgba(52,211,153,.55) 45%, transparent 75%); }
+  .living-badge.lb-vip5 .lb-glow { background:
+    radial-gradient(ellipse 18% 60% at 30% 50%, rgba(255,255,255,.85), rgba(167,139,250,.55) 45%, transparent 75%),
+    radial-gradient(ellipse 18% 60% at 70% 50%, rgba(255,255,255,.85), rgba(167,139,250,.55) 45%, transparent 75%); }
+  .living-badge .lb-flame { left: 20%; right: 20%; bottom: 0; height: 26%; background: radial-gradient(ellipse 50% 70% at 50% 100%, rgba(255,120,0,.55), rgba(255,180,0,.28) 55%, transparent 78%); animation: lbFlame 0.9s ease-in-out infinite; mix-blend-mode: screen; }
+  .living-badge .lb-shine { inset: -4%; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,.55) 28deg, transparent 62deg, transparent 180deg, rgba(255,255,255,.35) 205deg, transparent 240deg); animation: lbShine 2s linear infinite; mix-blend-mode: screen; -webkit-mask: radial-gradient(circle, transparent 52%, #000 56%, #000 72%, transparent 76%); mask: radial-gradient(circle, transparent 52%, #000 56%, #000 72%, transparent 76%); }
+  .living-badge .lb-blink-l, .living-badge .lb-blink-r { top: 30%; width: 12%; height: 4%; border-radius: 50%; background: rgba(20,12,4,.6); transform: scaleY(0); animation: lbBlink 1.8s ease-in-out infinite; }
+  .living-badge .lb-blink-l { left: 24%; }
+  .living-badge .lb-blink-r { left: 64%; }
+  .living-badge.paused, .living-badge.paused img, .living-badge.paused .lb-fx { animation-play-state: paused !important; }
+  /* Real GIF badges carry their own motion — no CSS animation on the wrapper/img */
+  .living-badge.lb-gif, .living-badge.lb-gif img { animation: none !important; }
+  @keyframes lbBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+  @keyframes lbSway { 0%, 100% { transform: rotate(-1deg) translateX(-1px); } 50% { transform: rotate(1deg) translateX(1px); } }
+  @keyframes lbWingSway { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+  @keyframes lbGlow { 0%, 100% { opacity: .35; } 50% { opacity: .95; } }
+  @keyframes lbFlame { 0%, 100% { opacity: .45; transform: scaleY(.92); } 30% { opacity: .9; transform: scaleY(1.06); } 60% { opacity: .6; transform: scaleY(.96); } }
+  @keyframes lbShine { to { transform: rotate(360deg); } }
+  @keyframes lbBlink { 0%, 91%, 100% { transform: scaleY(0); } 93.5% { transform: scaleY(1); } 96% { transform: scaleY(0); } }
+  @keyframes lbRoar { 0%, 86%, 100% { filter: brightness(1); } 89% { filter: brightness(1.22); } 92% { filter: brightness(1.08); } }
+  /* FIRE ON ALL BADGES (owner rule) + LAVA ON VIP 10-12: rim flames and rising
+     embers over the art, centre stays clear (creature, badge, VIP number never
+     hidden). Lava = molten eruption glow from the base corners + 3D depth tilt.
+     1.5-2s loops, GPU-friendly, paused off-screen. No emoji anywhere. */
+  .living-badge .lb-firefx { inset: -3%; border-radius: 50%; background:
+    radial-gradient(ellipse 22% 16% at 10% 90%, rgba(255,140,0,.85), rgba(255,60,0,.4) 55%, transparent 75%),
+    radial-gradient(ellipse 22% 16% at 90% 90%, rgba(255,140,0,.85), rgba(255,60,0,.4) 55%, transparent 75%),
+    radial-gradient(ellipse 18% 14% at 8% 14%, rgba(255,120,0,.6), transparent 70%),
+    radial-gradient(ellipse 18% 14% at 92% 14%, rgba(255,120,0,.6), transparent 70%);
+    animation: lbFireFx .9s ease-in-out infinite; mix-blend-mode: screen;
+    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 48%, #000 62%, #000 88%, transparent 97%);
+    mask: radial-gradient(circle at 50% 50%, transparent 48%, #000 62%, #000 88%, transparent 97%); }
+  .living-badge .lb-embers { inset: 0; background-image:
+    radial-gradient(circle 2px, rgba(255,200,80,.95), transparent 70%),
+    radial-gradient(circle 1.5px, rgba(255,150,40,.9), transparent 70%),
+    radial-gradient(circle 2px, rgba(255,180,60,.95), transparent 70%);
+    background-repeat: no-repeat; background-position: 30% 82%, 55% 88%, 72% 84%;
+    animation: lbEmbers 1.8s linear infinite; mix-blend-mode: screen; }
+  .living-badge .lb-embers.lb-lava-embers { background-image:
+    radial-gradient(circle 2.5px, rgba(255,120,30,.95), transparent 70%),
+    radial-gradient(circle 2px, rgba(255,90,20,.95), transparent 70%),
+    radial-gradient(circle 2.5px, rgba(255,160,50,.95), transparent 70%),
+    radial-gradient(circle 2px, rgba(255,110,25,.95), transparent 70%),
+    radial-gradient(circle 1.5px, rgba(255,140,40,.9), transparent 70%);
+    background-position: 25% 82%, 42% 88%, 58% 84%, 75% 87%, 88% 80%;
+    animation-duration: 1.2s; }
+  .living-badge .lb-lava { left: 0; right: 0; bottom: -2%; height: 38%; background:
+    radial-gradient(ellipse 30% 45% at 12% 100%, rgba(255,60,0,.85), rgba(255,140,0,.45) 50%, transparent 75%),
+    radial-gradient(ellipse 30% 45% at 88% 100%, rgba(255,60,0,.85), rgba(255,140,0,.45) 50%, transparent 75%);
+    animation: lbLava 1.8s ease-in-out infinite; mix-blend-mode: screen; }
+  .living-badge.lb-lava { animation: lbSway 2s ease-in-out infinite, lbLavaDepth 1.8s ease-in-out infinite; }
+  .living-badge.lb-lava.lb-roar { animation: lbSway 2s ease-in-out infinite, lbRoar 1.8s ease-in-out infinite, lbLavaDepth 1.8s ease-in-out infinite; }
+  .living-badge.lb-lava.lb-wings { animation: lbWingSway 1.8s ease-in-out infinite, lbLavaDepth 1.8s ease-in-out infinite; }
+  @keyframes lbFireFx { 0%, 100% { opacity: .55; transform: scale(1) translateY(0); } 35% { opacity: .95; transform: scale(1.04) translateY(-2%); } 70% { opacity: .7; transform: scale(1.01) translateY(-1%); } }
+  @keyframes lbEmbers { 0% { background-position: 30% 84%, 55% 89%, 72% 85%; opacity: 0; } 15% { opacity: 1; } 100% { background-position: 28% 16%, 58% 24%, 70% 18%; opacity: 0; } }
+  @keyframes lbLava { 0%, 100% { opacity: .5; transform: scaleY(.85); } 40% { opacity: 1; transform: scaleY(1.12); } 65% { opacity: .75; transform: scaleY(.95); } }
+  @keyframes lbLavaDepth { 0%, 100% { transform: perspective(600px) rotateX(0deg) rotateY(-1.5deg); } 50% { transform: perspective(600px) rotateX(1.5deg) rotateY(1.5deg); } }
+
+  .frame-demo .avatar-demo { position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(160deg, #ffd24a, #a67c00); color: #fff; font-size: 34px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+  .frame-demo img { position: absolute; inset: 0; max-width: none; width: 130px; height: 130px; }
+  .plate-demo { position: relative; width: 320px; max-width: 100%; }
+  .plate-demo img { max-width: 100%; width: 320px; }
+  .plate-demo .plate-name { position: absolute; left: 14%; top: 50%; transform: translateY(-50%); font-family: Georgia, serif; font-size: 22px; font-weight: 900; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+  #entryStage { position: fixed; inset: 0; z-index: 50; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; }
+  #entryStage.hidden { display: none; }
+  #entryStage .entry-art { width: min(92vw, 380px); }
+  #entryStage .entry-name { font-size: 20px; font-weight: 900; color: #a67c00; text-shadow: 0 2px 0 #fff, 0 0 24px rgba(255,210,74,.9); }
+  #entryStage.play .entry-anim { animation: pvSweep var(--entry-dur, 2.5s) ease forwards; }
+  #entryStage.play .entry-anim.entry-wings { animation-name: pvWings; }
+  #entryStage.play .entry-anim.entry-portal { animation-name: pvPortal; }
+  #entryStage.play .entry-anim.entry-portal-car { animation-name: pvPortal; }
+  #entryStage.play .entry-anim.entry-phoenix { animation-name: pvPhoenix; }
+  #entryStage.play .entry-anim.entry-dragon { animation-name: pvDragon; }
+  #entryStage.play .entry-anim.entry-cosmic { animation-name: pvCosmic; }
+  #entryStage.play .entry-anim.entry-divine { animation-name: pvDivine; background: radial-gradient(circle at 50% 45%, rgba(255,210,74,.3), rgba(122,92,255,.25) 55%, rgba(122,92,255,0) 78%); padding: 20px; border-radius: 24px; }
+  @keyframes pvSweep { 0% { transform: translateX(-60vw); opacity: 0; } 15% { transform: translateX(0); opacity: 1; } 78% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(60vw); opacity: 0; } }
+  @keyframes pvWings { 0% { transform: translateX(-60vw) rotateY(-35deg); opacity: 0; } 18% { transform: translateX(0) rotateY(0); opacity: 1; } 80% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(60vw); opacity: 0; } }
+  @keyframes pvPortal { 0% { transform: translateX(-70vw); opacity: 0; } 20% { transform: translateX(0); opacity: 1; } 78% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(70vw); opacity: 0; } }
+  @keyframes pvPhoenix { 0% { transform: translateY(40px); opacity: 0; } 15% { transform: translateY(0); opacity: 1; } 82% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-24px); opacity: 0; } }
+  @keyframes pvDragon { 0% { transform: translateX(-60vw); opacity: 0; } 15% { transform: translateX(0); opacity: 1; } 80% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(60vw) rotate(4deg); opacity: 0; } }
+  @keyframes pvCosmic { 0% { transform: rotateY(-50deg); opacity: 0; } 18% { transform: rotateY(0); opacity: 1; } 80% { transform: rotateY(0); opacity: 1; } 100% { transform: rotateY(50deg); opacity: 0; } }
+  @keyframes pvDivine { 0% { transform: rotateY(-30deg); opacity: 0; } 12% { transform: rotateY(0); opacity: 1; } 85% { transform: rotateY(0); opacity: 1; } 100% { transform: rotateY(30deg); opacity: 0; } }
+  #entrySkip { pointer-events: auto; position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,.92); color: #1c1c1c; border: 1px solid #e3d9b8; border-radius: 16px; padding: 4px 12px; font-size: 12px; font-weight: 700; }
+  @media (prefers-reduced-motion: reduce) { #entryStage.play .entry-anim { animation-duration: .01s !important; } }
+  /* VIP 1 animated phoenix frame — same motion as in the app (shine sweep, gem twinkle, flame flicker, crown glint). */
+  .frame-demo.vip1-frame-anim .v1f-fx { position: absolute; pointer-events: none; }
+  .frame-demo.vip1-frame-anim .v1f-shine { inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0deg, transparent 30deg, rgba(255,240,170,.65) 62deg, rgba(255,255,255,.9) 72deg, rgba(255,240,170,.65) 82deg, transparent 115deg, transparent 360deg); -webkit-mask: radial-gradient(circle, transparent 56%, #000 63%, #000 80%, transparent 87%); mask: radial-gradient(circle, transparent 56%, #000 63%, #000 80%, transparent 87%); animation: v1fSpin 6s linear infinite; }
+  @keyframes v1fSpin { to { transform: rotate(360deg); } }
+  .frame-demo.vip1-frame-anim .v1f-gem-l, .frame-demo.vip1-frame-anim .v1f-gem-r { width: 16%; height: 16%; top: 42%; border-radius: 50%; background: radial-gradient(circle, #fff 0%, #e9d5ff 25%, #a855f7 55%, rgba(168,85,247,0) 72%); animation: v1fTwinkle 2.4s ease-in-out infinite; }
+  .frame-demo.vip1-frame-anim .v1f-gem-l { left: 1%; }
+  .frame-demo.vip1-frame-anim .v1f-gem-r { right: 1%; animation-delay: 1.2s; }
+  @keyframes v1fTwinkle { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.15); } }
+  .frame-demo.vip1-frame-anim .v1f-flame { left: 28%; right: 28%; bottom: 0; height: 28%; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(255,140,30,.6), rgba(255,60,0,.28) 55%, transparent 75%); mix-blend-mode: screen; animation: v1fFlicker 1.6s ease-in-out infinite; }
+  @keyframes v1fFlicker { 0%, 100% { opacity: .55; transform: scaleY(1); } 30% { opacity: .9; transform: scaleY(1.12); } 60% { opacity: .7; transform: scaleY(.94); } }
+  .frame-demo.vip1-frame-anim .v1f-crown { left: 45%; top: -1%; width: 10%; height: 10%; border-radius: 50%; background: radial-gradient(circle, #fff, #ffd24a 55%, transparent 72%); animation: v1fGlint 5s ease-in-out infinite; }
+  @keyframes v1fGlint { 0%, 88%, 100% { opacity: 0; transform: scale(.6); } 92% { opacity: 1; transform: scale(1.2); } 96% { opacity: 0; transform: scale(.9); } }
+  .frame-demo.vip1-frame-anim.paused .v1f-fx { animation-play-state: paused; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="gold">VIP 1–12</span> Visual Preview — AZLAN WORLD CHAT</h1>
+  <p class="muted" style="margin:0">Preview only — check the badges, crowns, frames, nameplates, profile cards, room themes and entry animations. Full implementation continues after your check. Names on nameplates are dynamic (the "Azlan" shown here is just an example, never baked into the art).</p>
+  <p style="margin:8px 0 0"><a class="btn gold" href="index.html">&larr; Back to App</a>
+  <button class="btn" id="motionBtn" onclick="toggleMotion()">Reduce motion: OFF</button></p>
+</header>
+<main>
+  <h2 style="font-size:14px">Entry timing (tiered)</h2>
+  <table>
+    <tr><th>VIP level</th><th>Entry time</th><th>Entry style</th></tr>
+    <tr><td>VIP 1–3</td><td>2–3 seconds</td><td>Badge reveal + metallic light sweep</td></tr>
+    <tr><td>VIP 4–6</td><td>3–4 seconds</td><td>Gold cinematic reveal + animated wings</td></tr>
+    <tr><td>VIP 7–8</td><td>4–5 seconds</td><td>Fire phoenix / diamond portal</td></tr>
+    <tr><td>VIP 9–10</td><td>5–7 seconds</td><td>Phoenix flight / dragon + fire trails</td></tr>
+    <tr><td>VIP 11</td><td>6–8 seconds</td><td>Cosmic portal</td></tr>
+    <tr><td>VIP 12</td><td>8–10 seconds</td><td>ULTIMATE DIVINE — celestial gate, throne, particles, aura</td></tr>
+  </table>
+  <p class="muted">Style rules: VIP 7 = FIRE (orange/red/gold, twin roaring lions breathing fire, blue gems, golden sword). VIP 6 badge = twin white tigers + golden sword + purple crystals; VIP 8 badge = twin golden dragons + golden sword + purple gem. VIP 10 = GOLD DRAGON (metallic gold, dark gold, red, black, amber light, royal dragon) — never identical to VIP 7. VIP 1 badge = teal/gold sword shield (golden sword, golden wings, teal gems); VIP 1 frame = golden phoenix frame (crown on top, purple side gems, phoenix + real flames at the bottom) — animated, never a frozen still. Every level has its own badge, crown, frame, nameplate, room theme and entry. All art is original photorealistic 3D-render-style art — zero emoji. SVIP sheet mapping: frames SVIP1–8 → VIP 1–8; nameplates gold / green / blue / purple / orange / magenta / red-orange / orange-purple; badges are expressive, emoting creatures — the golden owl is the emotion/motion reference for all of them. All entries auto-close and never block voice controls.</p>
+  <div id="levels"></div>
+  <p class="muted" style="text-align:center">End of preview — <a href="index.html">Back to App</a></p>
+</main>
+
+<div id="entryStage" class="hidden">
+  <button id="entrySkip" onclick="skipEntry()">Skip</button>
+  <div id="entryContent"></div>
+</div>
+
+<script>
+const LEVELS = [
+ { v: 1,  name: 'Sword Shield',    theme: 'Teal/gold sword shield badge, golden wings, purple/gold phoenix frame, gold nameplate', entry: 'sweep',      dur: 2500, benefits: 18, price: 500000,   points: 2400 },
+ { v: 2,  name: 'Twin White Wolves', theme: 'Twin white wolves, golden sword, red banner, gold frame with light beam, green nameplate', entry: 'sweep',      dur: 2500, benefits: 25, price: 1000000,  points: 6000 },
+ { v: 3,  name: 'Emerald Sword',   theme: 'Green/gold sword badge, emerald crown, gold/green phoenix frame, blue nameplate', entry: 'sweep',      dur: 3000, benefits: 30, price: 1500000,  points: 12000 },
+ { v: 4,  name: 'Twin Blue Wolves', theme: 'Twin blue wolves, golden sword, blue crystals, green/gold winged frame, purple nameplate', entry: 'wings',      dur: 3500, benefits: 32, price: 2000000,  points: 20000 },
+ { v: 5,  name: 'Dark Wings',      theme: 'Purple badge, black wings, golden sword, red/gold frame, orange nameplate',   entry: 'wings',      dur: 3500, benefits: 34, price: 2500000,  points: 30000 },
+ { v: 6,  name: 'Twin White Tigers', theme: 'Twin roaring white tigers, golden sword, purple crystals, gold/purple lion frame, magenta nameplate', entry: 'wings',      dur: 4000, benefits: 37, price: 3000000,  points: 45000 },
+ { v: 7,  name: 'Fire Kingdom',    theme: 'FIRE — twin roaring lions, red eyes, fire breath, golden sword, blue crystals, blue/purple frame, red-orange nameplate', entry: 'phoenix',    dur: 4500, benefits: 40, price: 3500000,  points: 65000 },
+ { v: 8,  name: 'Twin Golden Dragons', theme: 'Twin golden dragons, red gems, golden sword, purple gem, red/gold crown frame, orange-purple nameplate', entry: 'portal',     dur: 5000, benefits: 44, price: 5000000,  points: 90000 },
+ { v: 9,  name: 'Golden Lion',     theme: 'Golden roaring lion badge, crown, flame mane, black/gold banner', entry: 'phoenix',    dur: 6000, benefits: 51, price: 7000000,  points: 120000 },
+ { v: 10, name: 'Golden Phoenix',  theme: 'Golden phoenix, huge spread wings, gold/black/red feathers', entry: 'dragon',     dur: 7000, benefits: 58, price: 10000000, points: 160000 },
+ { v: 11, name: 'Fire Lion',       theme: 'Red fire lion in golden frame, two golden lions, purple/blue energy flames', entry: 'cosmic',     dur: 7000, benefits: 65, price: 15000000, points: 220000 },
+ { v: 12, name: 'Divine Universe', theme: 'DIVINE — hooded king on throne, golden winged crown, fire wings, flaming ring', entry: 'divine',    dur: 9000, benefits: 72, price: 25000000, points: 300000 },
+];
+const pad = v => String(v).padStart(2, '0');
+const fmt = n => n.toLocaleString();
+const wrap = document.getElementById('levels');
+LEVELS.forEach(L => {
+  const d = 'assets/vip/vip' + pad(L.v) + '/';
+  const sec = document.createElement('section');
+  sec.className = 'lvl' + (L.v === 12 ? ' vip12' : '');
+  sec.id = 'vip' + L.v;
+  sec.innerHTML =
+    '<h2>VIP ' + L.v + ' — ' + L.name + (L.v === 12 ? ' — ULTIMATE DIVINE' : '') +
+    ' <span class="tag">' + L.benefits + ' benefits • ' + fmt(L.price) + ' coins • ' + fmt(L.points) + ' points</span></h2>' +
+    '<p class="muted" style="margin:0">' + L.theme + ' • Entry: ' + L.entry + ' • ' + (L.dur / 1000) + 's</p>' +
+    '<div class="assets">' +
+    '<figure><img src="' + d + 'badge.gif" alt="VIP ' + L.v + ' badge" loading="lazy"><figcaption>Badge 256×256 — REAL animated GIF</figcaption></figure>' +
+    '<figure><img src="' + d + 'crown.png" alt="VIP ' + L.v + ' crown" loading="lazy"><figcaption>Crown 512×512</figcaption></figure>' +
+    '<figure class="frame-demo' + (L.v === 1 ? ' vip1-frame-anim' : '') + '"><div class="avatar-demo">A</div><img src="' + d + 'frame.png" alt="VIP ' + L.v + ' frame" loading="lazy">' + (L.v === 1 ? '<span class="v1f-fx v1f-shine"></span><span class="v1f-fx v1f-gem-l"></span><span class="v1f-fx v1f-gem-r"></span><span class="v1f-fx v1f-flame"></span><span class="v1f-fx v1f-crown"></span>' : '') + '<figcaption>Profile Frame 512×512' + (L.v === 1 ? ' — ANIMATED' : '') + '</figcaption></figure>' +
+    '<figure class="plate-demo"><img src="' + d + 'nameplate.jpg" alt="VIP ' + L.v + ' nameplate" loading="lazy"><span class="plate-name">Azlan</span><figcaption>Nameplate 1024×256 (name dynamic)</figcaption></figure>' +
+    '<figure><img class="tall" src="' + d + 'profile-card.jpg" alt="VIP ' + L.v + ' profile card" loading="lazy"><figcaption>Profile Card 1080×1350</figcaption></figure>' +
+    '<figure><img class="tall" src="' + d + 'room-theme.jpg" alt="VIP ' + L.v + ' room theme" loading="lazy"><figcaption>Room Theme 1080×1920</figcaption></figure>' +
+    '<figure><img src="' + d + 'icon.png" alt="VIP ' + L.v + ' icon" loading="lazy"><img src="' + d + 'frame-small.png" alt="VIP ' + L.v + ' small frame" loading="lazy"><figcaption>Icon 128×128 • Small Frame 256×256</figcaption></figure>' +
+    '</div>' +
+    '<button class="btn gold" onclick="playEntry(' + L.v + ')">Play Entry — ' + (L.dur / 1000) + 's</button> ' +
+    '<a class="btn" href="' + d + 'entry.jpg" target="_blank" rel="noopener">Open Entry Art (1080×1920)</a>';
+  wrap.appendChild(sec);
+});
+
+let entryTimer = null;
+function playEntry(v) {
+  const L = LEVELS.find(x => x.v === v);
+  const stage = document.getElementById('entryStage');
+  const content = document.getElementById('entryContent');
+  stage.style.setProperty('--entry-dur', (L.dur / 1000) + 's');
+  content.innerHTML = '<div class="entry-anim entry-' + L.entry + '">' +
+    '<img class="entry-art" src="assets/vip/vip' + pad(v) + '/entry.jpg" alt="VIP ' + v + ' entry">' +
+    '<div class="entry-name">Azlan entered</div>' +
+    '<div class="muted">VIP ' + v + ' • ' + L.name + ' • ' + (L.dur / 1000) + 's</div></div>';
+  stage.classList.remove('hidden');
+  stage.classList.remove('play');
+  void stage.offsetWidth;
+  stage.classList.add('play');
+  clearTimeout(entryTimer);
+  entryTimer = setTimeout(skipEntry, L.dur);
+}
+function skipEntry() {
+  clearTimeout(entryTimer);
+  document.getElementById('entryStage').classList.add('hidden');
+  document.getElementById('entryStage').classList.remove('play');
+}
+let reduced = false;
+function toggleMotion() {
+  reduced = !reduced;
+  document.getElementById('motionBtn').textContent = 'Reduce motion: ' + (reduced ? 'ON' : 'OFF');
+  document.querySelectorAll('#entryStage .entry-anim').forEach(el => el.style.animationDuration = reduced ? '.01s' : '');
+}
+/* Living badges — REAL animated GIFs, same as the app (motion baked into badge.gif; off-screen swaps to the static badge.png) */
+const LB_EFFECT = { 1: 'lb-shield', 2: 'lb-beast lb-roar', 3: 'lb-shield', 4: 'lb-beast lb-roar', 5: 'lb-wings', 6: 'lb-beast lb-roar', 7: 'lb-beast lb-fire lb-roar', 8: 'lb-beast lb-fire lb-roar', 9: 'lb-beast lb-fire lb-roar', 10: 'lb-fire lb-wings lb-lava', 11: 'lb-beast lb-fire lb-roar lb-lava', 12: 'lb-fire lb-wings lb-lava' };
+const LB_BLINK = [2, 4, 6, 7, 8, 9, 10, 11];
+const LB_FIRE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const LB_LAVA = [10, 11, 12];
+let lbObserver = null;
+if ('IntersectionObserver' in window) {
+  lbObserver = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      en.target.classList.toggle('paused', !en.isIntersecting);
+      const im = en.target.querySelector('img');
+      if (im && im.dataset.gif) {
+        const want = en.isIntersecting ? im.dataset.gif : im.dataset.png;
+        if (want && im.getAttribute('src') !== want) im.setAttribute('src', want);
+      }
+    });
+  }, { threshold: 0.05 });
+}
+document.querySelectorAll('.assets figure img[alt*="badge"]:not([data-lb])').forEach(img => {
+  const m = (img.getAttribute('src') || '').match(/vip(\d\d)\/badge\.(gif|png)/);
+  if (!m) return;
+  const v = parseInt(m[1], 10);
+  const isGif = m[2] === 'gif';
+  img.setAttribute('data-lb', '1');
+  const wrap = document.createElement('span');
+  wrap.className = 'living-badge lb-vip' + v + (isGif ? ' lb-gif' : ' ' + (LB_EFFECT[v] || 'lb-beast'));
+  if (isGif) {
+    img.dataset.gif = img.getAttribute('src');
+    img.dataset.png = img.getAttribute('src').replace('badge.gif', 'badge.png');
+  }
+  img.parentNode.insertBefore(wrap, img);
+  wrap.appendChild(img);
+  if (isGif) { if (lbObserver) lbObserver.observe(wrap); return; }
+  const glow = document.createElement('span'); glow.className = 'lb-fx lb-glow'; wrap.appendChild(glow);
+  if (LB_FIRE.includes(v)) { const f = document.createElement('span'); f.className = 'lb-fx lb-flame'; wrap.appendChild(f); }
+  const fx = document.createElement('span'); fx.className = 'lb-fx lb-firefx'; wrap.appendChild(fx);
+  const em = document.createElement('span'); em.className = 'lb-fx lb-embers' + (LB_LAVA.includes(v) ? ' lb-lava-embers' : ''); wrap.appendChild(em);
+  if (LB_LAVA.includes(v)) { const lv = document.createElement('span'); lv.className = 'lb-fx lb-lava'; wrap.appendChild(lv); }
+  const sh = document.createElement('span'); sh.className = 'lb-fx lb-shine'; wrap.appendChild(sh);
+  if (LB_BLINK.includes(v)) {
+    const bl = document.createElement('span'); bl.className = 'lb-fx lb-blink-l'; wrap.appendChild(bl);
+    const br = document.createElement('span'); br.className = 'lb-fx lb-blink-r'; wrap.appendChild(br);
+  }
+  if (lbObserver) lbObserver.observe(wrap);
+});
+</script>
+</body>
+</html>

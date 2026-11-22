@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <!-- 1. 奥の尻尾（左右、banner-flat=平らな端・切り込みなし） -->
+  <path d="M6,114 H70 V166 H6 Z" fill="#6B4420"/>
+  <path d="M250,114 H186 V166 H250 Z" fill="#6B4420"/>
+  <!-- 2. 折り返し -->
+  <path d="M48,152 H70 V166 Z" fill="#3A2210"/>
+  <path d="M208,152 H186 V166 Z" fill="#3A2210"/>
+  <!-- 3. 前面の帯 -->
+  <rect x="48" y="92" width="160" height="60" fill="#8C5A2B"/>
+  <!-- 4. 上側の光 -->
+  <rect x="48" y="92" width="160" height="14" fill="#B8824A"/>
+  <!-- 5. 縁取り（brass、上下まとめて1パーツ） -->
+  <path d="M48,99 H208 V102 H48 Z M48,142 H208 V145 H48 Z" fill="#C99A2E"/>
+</svg>

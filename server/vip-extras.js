@@ -67,7 +67,15 @@ const ROOM_THEMES = [
  { id: 'starry', name: 'Starry Night', desc: 'A room under a starry sky.', asset: 'assets/themes/starry-night.svg', icon: 'assets/themes/starry-night.svg', minVip: 0 },
  { id: 'retro', name: 'Retro Record Player', desc: 'Vintage vinyl vibes.', asset: 'assets/themes/retro-record.svg', icon: 'assets/themes/retro-record.svg', minVip: 0 },
  { id: 'ship', name: 'Gold Ship', desc: 'Sail in gold.', asset: 'assets/themes/gold-ship.svg', icon: 'assets/themes/gold-ship.svg', minVip: 0 },
- { id: 'sunset', name: 'Sunset Lovers', desc: 'Romance at sunset.', asset: 'assets/themes/sunset-lovers.svg', icon: 'assets/themes/sunset-lovers.svg', minVip: 0 }
+ { id: 'sunset', name: 'Sunset Lovers', desc: 'Romance at sunset.', asset: 'assets/themes/sunset-lovers.svg', icon: 'assets/themes/sunset-lovers.svg', minVip: 0 },
+ /* FREE-ASSET ROOM THEMES (2026-11-22): FreeGameArt gold gradients (CC0),
+    free for everyone — minVip 0. Background art: assets/free/backgrounds/. */
+ { id: 'gold-shimmer', name: 'Gold Shimmer', desc: 'Shimmering gold light for your room.', asset: 'assets/free/backgrounds/freegameui_gr_gold-shimmer_01.svg', icon: 'assets/free/backgrounds/freegameui_gr_gold-shimmer_01.svg', minVip: 0 },
+ { id: 'golden-hour', name: 'Golden Hour', desc: 'Warm golden-hour glow.', asset: 'assets/free/backgrounds/freegameui_gr_golden-hour_01_01.svg', icon: 'assets/free/backgrounds/freegameui_gr_golden-hour_01_01.svg', minVip: 0 },
+ { id: 'royal-gold', name: 'Royal Gold', desc: 'Deep royal gold.', asset: 'assets/free/backgrounds/freegameui_gr_royal-gold_01.svg', icon: 'assets/free/backgrounds/freegameui_gr_royal-gold_01.svg', minVip: 0 },
+ { id: 'molten-gold', name: 'Molten Gold', desc: 'Molten gold flow.', asset: 'assets/free/backgrounds/freegameui_gr_molten-gold_01.svg', icon: 'assets/free/backgrounds/freegameui_gr_molten-gold_01.svg', minVip: 0 },
+ { id: 'champagne', name: 'Champagne Gold', desc: 'Soft champagne gold.', asset: 'assets/free/backgrounds/freegameui_gr_champagne_08.svg', icon: 'assets/free/backgrounds/freegameui_gr_champagne_08.svg', minVip: 0 },
+ { id: 'rosegold', name: 'Rose Gold', desc: 'Elegant rose gold.', asset: 'assets/free/backgrounds/freegameui_gr_rosegold_10.svg', icon: 'assets/free/backgrounds/freegameui_gr_rosegold_10.svg', minVip: 0 }
 ];
 /* J) Golds Items Discount — 50% off; screenshot example deals (fixed prices) */
 const DISCOUNT_DEALS = [

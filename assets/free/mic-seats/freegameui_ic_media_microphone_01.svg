@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+  <!-- Microphone head: tall rounded-rect capsule -->
+  <rect x="44" y="10" width="40" height="58" rx="20" fill="white"/>
+  <!-- Curved collar: arc around bottom of head, merges into stem -->
+  <!-- Outer arch from x=28 sweeping under head, inner arch creates ring, stem and base integrated -->
+  <path d="M28 54 L28 68 C28 87 44 97 58 98 L58 106 L42 106 L42 118 L86 118 L86 106 L70 106 L70 98 C84 97 100 87 100 68 L100 54 L88 54 L88 68 C88 80 76 87 64 87 C52 87 40 80 40 68 L40 54 Z" fill="white"/>
+</svg>

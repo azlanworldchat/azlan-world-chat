@@ -73,7 +73,22 @@ function blankDb() {
    { id: 'g39', name: 'Star Rocket', price: 20000, icon: 'assets/gifts/rocket.png', charm: 200000, svg: 'assets/gifts/rocket.png', anim: 'fly', sound: 'whoosh' },
    { id: 'g40', name: 'Supercar', price: 29999, icon: 'assets/gifts/supercar.png', charm: 299990, svg: 'assets/gifts/supercar.png', anim: 'drive', sound: 'engine' },
    { id: 'g41', name: 'Shining Palace', price: 39999, icon: 'assets/gifts/shining-palace.png', charm: 399990, svg: 'assets/gifts/shining-palace.png', anim: 'zoom', sound: 'fanfare' },
-   { id: 'g42', name: 'Shadow Queen', price: 34999, icon: 'assets/gifts/shadow-queen.png', charm: 349990, svg: 'assets/gifts/shadow-queen.png', anim: 'sparkle', sound: 'magic' }
+   { id: 'g42', name: 'Shadow Queen', price: 34999, icon: 'assets/gifts/shadow-queen.png', charm: 349990, svg: 'assets/gifts/shadow-queen.png', anim: 'sparkle', sound: 'magic' },
+   /* FREE-ASSET GIFTS g43–g54 (2026-11-22): free library art, gaps only —
+      existing gifts/prices untouched. animFile = lazy lottie-web JSON
+      animation played only in the big-gift overlay, never in the panel grid. */
+   { id: 'g43', name: 'Teddy Bear', price: 9, icon: 'assets/free/gifts/teddy-bear.png', charm: 90, svg: 'assets/free/gifts/teddy-bear.png', anim: 'bounce', sound: 'pop' },
+   { id: 'g44', name: 'Yacht', price: 4999, icon: 'assets/free/gifts/yacht.png', charm: 49990, svg: 'assets/free/gifts/yacht.png', anim: 'float', sound: 'fanfare' },
+   { id: 'g45', name: 'Diamond Gem', price: 499, icon: 'assets/free/gifts/diamond-2.png', charm: 4990, svg: 'assets/free/gifts/diamond-2.png', anim: 'sparkle', sound: 'chime', animFile: 'assets/free/lottie-json/diamond-3d.json' },
+   { id: 'g46', name: 'Diamond Ring', price: 999, icon: 'assets/free/gifts/diamond-ring.png', charm: 9990, svg: 'assets/free/gifts/diamond-ring.png', anim: 'sparkle', sound: 'chime' },
+   { id: 'g47', name: 'Fire Flame', price: 19, icon: 'assets/free/gifts/fire.png', charm: 190, svg: 'assets/free/gifts/fire.png', anim: 'sparkle', sound: 'pop' },
+   { id: 'g48', name: 'Flower Bouquet', price: 29, icon: 'assets/free/gifts/flower.png', charm: 290, svg: 'assets/free/gifts/flower.png', anim: 'bloom', sound: 'chime' },
+   { id: 'g49', name: 'Gift Box', price: 49, icon: 'assets/free/gifts/gift.png', charm: 490, svg: 'assets/free/gifts/gift.png', anim: 'bounce', sound: 'chime', animFile: 'assets/free/lottie-json/gift-box-3d.json' },
+   { id: 'g50', name: 'Perfume Bottle', price: 149, icon: 'assets/free/gifts/perfume-bottle.png', charm: 1490, svg: 'assets/free/gifts/perfume-bottle.png', anim: 'sparkle', sound: 'spray' },
+   { id: 'g51', name: 'Royal Castle', price: 2999, icon: 'assets/free/gifts/castle.png', charm: 29990, svg: 'assets/free/gifts/castle.png', anim: 'zoom', sound: 'fanfare' },
+   { id: 'g52', name: 'Rose Gift', price: 19, icon: 'assets/free/gifts/rose-gradient.svg', charm: 190, svg: 'assets/free/gifts/rose-gradient.svg', anim: 'bloom', sound: 'chime' },
+   { id: 'g53', name: 'Gift Bag', price: 29, icon: 'assets/free/gifts/gift-bag-gradient.svg', charm: 290, svg: 'assets/free/gifts/gift-bag-gradient.svg', anim: 'bounce', sound: 'chime' },
+   { id: 'g54', name: 'Gift Ribbon', price: 15, icon: 'assets/free/gifts/freegameui_ic_shop_gift-wrap-ribbon.svg', charm: 150, svg: 'assets/free/gifts/freegameui_ic_shop_gift-wrap-ribbon.svg', anim: 'bounce', sound: 'pop' }
   ],
   shop: [
    { id: 's1', name: 'Golden Profile Frame', price: 20000, category: 'Frame', icon: 'assets/frames/gold-frame.svg', svg: 'assets/frames/gold-frame.svg' },
@@ -227,6 +242,7 @@ function publicUser(u) {
  rest.frameId = u.frameId || u.profileFrame || null;
  rest.cardSkinId = u.cardSkinId || null;
  rest.profileFrame = rest.frameId;
+ rest.photo = u.photo || null; /* free default avatar (assets/free/avatars/) or null */
  /* OWNER VIP FLOOR: the owner is always at least VIP 11 (permanent). A fresh
     database seeds the owner at VIP 11, but an older record may still hold 0 —
     never report the owner as "no VIP". */
@@ -296,6 +312,8 @@ function validDob(v) {
    or (owner only) the owner frame. Anything else is rejected. */
 function ownsFrameOrCard(u, id, kind) {
  if (!id) return true;
+ /* FREE FRAMES (2026-11-22): free library frames, free for everyone to equip. */
+ if (kind === 'frame' && (id === 'free-frame-circle' || id === 'free-frame-3d')) return true;
  const inv = u.inventory || [];
  if (inv.includes(id)) return true;
  if (id === 'owner-frame' && u.role === 'owner') return true;
@@ -351,6 +369,14 @@ function validateProfileEdit(body, u) {
   if (v !== null && (typeof v !== 'string' || !ownsFrameOrCard(u, v, 'card'))) return { error: 'You do not own that profile card skin yet — buy it in the shop first' };
   fields.cardSkinId = v;
  }
+ /* FREE AVATAR PHOTO (2026-11-22): only the 6 bundled default avatars may be
+    set this way — any other path is rejected, so nobody can point a profile
+    photo at an arbitrary URL. '' clears it back to the initial letter. */
+ if (body.photo !== undefined) {
+  const v = body.photo === '' ? null : body.photo;
+  if (v !== null && (typeof v !== 'string' || !/^assets\/free\/avatars\/[a-z0-9-]+\.svg$/.test(v))) return { error: 'Pick one of the default avatars' };
+  fields.photo = v;
+ }
  return { fields };
 }
 function applyProfileEdit(req, res) {
@@ -379,18 +405,22 @@ function notify(userId, text, extra) {
 
 /* ---------------- auth routes ---------------- */
 app.post('/api/auth/register', (req, res) => {
- const { name, email, password, inviteCode, phone } = req.body || {};
+ const { name, email, password, inviteCode, phone, phoneNumber } = req.body || {};
+ /* EMAIL-ONLY VERIFICATION (owner rule 2026-11-22): regular users verify by
+    email + 6-digit code only. There is no phone/SMS verification path — any
+    phone number sent with a signup is rejected, never stored. */
+ if ((phone && String(phone).trim()) || (phoneNumber && String(phoneNumber).trim())) return res.status(400).json({ error: 'Phone verification is not available — verification is by email only.' });
  const cleanName = cleanNameInput(name);
  if (!cleanName || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
  if (db.users.find(u => u.email === email)) return res.status(400).json({ error: 'Email already registered' });
  const bonus = db.settings.signupBonus || 1000000;
  // Guest accounts (auto-created by Guest Mode) are verified at once — the
- // verification rule applies to IDs created with a real email / phone.
+ // verification rule applies to IDs created with a real email.
  const isGuest = String(email).endsWith('@guest.azlanworld.chat');
  const code = String(Math.floor(100000 + Math.random() * 900000));
  const user = {
   id: uid(), email, name: cleanName, role: 'user', password: bcrypt.hashSync(password, 10),
-  phone: phone || null,
+  phone: null,
   verified: isGuest, verificationCode: isGuest ? null : code, verificationExpires: isGuest ? null : Date.now() + 10 * 60 * 1000,
   coins: bonus, diamonds: 0, charm: 0, wealth: 0, vip: 0, vipUntil: null,
   level: 1, followers: [], following: [], inventory: [],

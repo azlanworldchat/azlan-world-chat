@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <!-- 1. 奥の尻尾（左右・平らな端） -->
+  <path d="M6 114 H70 V166 H6 Z M250 114 H186 V166 H250 Z" fill="#472573"/>
+  <!-- 2. 折り返し（三角） -->
+  <path d="M48 152 H70 V166 Z M208 152 H186 V166 Z" fill="#2A1244"/>
+  <!-- 3. 前面の帯 -->
+  <rect x="48" y="92" width="160" height="60" fill="#6B2FA0"/>
+  <!-- 4. 上側の光 -->
+  <rect x="48" y="92" width="160" height="14" fill="#8D55C6"/>
+  <!-- 5. 金の縁取り + 外形線 -->
+  <rect x="48" y="99" width="160" height="3" fill="#E8B84A"/>
+  <rect x="48" y="142" width="160" height="3" fill="#C9962E"/>
+  <rect x="48" y="92" width="160" height="60" stroke="#1E0B35" stroke-width="2"/>
+</svg>

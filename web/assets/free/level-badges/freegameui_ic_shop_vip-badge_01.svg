@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+  <!-- Hexagon badge ring (evenodd: outer r=52, inner r=38, border ~12-14px) -->
+  <path fill-rule="evenodd" fill="white" d="M64 12 L109 38 L109 90 L64 116 L19 90 L19 38 Z M64 26 L97 45 L97 83 L64 102 L31 83 L31 45 Z"/>
+  <!-- Crown symbol: 3 flat-top prongs, center taller, all widths ≥ 8px -->
+  <path fill="white" d="M42 82 L42 56 L51 56 L51 70 L60 70 L60 46 L69 46 L69 70 L78 70 L78 56 L86 56 L86 82 Z"/>
+</svg>

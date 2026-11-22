@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AZLAN WORLD CHAT</string>
+    <string name="title_activity_main">AZLAN WORLD CHAT</string>
+    <string name="package_name">com.azlanworld.chat</string>
+    <string name="custom_url_scheme">com.azlanworld.chat</string>
+</resources>

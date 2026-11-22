@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <!-- 1. 奥の尻尾（左右・外端を燕尾に切る） -->
+  <path d="M6 114 H70 V166 H6 L24 140 Z M250 114 H186 V166 H250 L232 140 Z" fill="#5E1226"/>
+  <path d="M6 114 H70 V166 H6 L24 140 Z M250 114 H186 V166 H250 L232 140 Z" fill="none" stroke="#26040C" stroke-width="2" stroke-linejoin="round"/>
+  <!-- 2. 折り返し -->
+  <path d="M48 152 H70 V166 Z M208 152 H186 V166 Z" fill="#32060F"/>
+  <!-- 3. 前面の帯 -->
+  <rect x="48" y="92" width="160" height="60" fill="#85193A"/>
+  <!-- 4. 上側の光 -->
+  <rect x="48" y="92" width="160" height="14" fill="#A8344F"/>
+  <!-- 5. 金の縁取り + 外形線 -->
+  <path d="M48 99 H208 V102 H48 Z M48 142 H208 V145 H48 Z" fill="#E8B84A"/>
+  <rect x="48" y="92" width="160" height="60" stroke="#26040C" stroke-width="2"/>
+</svg>

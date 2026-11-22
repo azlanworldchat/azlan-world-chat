@@ -1208,3 +1208,53 @@ input, select, textarea { min-height: 44px; font-size: 14px; }
 .room-join { width: 100%; min-height: 48px; font-size: 15px; margin-top: 10px; }
 .room-card h3 { font-size: 16px; }
 .tab-page h2 { font-size: 20px; }
+
+/* ---- FREE ASSET LIBRARY (2026-11-22) ---- */
+.room-stage.theme-gold-shimmer { background-image: url(assets/free/backgrounds/freegameui_gr_gold-shimmer_01.svg); background-size: cover; background-position: center; }
+.room-stage.theme-golden-hour { background-image: url(assets/free/backgrounds/freegameui_gr_golden-hour_01_01.svg); background-size: cover; background-position: center; }
+.room-stage.theme-royal-gold { background-image: url(assets/free/backgrounds/freegameui_gr_royal-gold_01.svg); background-size: cover; background-position: center; }
+.room-stage.theme-molten-gold { background-image: url(assets/free/backgrounds/freegameui_gr_molten-gold_01.svg); background-size: cover; background-position: center; }
+.room-stage.theme-champagne { background-image: url(assets/free/backgrounds/freegameui_gr_champagne_08.svg); background-size: cover; background-position: center; }
+.room-stage.theme-rosegold { background-image: url(assets/free/backgrounds/freegameui_gr_rosegold_10.svg); background-size: cover; background-position: center; }
+.free-panel-header { width: 100%; max-height: 44px; object-fit: cover; border-radius: 10px; margin-bottom: 8px; }
+.wallet-art { display: flex; gap: 14px; align-items: center; justify-content: center; padding: 10px 0 4px; }
+.wallet-art img { width: 52px; height: 52px; object-fit: contain; }
+.free-avatar-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.free-avatar-pick { width: 52px; height: 52px; border-radius: 50%; border: 2px solid var(--border); object-fit: contain; background: #fff; cursor: pointer; padding: 4px; }
+.free-avatar-pick.selected { border-color: #d4af37; box-shadow: 0 0 10px rgba(212,175,55,.6); }
+.avatar-photo, .seat-photo-img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; background: #fff; }
+.seat-ring-img { position: absolute; inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px); pointer-events: none; }
+.level-badge-img { width: 26px; height: 26px; vertical-align: middle; object-fit: contain; }
+.gift3d-lottie { width: 220px; height: 220px; display: block; margin: 0 auto; }
+.gift3d-lottie svg, .entrance-confetti svg { width: 100%; height: 100%; display: block; }
+.entrance-confetti { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.entrance-fire { position: absolute; top: 8px; right: 12px; width: 44px; height: 44px; object-fit: contain; }
+.credits-body h4 { margin: 14px 0 4px; }
+.credits-body p { margin: 4px 0; }
+
+/* ---- QC FIX 2026-11-22: room header could not shrink ----
+   #roomHeader is a flex row whose only child .room-topbar had the default
+   min-width:auto, so a long room name forced the topbar to 844px wide and
+   pushed the trophy/member/bell/share/exit buttons off-screen (clipped by
+   .room-stage overflow:hidden, no ellipsis). Real cause: flexbox
+   min-width:auto on every link of the shrink chain — fixed at each link. */
+.room-header { min-width: 0; }
+.room-topbar { min-width: 0; flex: 1 1 auto; }
+.room-topbar .rt-host { flex: 1 1 auto; min-width: 0; }
+.room-topbar .rt-host > div { min-width: 0; flex: 1 1 auto; }
+.room-topbar .rt-name { min-width: 0; overflow: hidden; }
+.room-topbar .rt-name-text { display: block; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- QC FIX 2026-11-22: safe areas (notches / status bar / gesture bar) ----
+   The app had no safe-area handling: on notched phones the top bar and the
+   bottom navigation could sit under the status bar / home indicator.
+   env() falls back to 0 where unsupported, so this is a no-op elsewhere. */
+#appScreen { padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: max(0px, env(safe-area-inset-bottom)); }
+.bottom-nav { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+body.in-room #appScreen { padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: max(0px, env(safe-area-inset-bottom)); }
+
+/* ---- QC FIX 2026-11-22: in-room bottom bar 4px below the fold ----
+   Measured: barBottom 848 vs viewport 844. The dark-room bar's own
+   margin-top:4px pushed the in-room flex column 4px past 100dvh (the stage
+   cannot shrink below its min-content). Remove that margin in-room only. */
+body.in-room .room-stage.dark-room .room-bottom-bar { margin-top: 0; }

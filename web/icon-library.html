@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1a0b2e">
+<title>Icon Library — AZLAN WORLD CHAT</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, sans-serif; font-size: 13px; background: linear-gradient(180deg, #1a0b2e, #0d0518 60%, #07030d); color: #f3e9ff; min-height: 100vh; }
+  header { padding: 14px; background: rgba(42,18,80,.9); border-bottom: 2px solid #f5c542; position: sticky; top: 0; z-index: 10; }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #ffd24a; }
+  .muted { color: #b9a3e0; }
+  .btn { display: inline-block; background: #2a1250; color: #ffe27a; border: 1px solid #8a6d2f; border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: 700; text-decoration: none; cursor: pointer; }
+  .btn.gold { background: linear-gradient(180deg, #ffe27a, #d4af37); color: #1a0b2e; border-color: #a67c00; }
+  main { padding: 12px; max-width: 960px; margin: 0 auto; }
+  .cat-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .cat-nav a { color: #ffe27a; background: #2a1250; border: 1px solid #6b4fa1; border-radius: 16px; padding: 4px 12px; text-decoration: none; font-size: 12px; font-weight: 700; }
+  section.cat { border: 1px solid #6b4fa1; border-radius: 14px; padding: 12px; margin: 14px 0; background: #241040; }
+  section.cat h2 { font-size: 15px; margin: 0 0 2px; color: #ffd24a; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 10px; }
+  figure { margin: 0; text-align: center; background: #0d0518; border: 1px solid #6b4fa1; border-radius: 10px; padding: 10px 6px; }
+  figure img { width: 64px; height: 64px; display: block; margin: 0 auto; }
+  figure img.big { width: 96px; height: 96px; }
+  figcaption { font-size: 11px; color: #d8c8f5; margin-top: 6px; line-height: 1.4; }
+  figcaption .sz { color: #a78bda; display: block; }
+  figcaption code { color: #8fd8cf; font-size: 10px; word-break: break-all; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 12px; }
+  th, td { border: 1px solid #6b4fa1; padding: 5px 8px; text-align: left; }
+  th { background: #2a1250; color: #ffd24a; }
+  #status { color: #b9a3e0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Icon Library — AZLAN WORLD CHAT</h1>
+  <p class="muted">Luxury fantasy icon set — dark purple/black, metallic gold, glowing edges, crystal &amp; gemstone. Every icon is its own separate SVG file with a transparent background. Original self-drawn art — no emoji anywhere.</p>
+  <a class="btn gold" href="index.html">&larr; Back to app</a>
+  <span id="status">Loading&hellip;</span>
+</header>
+<main>
+  <table>
+    <tr><th>Size</th><th>Used for</th></tr>
+    <tr><td>64&times;64</td><td>Standard icons</td></tr>
+    <tr><td>48&times;48</td><td>Small controls (mic, mute, speaker, volume, seat lock&hellip;)</td></tr>
+    <tr><td>128&times;128</td><td>Large feature icons (VIP crowns, frames, nameplates, entry animations, store &amp; admin features)</td></tr>
+    <tr><td>256&times;256</td><td>VIP badges</td></tr>
+  </table>
+  <nav class="cat-nav" id="catNav"></nav>
+  <div id="lib"></div>
+</main>
+<script>
+(function () {
+  var CATS = { user: 'USER', room: 'VOICE ROOM', vip: 'VIP', store: 'STORE', admin: 'ADMIN', support: 'SUPPORT' };
+  fetch('assets/icons/index.json').then(function (r) { return r.json(); }).then(function (d) {
+    document.getElementById('status').textContent = d.count + ' icons';
+    var nav = document.getElementById('catNav');
+    var lib = document.getElementById('lib');
+    Object.keys(CATS).forEach(function (cat) {
+      var items = d.icons.filter(function (i) { return i.category === cat; });
+      if (!items.length) return;
+      var a = document.createElement('a');
+      a.href = '#cat-' + cat; a.textContent = CATS[cat] + ' (' + items.length + ')';
+      nav.appendChild(a);
+      var sec = document.createElement('section');
+      sec.className = 'cat'; sec.id = 'cat-' + cat;
+      var h = '<h2>' + CATS[cat] + ' &mdash; ' + items.length + ' icons</h2><div class="grid">';
+      h += items.map(function (i) {
+        return '<figure><img class="' + (i.size === '256x256' || i.size === '128x128' ? 'big' : '') + '" src="' + i.file + '" alt="' + i.name + '" loading="lazy"><figcaption>' + i.name + '<span class="sz">' + i.size + '</span><code>' + i.file + '</code></figcaption></figure>';
+      }).join('');
+      sec.innerHTML = h + '</div>';
+      lib.appendChild(sec);
+    });
+  }).catch(function (e) {
+    document.getElementById('status').textContent = 'Could not load assets/icons/index.json — ' + e.message;
+  });
+})();
+</script>
+</body>
+</html>

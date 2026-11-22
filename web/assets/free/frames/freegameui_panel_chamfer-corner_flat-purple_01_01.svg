@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bd" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F0D0FF"/>
+      <stop offset="50%" stop-color="#A050D0"/>
+      <stop offset="100%" stop-color="#4A0870"/>
+    </linearGradient>
+  </defs>
+  <!-- Border: chamfer-corner octagon (45deg cuts at each corner, size=18) -->
+  <polygon points="21,3 235,3 253,21 253,235 235,253 21,253 3,235 3,21" fill="url(#bd)"/>
+  <!-- Body: inner chamfer polygon (inset 3px), flat single color -->
+  <polygon points="24,6 232,6 250,24 250,232 232,250 24,250 6,232 6,24" fill="#EDE0F8"/>
+</svg>

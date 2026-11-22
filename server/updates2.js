@@ -200,6 +200,7 @@ module.exports = function (ctx) {
        birth, phone and email are never sent here at all. */
     gender: viewer.id === u.id ? (u.gender || '') : '',
     country: u.country || '', tag: u.tag || '', frameId: u.frameId || u.profileFrame || null, cardSkinId: u.cardSkinId || null,
+    photo: u.photo || null, /* free default avatar (assets/free/avatars/) or null */
     vip, svip: !!u.svip, level: u.level || 1, levelTier: levelTier(u.level || 1),
     honorTitle: honorTitleFor(u.wealth || 0), banner: vip > 0 ? BANNERS[vip - 1] : null,
     svipBadge: u.svip ? (SVIP_BADGES[10] || null) : null,

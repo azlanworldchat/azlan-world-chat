@@ -84,6 +84,109 @@ function vipEntryImg(v) { return vipOverride(v, 'entry') || ('assets/vip/vip' + 
 /* Rank banner (shows with the user's ID) + SVIP badge (shows with the name) */
 function vipBannerImg(v, cls) { return '<img class="' + (cls || 'rank-banner-img') + '" src="' + vipNameplateImg(v) + '" alt="VIP' + (v || 1) + ' banner">'; }
 function svipBadgeImg(cls) { return '<img class="' + (cls || 'svip-badge-img') + '" src="assets/vip/vip10/nameplate.jpg" alt="SVIP">'; }
+
+/* ---------------- FREE ASSET LIBRARY (2026-11-22) ----------------
+   320-file free library merged at ~/workspace/azlan-world-chat-assets/.
+   Free art fills GAPS only — it never replaces the approved photorealistic
+   VIP 1–12 badge art. Attribution-required files (Icons8, Lordicon,
+   OpenGameArt, Lucide) are credited on the in-app Credits screen
+   (openCredits) and in the store listing. The 3 SVGA files in the library
+   have UNCLEAR licence (SVGAFile free downloads) — they are NOT shipped as
+   live gifts; the SVGA player slot below is infrastructure only, pending
+   the owner confirming the licence. Lordicon SVGs are used UNMODIFIED
+   (CC BY-ND 4.0). Heavy LottieFiles GIFs (5–11 MB each) are NOT bundled —
+   their tiny .lottie twins (3–800 KB) are played by the vendored dotLottie
+   player instead, loaded lazily only when an animation plays. */
+const FREE_AVATARS = [
+ { id: 'avatar-check', name: 'Verified', src: 'assets/free/avatars/avatar-check-gradient.svg' },
+ { id: 'avatar-man', name: 'Man', src: 'assets/free/avatars/avatar-man-gradient.svg' },
+ { id: 'avatar-woman', name: 'Woman', src: 'assets/free/avatars/avatar-woman-gradient.svg' },
+ { id: 'avatar-check-o', name: 'Verified (outline)', src: 'assets/free/avatars/avatar-check-outline.svg' },
+ { id: 'avatar-man-o', name: 'Man (outline)', src: 'assets/free/avatars/avatar-man-outline.svg' },
+ { id: 'avatar-woman-o', name: 'Woman (outline)', src: 'assets/free/avatars/avatar-woman-outline.svg' }
+];
+const FREE_FRAMES = [
+ { id: 'free-frame-circle', name: 'Gold Circle Frame (free)', src: 'assets/free/frames/circle-fluency.png' },
+ { id: 'free-frame-3d', name: '3D Gold Frame (free)', src: 'assets/free/frames/frame-3d-fluency.png' }
+];
+/* The other 14 library "frames" are wide panel/ribbon headers, not avatar
+   rings — they decorate the VIP Club and Wallet headers instead of being
+   forced onto round avatars, where they would look broken. */
+const FREE_PANEL_HEADER = 'assets/free/frames/freegameui_panel_header_purple-gold_01.svg';
+const FREE_PANEL_HEADER_LIGHT = 'assets/free/frames/freegameui_panel_header_white-gold_03.svg';
+function freeFrameSrc(id) { const f = FREE_FRAMES.find(x => x.id === id); return f ? f.src : null; }
+/* Level-tier badge art (FreeGameUI CC0 rank SVGs). */
+function levelBadgeSrc(level) {
+  const l = level || 1;
+  if (l >= 50) return 'assets/free/level-badges/freegameui_ic_achievement_rank-diamond-tier.svg';
+  if (l >= 40) return 'assets/free/level-badges/freegameui_ic_achievement_rank-platinum.svg';
+  if (l >= 30) return 'assets/free/level-badges/freegameui_ic_achievement_rank-gold-tier-arrow_01.svg';
+  if (l >= 20) return 'assets/free/level-badges/freegameui_ic_achievement_rank-gold_01.svg';
+  if (l >= 10) return 'assets/free/level-badges/freegameui_ic_achievement_rank-silver-tier.svg';
+  return 'assets/free/level-badges/freegameui_ic_achievement_rank-bronze-tier.svg';
+}
+function levelBadgeImg(level) { return '<img class="level-badge-img" loading="lazy" src="' + levelBadgeSrc(level) + '" alt="Level ' + (level || 1) + ' badge">'; }
+
+/* lottie-web player (MIT, lottie-web 5.12.2) — vendored UMD at
+   assets/free/vendor/lottie-web.min.js, loaded LAZILY only when an animated
+   gift or entrance plays, so it costs nothing on first load. It plays the
+   plain Lottie JSON extracted from the library's .lottie zips
+   (assets/free/lottie-json/ — same animations, standard Lottie JSON).
+   NOTE: @lottiefiles/dotlottie-web 0.32.0 was tried first and REJECTED: its
+   WASM renderer failed to initialise offline in headless probes (relative
+   and absolute wasm URLs both loadError; its CDN fallback is unreachable
+   from the app runtime), so the .lottie files are NOT played directly and
+   the heavy LottieFiles GIFs (5–11 MB each) are NOT bundled either. */
+let lottieLoading = null;
+async function ensureLottieWeb() {
+  if (window.lottie) return window.lottie;
+  if (!lottieLoading) lottieLoading = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'assets/free/vendor/lottie-web.min.js';
+    s.onload = () => res(window.lottie); s.onerror = () => { lottieLoading = null; rej(new Error('lottie-web failed to load')); };
+    document.head.appendChild(s);
+  });
+  return lottieLoading;
+}
+async function playLottieAnim(el, src, loop) {
+  if (!el) return false;
+  try {
+    const lottie = await ensureLottieWeb();
+    /* Fetch + parse in the main thread and pass animationData: lottie-web's
+       built-in `path` XHR loader fails on this server (InvalidStateError
+       reading responseText with responseType json), while animationData
+       renders fine — verified by headless probe (diamond: 983 SVG nodes). */
+    const data = await (await fetch(src)).json();
+    lottie.loadAnimation({ container: el, renderer: 'svg', loop: !!loop, autoplay: true, animationData: data });
+    return true;
+  } catch (e) { el.style.display = 'none'; return false; }
+}
+/* SVGA player slot (MIT, svga 2.1.1, zero deps, ~60 KB) — vendored at
+   assets/free/vendor/svga.min.js, loaded lazily on first use.
+   NOTE: the 3 .svga files in the free library are licence-UNCLEAR and are
+   NOT shipped as live gifts, so no live gift calls playSvga yet. The slot
+   is verified by a headless probe against the library files (not bundled)
+   and stays ready for when the owner confirms the licence. */
+let svgaLoading = null;
+async function ensureSvga() {
+  if (window.SVGA) return window.SVGA;
+  if (!svgaLoading) svgaLoading = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'assets/free/vendor/svga.min.js';
+    s.onload = () => res(window.SVGA); s.onerror = () => { svgaLoading = null; rej(new Error('SVGA player failed to load')); };
+    document.head.appendChild(s);
+  });
+  return svgaLoading;
+}
+async function playSvga(canvas, file) {
+  const SVGA = await ensureSvga();
+  const parser = new SVGA.Parser();
+  const movie = await parser.load(file);
+  const player = new SVGA.Player(canvas);
+  await player.mount(movie);
+  player.start();
+  return player;
+}
 /* Level pill — colours start low and grow into luxury as the level rises */
 function levelTierOf(level) {
   const l = level || 1;
@@ -112,6 +215,8 @@ function vipTagHtml(u) {
 function frameImgFor(u) {
   if (!u) return '';
   if (u.profileFrame === 'owner-frame') return '<img class="frame-img owner-frame-img" src="assets/vip/owner-frame.svg" alt="Owner frame">';
+  const ff = freeFrameSrc(u.profileFrame || u.frameId);
+  if (ff) return '<img class="frame-img free-frame-img" src="' + ff + '" alt="Free frame">';
   return '';
 }
 let honorsData = null, honorsTab = 'honors';
@@ -215,7 +320,7 @@ async function doLogin(e) {
 async function doRegister(e) {
   e.preventDefault();
   try {
-    const d = await api('/api/auth/register', { method: 'POST', headers: headers(true), body: JSON.stringify({ name: document.getElementById('regName').value, email: document.getElementById('regEmail').value, password: document.getElementById('regPass').value, phone: document.getElementById('regPhone').value || undefined, inviteCode: document.getElementById('regInvite').value || undefined }) });
+    const d = await api('/api/auth/register', { method: 'POST', headers: headers(true), body: JSON.stringify({ name: document.getElementById('regName').value, email: document.getElementById('regEmail').value, password: document.getElementById('regPass').value, inviteCode: document.getElementById('regInvite').value || undefined }) });
     if (d.needsVerification) showVerifyScreen(d.userId, d.code);
     else enterApp(d);
   } catch (err) { document.getElementById('authMsg').textContent = err.message; window.SFX && SFX.error(); }
@@ -346,6 +451,7 @@ async function loadMe() {
     const av = document.getElementById('myAvatar');
     av.className = 'avatar' + (ME.vip ? ' vip-frame' : '') + (ME.gifPhoto ? ' gif-photo' : '');
     if (ME.gifPhoto) av.innerHTML = '<img src="' + esc(ME.gifPhoto) + '" alt="profile">';
+    else if (ME.photo) av.innerHTML = '<img src="' + esc(ME.photo) + '" alt="profile">';
     else av.textContent = displayName(ME)[0].toUpperCase();
     document.getElementById('statCoins').textContent = fmt(ME.coins);
     document.getElementById('statDiamonds').textContent = fmt(ME.diamonds);
@@ -591,6 +697,10 @@ function showEntrance(user) {
     if (user.banner) visual = '<img class="entrance-banner-img" src="' + user.banner + '" alt="VIP banner">';
     else visual = '<div class="entrance-art-wrap"><img class="entrance-motion-img" src="' + vipEntryImg(user.vip) + '" alt="VIP' + user.vip + ' entrance">' + particles + '</div>';
     fx.innerHTML = '<div class="entrance-standalone entry-' + entry + animCls + '">' + visual +
+      /* VIP5+ entrances burst with confetti (lazy dotLottie, 49 KB .lottie);
+         VIP7+ also shows the free fire accent beside the name. */
+      (user.vip >= 5 ? '<div class="entrance-confetti" data-lottie-json="assets/free/lottie-json/confetti-celebration.json"></div>' : '') +
+      (user.vip >= 7 ? '<img class="entrance-fire" src="assets/free/entrance/fire.png" alt="">' : '') +
       '<div class="entrance-name' + animCls + '">' + esc(displayName(user)) + ' entered</div>' +
       '<div class="entrance-sub">' + ic('crown') + ' VIP' + user.vip + (user.animal ? ' • ' + esc(user.animal) : '') + '</div></div>';
   } else {
@@ -598,6 +708,7 @@ function showEntrance(user) {
   }
   fx.classList.remove('hidden'); fx.classList.remove('play'); void fx.offsetWidth; fx.classList.add('play');
   fx.innerHTML += '<button class="entrance-skip" onclick="skipEntrance()">Skip</button>';
+  const ec = fx.querySelector('[data-lottie-json]'); if (ec) playLottieAnim(ec, ec.dataset.lottieJson, false);
   /* Auto-close after the tiered duration — the user never closes it. */
   setTimeout(() => fx.classList.add('hidden'), dur);
   window.SFX && SFX.join();
@@ -999,10 +1110,13 @@ function renderMicGrid() {
       const wing = s === 1 ? '<img class="host-wing-badge" src="assets/icons/wing-badge.svg" alt="Host badge">' : '';
       /* VIP icon + rank at the SIDE of the mic — never on top of the photo. */
       const vipSide = vip ? '<span class="seat-vip-side">' + vipEmblemMini(vip) + '<span>VIP' + vip + '</span></span>' : '';
-      /* The user's photo (initial) stays clear in the middle of the seat. */
-      const photo = u.micEmoji ? '' : '<span class="seat-avatar seat-photo">' + esc((name || 'U')[0].toUpperCase()) + '</span>';
+      /* The user's photo (initial, or their chosen free default avatar) stays
+         clear in the middle of the seat. A speaking seat gets the free gold
+         ring overlay (FreeGameUI CC0). */
+      const photo = u.micEmoji ? '' : (u.photo ? '<img class="seat-avatar seat-photo-img" src="' + esc(u.photo) + '" alt="">' : '<span class="seat-avatar seat-photo">' + esc((name || 'U')[0].toUpperCase()) + '</span>');
+      const seatRing = seat.micOn ? '<img class="seat-ring-img" src="assets/free/mic-seats/freegameui_sh_circle_ring-thick_01.svg" alt="">' : '';
       html += '<div class="mic-seat ufo taken vip' + vip + styleCls + waveCls + speaking + (s === 1 ? ' host-seat' : '') + '" data-userid="' + esc(seat.userId) + '" onclick="takeSeat(' + s + ')">' +
-        '<div class="seat-circle"' + ringStyle + '>' + wing + sticker + emoji + vipSide + photo +
+        '<div class="seat-circle"' + ringStyle + '>' + seatRing + wing + sticker + emoji + vipSide + photo +
         '<span class="seat-micstate">' + (seat.micOn ? '' + ic('volume') + '' : '' + ic('mic-off') + '') + '</span></div>' +
         '<span class="seat-name vip-color-' + vip + '">' + esc(name) + '</span>' +
         '<span class="seat-num">' + s + '</span></div>';
@@ -1614,10 +1728,14 @@ function showGiftBroadcast3D(ev) {
   const g = ev.gift || {};
   fx.className = 'play big-gift';
   fx.classList.remove('hidden');
+  /* Animated gifts (g45/g49): lazy dotLottie animation on a canvas instead
+     of the static thumb — the player + .lottie file load only now. */
+  const animCanvas = g.animFile ? '<div class="gift3d-lottie" data-lottie-json="' + g.animFile + '"></div>' : '';
   fx.innerHTML = '<div class="gift-broadcast-3d">' +
-    (g.svg ? '<img class="gift3d-img anim-' + (g.anim || 'bloom') + '" src="' + g.svg + '" alt="' + esc(g.name || 'gift') + '">' : '<img class="gift3d-img anim-bloom" src="assets/icons/gift.svg" alt="gift">') +
+    (animCanvas || (g.svg ? '<img class="gift3d-img anim-' + (g.anim || 'bloom') + '" src="' + g.svg + '" alt="' + esc(g.name || 'gift') + '">' : '<img class="gift3d-img anim-bloom" src="assets/icons/gift.svg" alt="gift">')) +
     '<div class="gift3d-name">' + esc(displayName(ev.fromName)) + ' sent ' + esc(g.name || 'a gift') + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to ' + esc(displayName(ev.toName)) + '</div>' +
     (g.price ? '<div class="gift3d-sub">' + fmt(g.price * (ev.qty || 1)) + ' coins</div>' : '') + '</div>';
+  const bc = fx.querySelector('[data-lottie-json]'); if (bc) playLottieAnim(bc, bc.dataset.lottieJson, true);
   if (!APP_CONTROLS || APP_CONTROLS.sounds) {
     if (window.SFX && SFX.giftSound) SFX.giftSound(g.sound || 'gift');
     else if (window.SFX) SFX.gift();
@@ -1634,10 +1752,13 @@ function playGift3D(gift) {
   const big = gift && ((gift.price || 0) >= 5000 || ['run', 'fly'].includes(gift.anim));
   fx.className = 'play' + (big ? ' big-gift' : '');
   fx.classList.remove('hidden');
-  const img = gift && gift.svg
+  const img = gift && gift.animFile
+    ? '<div class="gift3d-lottie" data-lottie-json="' + gift.animFile + '"></div>'
+    : gift && gift.svg
     ? '<img class="gift3d-img anim-' + (gift.anim || 'bloom') + '" src="' + gift.svg + '" alt="' + esc(gift.name || 'gift') + '">'
     : '<img class="gift3d-img anim-bloom" src="assets/icons/gift.svg" alt="gift">';
   fx.innerHTML = img + '<div class="gift3d-name">' + esc(gift && gift.name || '') + '</div><div class="gift3d-sub">' + (gift && gift.price ? fmt(gift.price) + ' coins' : '') + '</div>';
+  const pc = fx.querySelector('[data-lottie-json]'); if (pc) playLottieAnim(pc, pc.dataset.lottieJson, true);
   if (!APP_CONTROLS || APP_CONTROLS.sounds) {
     if (window.SFX && SFX.giftSound) SFX.giftSound(gift && gift.sound || 'gift');
     else if (window.SFX) SFX.gift();
@@ -1662,9 +1783,10 @@ async function openWallet() {
   try {
     const d = await api('/api/wallet/packages', { headers: headers() });
     const s = await api('/api/v2/payments/diamond-stages', { headers: headers() });
-    p.innerHTML = '<div class="card"><h3>'+ic("wallet")+' Wallet — ' + fmt(ME.coins) + ' coins • ' + fmt(ME.diamonds) + ' diamonds</h3>' +
+    p.innerHTML = '<div class="card"><img class="free-panel-header" src="' + FREE_PANEL_HEADER_LIGHT + '" alt=""><h3>'+ic("wallet")+' Wallet — ' + fmt(ME.coins) + ' coins • ' + fmt(ME.diamonds) + ' diamonds</h3>' +
+      '<div class="wallet-art"><img src="assets/free/icons-wallet/coins.png" alt="Coins"><img src="assets/free/icons-wallet/gold-bars.png" alt="Gold bars"><img src="assets/free/icons-wallet/diamond.png" alt="Diamonds"><img src="assets/free/icons-wallet/crown.png" alt="Crown"></div>' +
       d.packages.map(pkg => '<div class="user-row"><span><b>$' + pkg.usd + '</b> = ' + fmt(pkg.coins) + ' coins' + (pkg.usd === 1 ? ' <small>(first time: +1,000,000 bonus!)</small>' : '') + '</span><button class="btn gold" onclick="buyPackage(\'' + pkg.id + '\')">Buy</button></div>').join('') +
-      '<h3>'+ic("diamond")+' Diamond Conversion (5 stages)</h3>' +
+      '<h3><img class="ic" src="assets/free/icons-wallet/diamond.png" alt=""> Diamond Conversion (5 stages)</h3>' +
       s.stages.map((st, i) => '<div class="user-row"><span>' + fmt(st.coins) + ' coins → ' + fmt(st.diamonds) + ' diamonds</span><button class="btn" onclick="convertDiamonds(' + i + ')">Convert</button></div>').join('') +
       '</div>';
   } catch (e) { p.innerHTML = '<p class="muted">' + esc(e.message) + '</p>'; }
@@ -1788,7 +1910,7 @@ function renderVipClub() {
     '<button class="btn gold" onclick="useMicAnimation()">Use it Now</button> ' +
     '<span id="stickerRow">' + (d.micStickers || []).map(s => '<button class="btn" onclick="pickSticker(\'' + s.id + '\')">' + iconImg(s.icon) + ' ' + esc(s.name) + '</button>').join('') + '</span></div>';
   /* --- Customize + extras --- */
-  h += '<div class="card"><h3>' + ic("theme") + ' Customize My VIP Look</h3>' +
+  h += '<div class="card"><img class="free-panel-header" src="' + FREE_PANEL_HEADER + '" alt=""><h3>' + ic("theme") + ' Customize My VIP Look</h3>' +
     '<input id="vcFrame" placeholder="Profile frame (e.g. Dragon Frame)"><input id="vcEntrance" placeholder="Entrance effect (e.g. Dragon fire)"><input id="vcTitle" placeholder="Honor title (e.g. Thunder King)">' +
     '<button class="btn gold" onclick="customizeVip()">Save My VIP Style</button></div>' +
     '<div class="card"><h3>' + ic("sparkle") + ' VIP Extras</h3><div class="grid-btns">' +
@@ -1990,8 +2112,8 @@ async function openShop(cat) {
       '<div class="sec-head"><span class="eyebrow">Mall</span><h3>Shop by Category</h3></div>' +
       '<div class="grid-btns">' +
       mallTile('Vehicles', ic("gift"), "openShop('Ride')") +
-      mallTile('Avatar Frame', ic("frame"), "openShop('Frame')") +
-      mallTile('Banners', ic("theme"), "openShop('Theme')") +
+      mallTile('Avatar Frame', iconImg('assets/free/frames/frame-3d-fluency.png'), "openShop('Frame')") +
+      mallTile('Banners', iconImg('assets/free/icons-wallet/crown.png'), "openShop('Theme')") +
       mallTile('Home Page', ic("theme"), "openShop('Theme')") +
       mallTile('Relationship', ic("cp"), "openCP()") +
       mallTile('Seat Effect', ic2('room', 'mic-seat'), "openVoiceSettings(false)") +
@@ -2213,7 +2335,7 @@ async function loadRankings(kind, btn) {
     const d = await api('/api/v2/rankings/' + kind, { headers: headers() });
     const list = d.ranking || [];
     document.getElementById('rankList').innerHTML = list.map((r, i) =>
-      '<div class="rank-row"><span class="rank-num">' + (i + 1) + '</span><span><b>' + esc(displayName(r)) + '</b>' + (r.vip ? ' '+ic("crown")+' VIP' + r.vip : '') + ' — ' + fmt(r.wealth || r.charm || r.level || r.xp || 0) + '</span></div>'
+      '<div class="rank-row"><span class="rank-num">' + (i + 1) + '</span><span><b>' + esc(displayName(r)) + '</b>' + (r.vip ? ' '+ic("crown")+' VIP' + r.vip : '') + ' ' + levelBadgeImg(r.level) + ' — ' + fmt(r.wealth || r.charm || r.level || r.xp || 0) + '</span></div>'
     ).join('') || '<p class="muted">No ranking yet.</p>';
   } catch (e) {}
 }
@@ -2704,15 +2826,48 @@ function openLegalMenu() {
   switchTab('me');
   document.getElementById('mePanel').innerHTML = '<div class="card"><h3>'+ic("legal")+' Legal — AZLAN WORLD CHAT</h3>' +
     '<button class="btn" onclick="openLegal(\'privacy\')">Privacy Policy</button> ' +
+    '<button class="btn" onclick="openPrivacyFull()">Privacy Policy (full text)</button> ' +
     '<button class="btn" onclick="openLegal(\'terms\')">Terms of Service</button> ' +
     '<button class="btn" onclick="openLegal(\'childsafety\')">Child Safety Policy</button> ' +
+    '<button class="btn" onclick="openCredits()">Credits &amp; Licences</button> ' +
     '<button class="btn" onclick="openAbout()">About</button></div>';
+}
+/* ---------------- credits & full privacy policy ----------------
+   Credits list exactly the attribution-required assets from
+   ~/workspace/azlan-world-chat-assets/LICENSES.md. The full privacy text
+   mirrors PRIVACY-POLICY.md in the source package. */
+function openCredits() {
+  switchTab('me');
+  document.getElementById('mePanel').innerHTML = '<div class="card credits-body"><button class="btn ghost" onclick="openLegalMenu()">← Legal</button><h3>Credits &amp; Licences</h3>' +
+    '<p>AZLAN WORLD CHAT uses free artwork from the libraries below. The VIP 1–12 badge, frame and entry art is original work made for this app.</p>' +
+    '<h4>Icons8 — 60 icons</h4><p>Icons by <a href="https://icons8.com" target="_blank" rel="noopener">Icons8</a>, used under the Icons8 Free License (attribution required).</p>' +
+    '<h4>Lordicon — 68 icons</h4><p>Icons by <a href="https://lordicon.com" target="_blank" rel="noopener">Lordicon</a>, licensed under CC BY-ND 4.0 — used unmodified, no derivatives.</p>' +
+    '<h4>OpenGameArt — 2 animations</h4><p>"Spinning Gold Coin" by morgan3d and "Coin Animation [Bronze, Silver, Gold]" by zaphgames, licensed under CC-BY 3.0.</p>' +
+    '<h4>Lucide — 6 icons</h4><p>Lucide icons — ISC License, Copyright (c) Lucide Icons and Contributors.</p>' +
+    '<h4>No attribution required</h4><p>LottieFiles animations (Lottie Simple License), FreeGameUI (CC0), Kenney (CC0), OpenGameArt CC0 works and IconKing free-plan art.</p>' +
+    '<h4>Not shipped</h4><p>3 SVGA animation files from SVGAFile have an unclear free-download licence and are NOT used in the app until the licence is confirmed by the owner.</p></div>';
+}
+function openPrivacyFull() {
+  switchTab('me');
+  const paras = [
+    '1. Information We Collect — Your name, email, profile photo, chat messages, voice rooms you join, gifts you send and receive, and payment receipts you upload. We also collect device information (device model, app version) to keep the app working. We do NOT collect your contacts, your location, or any data from other apps on your phone.',
+    '2. How We Use It — To run voice rooms, deliver gifts and coins, show rankings, and keep the community safe. We never sell your personal information to anyone, and we never show your email or phone number to other users.',
+    '3. Where Data Is Stored — Your account data is stored on the AZLAN WORLD CHAT server. Voice messages and photos you upload are stored on the same server.',
+    '4. Who Sees It — Other users see your public profile only: name, ID, level, VIP, badges and avatar. Your email, password, phone number, date of birth and gender are never shown to other users. The owner can see account details in the Owner Portal only to run the app and keep it safe.',
+    '5. Coins, Gifts and Payments — Coins, diamonds, gifts and VIP are virtual items for fun inside the app. Recharges are approved by the owner after you upload a receipt. We never store your card or bank details.',
+    '6. Your Rights — You can ask for a copy of your data, correct it, or delete your account at any time from Settings, or by contacting the owner through Customer Service in the app. We will answer within 15 working days.',
+    '7. Children — AZLAN WORLD CHAT is not for children under 13. See our Child Safety Policy.',
+    '8. Changes — If this policy changes, we will show the new version in the app before it takes effect.',
+    '9. Contact — For privacy questions, contact the owner of AZLAN WORLD CHAT through Customer Service inside the app.',
+    '10. Full text — The complete privacy policy is also published as PRIVACY-POLICY.md with the app release.'
+  ];
+  document.getElementById('mePanel').innerHTML = '<div class="card legal-body"><button class="btn ghost" onclick="openLegalMenu()">← Legal</button><h3>Privacy Policy — AZLAN WORLD CHAT (full text)</h3>' + paras.map(p2 => '<p>' + esc(p2) + '</p>').join('') + '</div>';
 }
 async function openAbout() {
   try {
     const d = await api('/api/v2/extras/about', { headers: headers() });
     switchTab('me');
-    document.getElementById('mePanel').innerHTML = '<div class="card"><h3>'+ic("info")+' About ' + esc(d.app) + '</h3><p>Version ' + esc(d.version) + ' • Owner: <b>' + esc(d.owner) + '</b></p><p>' + esc(d.desc) + '</p><p class="muted">Contact: ' + esc(d.contact) + '</p></div>';
+    document.getElementById('mePanel').innerHTML = '<div class="card"><h3>'+ic("info")+' About ' + esc(d.app) + '</h3><p>Version ' + esc(d.version) + ' • Owner: <b>' + esc(d.owner) + '</b></p><p>' + esc(d.desc) + '</p><p class="muted">Contact: ' + esc(d.contact) + '</p><p><button class="btn" onclick="openCredits()">Credits &amp; Licences</button> <button class="btn" onclick="openPrivacyFull()">Privacy Policy (full text)</button></p></div>';
   } catch (e) { alert(e.message); }
 }
 async function openLanguage() {
@@ -2760,14 +2915,14 @@ function renderHonorsProfile() {
   document.getElementById('mePanel').innerHTML = '<div class="card honors-profile lux-' + lux + '" style="background:' + (u.kit ? u.kit.profileCover.themeBg : '') + '">' +
     '<button class="btn ghost close-x" onclick="switchTab(\'party\')" title="Close">✕ Close</button>' +
     (d.isMe ? '<button class="btn gold edit-profile-btn" onclick="openEditProfile()" title="Edit your profile">' + ic('edit') + ' Edit Profile</button>' : '') +
-    '<div class="honors-frame"><div class="avatar honors-avatar' + (u.vip ? ' vip-frame' : '') + '">' + frameImgFor(u) + (u.vip && !(APP_CONTROLS && APP_CONTROLS.vipFrames === false) ? '<img class="frame-img vip-frame-img" src="' + ((u.kit && u.kit.profileFrame) ? u.kit.profileFrame.svg : vipFrameImg(u.vip)) + '" alt="VIP frame">' : '') + esc(displayName(u)[0].toUpperCase()) + '</div>' +
+    '<div class="honors-frame"><div class="avatar honors-avatar' + (u.vip ? ' vip-frame' : '') + '">' + frameImgFor(u) + (u.vip && !(APP_CONTROLS && APP_CONTROLS.vipFrames === false) ? '<img class="frame-img vip-frame-img" src="' + ((u.kit && u.kit.profileFrame) ? u.kit.profileFrame.svg : vipFrameImg(u.vip)) + '" alt="VIP frame">' : '') + (u.photo ? '<img class="avatar-photo" src="' + esc(u.photo) + '" alt="">' : esc(displayName(u)[0].toUpperCase())) + '</div>' +
     (u.vip >= 5 ? '<span class="honors-frame-glow"></span>' : '') + '</div>' +
     '<h2 class="vip-color-' + (u.vip || 0) + '">' + esc(displayName(u)) + '</h2>' +
     (u.svip ? svipBadgeImg() : '') +
     honor +
     (u.vip ? vipBannerImg(u.vip) : '') +
     rankBadge +
-    '<p class="muted">ID: ' + u.id + ' <button class="btn ghost" onclick="navigator.clipboard && navigator.clipboard.writeText(\'' + u.id + '\');alert(\'ID copied: ' + u.id + '\')">Copy</button>' + (u.country ? ' • ' + esc(u.country) : '') + ' • ' + levelPill(u.level) + ' ' + roleTag(u) + ' ' + vipTagHtml(u) + '</p>' +
+    '<p class="muted">ID: ' + u.id + ' <button class="btn ghost" onclick="navigator.clipboard && navigator.clipboard.writeText(\'' + u.id + '\');alert(\'ID copied: ' + u.id + '\')">Copy</button>' + (u.country ? ' • ' + esc(u.country) : '') + ' • ' + levelPill(u.level) + ' ' + levelBadgeImg(u.level) + ' ' + roleTag(u) + ' ' + vipTagHtml(u) + '</p>' +
     '<p class="muted">' + esc(u.bio || '') + '</p>' +
     cpBanner +
     '<div class="stats-row"><div><b>' + fmt(s.visitors) + '</b><span>Visitors</span></div><div><b>' + fmt(s.followers) + '</b><span>Followers</span></div><div><b>' + fmt(s.following) + '</b><span>Following</span></div></div>' +
@@ -2789,6 +2944,7 @@ function profileTab(t) { honorsTab = t; renderHonorsProfile(); }
    Profile Card Skin. Date of birth and gender are private — they are
    sent only to /api/me and never shown on anyone else's profile. */
 async function openEditProfile() {
+  pendingAvatar = undefined;
   switchTab('me');
   const p = document.getElementById('mePanel');
   p.innerHTML = '<div class="card"><p class="muted">Loading your profile…</p></div>';
@@ -2805,6 +2961,7 @@ async function openEditProfile() {
     const frameOpts = [{ id: '', name: 'No frame' }]
       .concat(ownedFrames.map(i => ({ id: i.id, name: i.name })))
       .concat(vipFrames)
+      .concat(FREE_FRAMES.map(f => ({ id: f.id, name: f.name })))
       .concat(ME.role === 'owner' ? [{ id: 'owner-frame', name: 'Owner Frame' }] : []);
     if (me.frameId && !frameOpts.some(o => o.id === me.frameId)) frameOpts.push({ id: me.frameId, name: 'Current frame (' + me.frameId + ')' });
     const cardOpts = [{ id: '', name: 'No card skin' }]
@@ -2817,6 +2974,7 @@ async function openEditProfile() {
       '<div class="edit-topbar"><button class="icon-btn" onclick="openProfile()" title="Back" aria-label="Back">' + ic('back') + '</button><h3>Edit</h3><button class="btn gold" onclick="saveEditProfile()">Save</button></div>' +
       '<div class="edit-avatar-wrap"><div class="avatar edit-avatar">' + esc(displayName(me)[0].toUpperCase()) + '</div>' +
       '<button class="edit-cam-badge" onclick="openGifPhoto()" title="Change profile photo (GIF photo)">' + ic('camera') + '</button></div>' +
+      field('Default Avatar (free)', '<div class="free-avatar-row">' + FREE_AVATARS.map(a => '<img class="free-avatar-pick' + (me.photo === a.src ? ' selected' : '') + '" src="' + a.src + '" alt="' + esc(a.name) + '" title="' + esc(a.name) + '" onclick="pickFreeAvatar(\'' + a.src + '\', this)">').join('') + '<button class="btn ghost" onclick="pickFreeAvatar(\'\', this)">No avatar</button></div>', 'Free default avatars — tap one, then Save. Your photo is public; your email and phone are never shown.') +
       field('UserName', '<input id="epName" type="text" maxlength="30" value="' + esc(me.name || '') + '" placeholder="Your name">') +
       field('Gender', '<select id="epGender">' + [''].concat(PROFILE_GENDERS).map(g => '<option value="' + g + '"' + (me.gender === g ? ' selected' : '') + '>' + (g || 'Prefer not to say') + '</option>').join('') + '</select>', 'Only you can see this.') +
       field('Date of Birth', '<input id="epDob" type="date" value="' + esc(me.dob || '') + '">', 'Only you can see this. Format: year-month-day.') +
@@ -2842,6 +3000,7 @@ async function saveEditProfile() {
     frameId: document.getElementById('epFrame').value || null,
     cardSkinId: document.getElementById('epCard').value || null
   };
+  if (pendingAvatar !== undefined) body.photo = pendingAvatar; /* free default avatar pick, '' clears it */
   try {
     const d = await api('/api/me', { method: 'PUT', headers: headers(true), body: JSON.stringify(body) });
     ME = d.user;
@@ -2850,6 +3009,14 @@ async function saveEditProfile() {
     loadMe();
     openProfile();
   } catch (e) { if (msg) msg.textContent = e.message; else alert(e.message); }
+}
+/* Free default avatar pick in Edit Profile — stored only when Save is tapped. */
+let pendingAvatar = undefined;
+function pickFreeAvatar(src, el) {
+  pendingAvatar = src;
+  document.querySelectorAll('.free-avatar-pick').forEach(i => i.classList.toggle('selected', i.getAttribute('src') === src && src !== ''));
+  const msg = document.getElementById('epMsg');
+  if (msg) msg.textContent = src ? 'Avatar picked — tap Save Changes.' : 'Avatar cleared — tap Save Changes.';
 }
 async function blockUser(id) { if (!(await appConfirm('Block this user? You will not see their messages or rooms.'))) return; try { await api('/api/v2/extras/users/' + id + '/block', { method: 'POST', headers: headers() }); alert('User blocked.'); } catch (e) { alert(e.message); } }
 async function reportUser(id) { const reason = await appPrompt('Report User', 'Why are you reporting this user?'); if (!reason) return; try { await api('/api/v2/extras/users/' + id + '/report', { method: 'POST', headers: headers(true), body: JSON.stringify({ reason }) }); alert(' Report sent to the owner. Thank you for keeping AZLAN WORLD CHAT safe.'); } catch (e) { alert(e.message); } }

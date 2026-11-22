@@ -1,0 +1,8 @@
+{
+  "appId": "com.azlanworld.chat",
+  "appName": "AZLAN WORLD CHAT",
+  "webDir": "web",
+  "android": {
+    "allowMixedContent": false
+  }
+}
