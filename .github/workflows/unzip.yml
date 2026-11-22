@@ -15,16 +15,14 @@ jobs:
           if [ ! -f azlan-world-chat-source.zip ]; then echo "No ZIP to extract"; exit 0; fi
           unzip -o azlan-world-chat-source.zip
           rm azlan-world-chat-source.zip
-          if [ ! -f server.js ]; then
-            for d in */; do
-              if [ -f "$d/server.js" ]; then
-                shopt -s dotglob
-                mv "$d"* ./
-                rmdir "$d" || true
-                break
-              fi
-            done
-          fi
+          for d in */; do
+            if [ -f "$d/server.js" ]; then
+              shopt -s dotglob
+              cp -a "$d"/. ./
+              rm -rf "$d"
+              break
+            fi
+          done
           ls -la
           test -f server.js && test -f package.json && test -f index.html
       - name: Commit extracted files
