@@ -88,7 +88,18 @@ function blankDb() {
    { id: 'g51', name: 'Royal Castle', price: 2999, icon: 'assets/free/gifts/castle.png', charm: 29990, svg: 'assets/free/gifts/castle.png', anim: 'zoom', sound: 'fanfare' },
    { id: 'g52', name: 'Rose Gift', price: 19, icon: 'assets/free/gifts/rose-gradient.svg', charm: 190, svg: 'assets/free/gifts/rose-gradient.svg', anim: 'bloom', sound: 'chime' },
    { id: 'g53', name: 'Gift Bag', price: 29, icon: 'assets/free/gifts/gift-bag-gradient.svg', charm: 290, svg: 'assets/free/gifts/gift-bag-gradient.svg', anim: 'bounce', sound: 'chime' },
-   { id: 'g54', name: 'Gift Ribbon', price: 15, icon: 'assets/free/gifts/freegameui_ic_shop_gift-wrap-ribbon.svg', charm: 150, svg: 'assets/free/gifts/freegameui_ic_shop_gift-wrap-ribbon.svg', anim: 'bounce', sound: 'pop' }
+   { id: 'g54', name: 'Gift Ribbon', price: 15, icon: 'assets/free/gifts/freegameui_ic_shop_gift-wrap-ribbon.svg', charm: 150, svg: 'assets/free/gifts/freegameui_ic_shop_gift-wrap-ribbon.svg', anim: 'bounce', sound: 'pop' },
+   /* GIFT PARITY g55–g56 (2026-11-22): free library art, gaps only. The
+      artifact gift list could not be read (no list/invoke action is
+      exposed), so these two new gifts bring the source to 56 instead. */
+   { id: 'g55', name: 'Candy Gift', price: 25, icon: 'assets/free/gifts/freegameui_gift-friend-candy.svg', charm: 250, svg: 'assets/free/gifts/freegameui_gift-friend-candy.svg', anim: 'bounce', sound: 'pop' },
+   { id: 'g56', name: 'Gift Heart', price: 39, icon: 'assets/free/gifts/gift-heart-gradient.svg', charm: 390, svg: 'assets/free/gifts/gift-heart-gradient.svg', anim: 'bloom', sound: 'chime' },
+   /* LEGENDARY TIER g57–g59 (2026-11-22): above all current gifts (the
+      catalog sorts tier Legendary first). All three cost >=100,000 coins,
+      so the existing big-gift banner (5s, auto-close) fires for each. */
+   { id: 'g57', name: 'Royal Castle', price: 150000, icon: 'assets/free/gifts/castle.png', charm: 1500000, svg: 'assets/free/gifts/castle.png', anim: 'zoom', sound: 'fanfare', tier: 'Legendary' },
+   { id: 'g58', name: 'Golden Yacht', price: 200000, icon: 'assets/free/gifts/yacht.png', charm: 2000000, svg: 'assets/free/gifts/yacht.png', anim: 'float', sound: 'fanfare', tier: 'Legendary' },
+   { id: 'g59', name: 'Diamond Royal Ring', price: 120000, icon: 'assets/free/gifts/diamond-ring.png', charm: 1200000, svg: 'assets/free/gifts/diamond-ring.png', anim: 'sparkle', sound: 'chime', tier: 'Legendary' }
   ],
   shop: [
    { id: 's1', name: 'Golden Profile Frame', price: 20000, category: 'Frame', icon: 'assets/frames/gold-frame.svg', svg: 'assets/frames/gold-frame.svg' },
@@ -559,7 +570,7 @@ function enrichRoom(room) {
   .sort((a, b) => (b.vip || 0) - (a.vip || 0)); // VIP first — front row
  const seats = (room.seats || []).map(s => ({ ...s, seat: s.seat === 0 ? 1 : s.seat, user: info(s.userId) }));
  const host = db.users.find(x => x.id === room.hostId);
- return { ...room, members, seats, hostTheme: host ? (host.roomTheme || null) : null, admins: room.admins || [] };
+ return { ...room, members, seats, hostTheme: host ? (host.roomTheme || null) : null, hostCountry: host ? (host.country || '') : '', admins: room.admins || [] };
 }
 app.get('/api/rooms', auth, (req, res) => res.json({ rooms: require('./server/list-order').visibleItems(db, 'rooms', db.rooms, r => r.id).map(enrichRoom) }));
 /* PERFORMANCE — light room poll: one small request per room user every 5s

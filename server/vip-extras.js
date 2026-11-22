@@ -75,7 +75,12 @@ const ROOM_THEMES = [
  { id: 'royal-gold', name: 'Royal Gold', desc: 'Deep royal gold.', asset: 'assets/free/backgrounds/freegameui_gr_royal-gold_01.svg', icon: 'assets/free/backgrounds/freegameui_gr_royal-gold_01.svg', minVip: 0 },
  { id: 'molten-gold', name: 'Molten Gold', desc: 'Molten gold flow.', asset: 'assets/free/backgrounds/freegameui_gr_molten-gold_01.svg', icon: 'assets/free/backgrounds/freegameui_gr_molten-gold_01.svg', minVip: 0 },
  { id: 'champagne', name: 'Champagne Gold', desc: 'Soft champagne gold.', asset: 'assets/free/backgrounds/freegameui_gr_champagne_08.svg', icon: 'assets/free/backgrounds/freegameui_gr_champagne_08.svg', minVip: 0 },
- { id: 'rosegold', name: 'Rose Gold', desc: 'Elegant rose gold.', asset: 'assets/free/backgrounds/freegameui_gr_rosegold_10.svg', icon: 'assets/free/backgrounds/freegameui_gr_rosegold_10.svg', minVip: 0 }
+ { id: 'rosegold', name: 'Rose Gold', desc: 'Elegant rose gold.', asset: 'assets/free/backgrounds/freegameui_gr_rosegold_10.svg', icon: 'assets/free/backgrounds/freegameui_gr_rosegold_10.svg', minVip: 0 },
+ /* ANIMATED GIF THEMES (2026-11-22): LottieFiles Simple License, no
+    attribution. Moving backgrounds — the room feels alive. minVip 0. */
+ { id: 'magic-stars', name: 'Magic Stars', desc: 'Twinkling magic stars drift across your room.', asset: 'assets/free/backgrounds/magic-stars.gif', icon: 'assets/free/backgrounds/magic-stars.gif', minVip: 0 },
+ { id: 'bg-loop', name: 'Golden Loop', desc: 'A looping golden animated backdrop.', asset: 'assets/free/backgrounds/background-loop.gif', icon: 'assets/free/backgrounds/background-loop.gif', minVip: 0 },
+ { id: 'abstract-bg', name: 'Abstract Flow', desc: 'Flowing abstract colour for your room.', asset: 'assets/free/backgrounds/abstract-background.gif', icon: 'assets/free/backgrounds/abstract-background.gif', minVip: 0 }
 ];
 /* J) Golds Items Discount — 50% off; screenshot example deals (fixed prices) */
 const DISCOUNT_DEALS = [

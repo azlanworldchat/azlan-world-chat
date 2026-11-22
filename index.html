@@ -113,6 +113,10 @@
       <button class="btn gold" onclick="createRoomPrompt()">+ Create Room</button>
     </div>
     <input id="roomSearch" placeholder="Search rooms..." oninput="searchRooms()">
+    <div class="room-filters">
+      <select id="roomCountryFilter" onchange="setRoomCountryFilter(this)" aria-label="Filter rooms by country"><option value="">All countries</option></select>
+      <div class="filter-chips" id="roomTopicChips"></div>
+    </div>
     <div id="roomList" class="room-list"></div>
   </div>
 

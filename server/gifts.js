@@ -14,7 +14,7 @@ function auth(req, res, next) {
 }
 
 const CATEGORIES = {
- hot: ['g1', 'g2', 'g3', 'g10', 'g17', 'g18', 'g19', 'g26', 'g27', 'g28', 'g29', 'g30', 'g31', 'g34', 'g35', 'g36', 'g37', 'g38', 'g39', 'g40', 'g41', 'g42', 'g43', 'g47', 'g48', 'g49', 'g53', 'g54'],
+ hot: ['g1', 'g2', 'g3', 'g10', 'g17', 'g18', 'g19', 'g26', 'g27', 'g28', 'g29', 'g30', 'g31', 'g34', 'g35', 'g36', 'g37', 'g38', 'g39', 'g40', 'g41', 'g42', 'g43', 'g47', 'g48', 'g49', 'g53', 'g54', 'g55', 'g56', 'g57', 'g58', 'g59'],
  activity: ['g4', 'g5', 'g6', 'g7', 'g11', 'g12', 'g13', 'g14', 'g15', 'g16', 'g20', 'g33', 'g44', 'g50'],
  privilege: ['g8', 'g9', 'g32', 'g45', 'g46', 'g51'],
  cp: ['g10', 'g3', 'g21', 'g22', 'g23', 'g24', 'g25', 'g52']
@@ -30,7 +30,10 @@ module.exports = function (ctx) {
  // owner's order (server-side, so every user sees the same list).
  router.get('/catalog', (req, res) => {
   const { listOrder } = ctx;
-  const gifts = listOrder.visibleItems(db, 'gifts', db.gifts, g => g.id).map(g => ({
+  /* LEGENDARY FIRST (2026-11-22): tier-Legendary gifts sit above all
+     current gifts in the panel, in the owner's stored order otherwise. */
+  const ordered = listOrder.visibleItems(db, 'gifts', db.gifts, g => g.id);
+  const gifts = [...ordered].sort((a, b) => ((b.tier === 'Legendary') - (a.tier === 'Legendary'))).map(g => ({
    ...g,
    animation: g.price >= 5000 ? 'huge' : g.price >= 500 ? 'big' : 'small',
    category: Object.keys(CATEGORIES).find(c => CATEGORIES[c].includes(g.id)) || 'hot'

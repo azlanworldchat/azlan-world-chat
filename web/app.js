@@ -17,6 +17,17 @@ let micOn = true;
 let giftQty = 1;
 let giftTarget = null; // { userId, name } or null = room
 let giftCategory = 'hot';
+/* GIFT COMBO (2026-11-22, artifact parity): the same sender resending the
+   same gift within 8 seconds shows a COMBO ×N pill on the gift broadcast
+   banner, from ×2, rolling counter. Single-slot tracker — only the latest
+   sender+gift pair can be mid-combo. The counter is bumped optimistically
+   on send and rolled back if the send fails (see sendGift/sendVipGift). */
+let giftCombo = { key: null, count: 0, at: 0 };
+const COMBO_WINDOW_MS = 8000;
+function comboKey(fromId, giftId) { return (fromId || '') + '|' + (giftId || ''); }
+function comboBump(key) { const now = Date.now(); if (giftCombo.key === key && now - giftCombo.at <= COMBO_WINDOW_MS) giftCombo.count++; else { giftCombo.key = key; giftCombo.count = 1; } giftCombo.at = now; return giftCombo.count; }
+function comboRollback(key) { if (giftCombo.key === key && giftCombo.count > 0) { giftCombo.count--; if (giftCombo.count <= 0) { giftCombo.key = null; giftCombo.count = 0; } } }
+function comboPill(count) { return (count || 0) >= 2 ? '<span class="gift-combo-pill">COMBO ×' + count + '</span>' : ''; }
 let recording = null;
 let vipClubData = null;
 let vipSelected = 1;
@@ -735,12 +746,49 @@ function openOwner() {
 }
 
 /* ---------------- rooms ---------------- */
+/* ROOM DISCOVERY FILTERS (2026-11-22, Yalla pattern): filter the room list
+   by host country and by topic. Country comes from the host's profile
+   country (enrichRoom hostCountry); topics come from the rooms themselves. */
+let allRooms = [];
+let roomCountryFilter = '';
+let roomTopicFilter = '';
 async function loadRooms() {
   try {
     const d = await api('/api/rooms', { headers: headers() });
-    renderRooms(d.rooms);
+    allRooms = d.rooms || [];
+    const cs = document.getElementById('roomCountryFilter');
+    if (cs && cs.options.length <= 1) PROFILE_COUNTRIES.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; cs.appendChild(o); });
+    buildRoomTopicChips();
+    renderRooms(allRooms);
     loadHonorBanner();
   } catch (e) { document.getElementById('roomList').innerHTML = '<p class="muted">Please log in first.</p>'; }
+}
+function buildRoomTopicChips() {
+  const el = document.getElementById('roomTopicChips'); if (!el) return;
+  const topics = [...new Set(allRooms.map(r => r.topic || 'Chat'))].slice(0, 8);
+  if (roomTopicFilter && !topics.includes(roomTopicFilter)) roomTopicFilter = '';
+  el.innerHTML = '<button class="mini-tab' + (!roomTopicFilter ? ' active' : '') + '" onclick="setRoomTopicFilter(\'\',this)">All</button>' +
+    topics.map(t => '<button class="mini-tab' + (roomTopicFilter === t ? ' active' : '') + '" onclick="setRoomTopicFilter(\'' + esc(t) + '\',this)">' + esc(t) + '</button>').join('');
+}
+function setRoomTopicFilter(topic, btn) {
+  roomTopicFilter = topic;
+  document.querySelectorAll('#roomTopicChips .mini-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderRooms(allRooms);
+}
+function setRoomCountryFilter(sel) { roomCountryFilter = sel.value; renderRooms(allRooms); }
+function applyRoomFilters(rooms) {
+  return (rooms || []).filter(r => (!roomCountryFilter || (r.hostCountry || '') === roomCountryFilter) && (!roomTopicFilter || (r.topic || 'Chat') === roomTopicFilter));
+}
+function renderRooms(rooms) {
+  const el = document.getElementById('roomList');
+  const list = applyRoomFilters(rooms);
+  if (!list.length) { el.innerHTML = '<div class="empty-state">' + ic("mic") + '<p>' + ((rooms || []).length ? 'No rooms match these filters — try All countries or All topics.' : 'No rooms yet — create the first one!') + '</p></div>'; return; }
+  el.innerHTML = list.map(r =>
+    '<div class="room-card" onclick="joinRoom(\'' + r.id + '\')"><h3>' + esc(r.name) + '</h3>' +
+    '<div class="room-meta"><span class="chip">' + ic("mic") + ' ' + esc(r.topic || 'Chat') + '</span><span class="chip">' + ic("users") + ' ' + (r.members || []).length + ' members</span><span class="chip">Lv.' + (r.level || 1) + '</span>' + (r.hostCountry ? '<span class="chip">' + esc(r.hostCountry) + '</span>' : '') + '<span class="chip">ID ' + r.id + '</span></div>' +
+    '<button class="btn gold room-join">Join Room — tap to talk ›</button></div>'
+  ).join('');
 }
 async function loadHonorBanner() {
   try {
@@ -749,19 +797,10 @@ async function loadHonorBanner() {
     if (el && d.banner) el.innerHTML = '<div class="honor-banner">' + ic("trophy") + ' ' + esc(d.banner) + '<br><span class="muted">Your personal information can be displayed on the banner by official in the Room-Recommend page.</span></div>';
   } catch (e) {}
 }
-function renderRooms(rooms) {
-  const el = document.getElementById('roomList');
-  if (!rooms.length) { el.innerHTML = '<div class="empty-state">' + ic("mic") + '<p>No rooms yet — create the first one!</p></div>'; return; }
-  el.innerHTML = rooms.map(r =>
-    '<div class="room-card" onclick="joinRoom(\'' + r.id + '\')"><h3>' + esc(r.name) + '</h3>' +
-    '<div class="room-meta"><span class="chip">' + ic("mic") + ' ' + esc(r.topic || 'Chat') + '</span><span class="chip">' + ic("users") + ' ' + (r.members || []).length + ' members</span><span class="chip">Lv.' + (r.level || 1) + '</span><span class="chip">ID ' + r.id + '</span></div>' +
-    '<button class="btn gold room-join">Join Room — tap to talk ›</button></div>'
-  ).join('');
-}
 async function searchRooms() {
   const q = document.getElementById('roomSearch').value.trim();
   if (!q) return loadRooms();
-  try { const d = await api('/api/v2/rooms/search?q=' + encodeURIComponent(q), { headers: headers() }); renderRooms(d.rooms); } catch (e) {}
+  try { const d = await api('/api/v2/rooms/search?q=' + encodeURIComponent(q) + (roomCountryFilter ? '&country=' + encodeURIComponent(roomCountryFilter) : '') + (roomTopicFilter ? '&topic=' + encodeURIComponent(roomTopicFilter) : ''), { headers: headers() }); renderRooms(d.rooms); } catch (e) {}
 }
 async function createRoomPrompt() {
   const name = await appPrompt('Create Room', 'Room name:');
@@ -793,7 +832,7 @@ async function joinRoom(id) {
       /* Keep the dark luxury room class — joinRoom must not wipe it. */
       stage.className = 'room-stage dark-room' + (ME.roomTheme && ME.roomTheme !== 'default' ? ' theme-' + ME.roomTheme : '') + (currentRoom.hostTheme ? ' theme-' + currentRoom.hostTheme : '');
       const bg = document.getElementById('roomBg');
-      if (bg) bg.style.backgroundImage = currentRoom.hostTheme ? 'url(assets/themes/' + currentRoom.hostTheme + '.svg)' : '';
+      if (bg) bg.style.backgroundImage = currentRoom.hostTheme ? roomThemeBgUrl(currentRoom.hostTheme) : '';
     }
     renderRoomHeader(); renderMicGrid(); renderRoomChat(); renderVoiceNotes(); renderOnlineUsers();
     addWelcomeMessage(displayName(ME), false);
@@ -995,6 +1034,7 @@ function openRoomMenu(mode) {
     html += item('showGiftPanel()', ic('gift'), 'Send Gift');
     html += item('openRoomThemes()', ic('theme'), 'Room Themes');
     html += item('openEmojiPanel()', ic('smile'), '3D Emoji');
+    html += item('rollDice()', ic('game'), 'Lucky Dice — roll in chat');
     html += item('leaveRoom()', ic('power'), 'Leave Room');
   }
   html += '<button class="btn ghost" onclick="closeRoomMenu()">Close</button>';
@@ -1002,6 +1042,22 @@ function openRoomMenu(mode) {
   modal.classList.remove('hidden');
 }
 function closeRoomMenu() { const m = document.getElementById('roomMenu'); if (m) m.classList.add('hidden'); }
+/* LUCKY DICE (2026-11-22) — the one simple in-room game. No coins, no
+   server state: a local 1–6 roll posted to room chat through the existing
+   chat endpoint, so everyone in the room sees the result. A real
+   multiplayer coin game (slots/wheel with wagering) would need server-synced
+   game state + wager validation the room poll has no channel for, and would
+   risk coin cheating — not built in this pass. */
+async function rollDice() {
+  if (!currentRoom) { alert('Join a room first to roll the dice.'); return; }
+  const n = 1 + Math.floor(Math.random() * 6);
+  try {
+    await api('/api/rooms/' + currentRoom.id + '/chat', { method: 'POST', headers: headers(true), body: JSON.stringify({ text: 'rolled the Lucky Dice: ' + n }) });
+    currentRoom.chat = currentRoom.chat || [];
+    currentRoom.chat.push({ id: Date.now(), userId: ME.id, name: displayName(ME), vip: ME.vip || 0, chatBox: 'normal', text: 'rolled the Lucky Dice: ' + n, at: new Date().toISOString() });
+    renderRoomChat();
+  } catch (e) { alert(e.message); }
+}
 /* Welcome message when a real user comes into the room */
 function addWelcomeMessage(name, onMount) {
   const box = document.getElementById('roomChat'); if (!box) return;
@@ -1030,10 +1086,11 @@ function showGiftToast(ev) {
   const stage = document.querySelector('.room-stage'); if (!stage) return;
   const old = stage.querySelector('.room-gift-toast'); if (old) old.remove();
   const g = ev.gift || {};
+  const combo = ev.combo !== undefined ? ev.combo : comboBump(comboKey(ev.fromId || ev.fromName, g.id || g.name));
   const div = document.createElement('div');
   div.className = 'room-gift-toast';
   div.innerHTML = roomChatAvatar(displayName(ev.fromName)) + (g.svg ? '<img src="' + g.svg + '" alt="">' : '') + roomChatAvatar(displayName(ev.toName)) +
-    '<span><b>' + esc(displayName(ev.fromName)) + '</b> sent <b>' + esc(g.name || 'a gift') + '</b>' + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to <b>' + esc(displayName(ev.toName)) + '</b></span>';
+    '<span><b>' + esc(displayName(ev.fromName)) + '</b> sent <b>' + esc(g.name || 'a gift') + '</b>' + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to <b>' + esc(displayName(ev.toName)) + '</b> ' + comboPill(combo) + '</span>';
   stage.appendChild(div);
   setTimeout(() => div.remove(), 3000);
   if (!APP_CONTROLS || APP_CONTROLS.sounds) { if (window.SFX) SFX.gift(); }
@@ -1079,8 +1136,8 @@ async function pollRoomGiftFeed() {
         shownGiftEventIds.add(ev.id);
         appendRoomGiftEvent(ev);
         if (ev.fromId !== ME.id) {
-          if ((ev.cost || 0) >= 100000) showGiftBroadcast3D({ fromName: ev.fromName, toName: ev.toName, gift: { name: ev.giftName, svg: ev.giftSvg, anim: ev.giftAnim, sound: ev.giftSound, price: ev.cost }, qty: ev.qty });
-          else showGiftToast({ fromName: ev.fromName, toName: ev.toName, gift: { name: ev.giftName, svg: ev.giftSvg }, qty: ev.qty });
+          if ((ev.cost || 0) >= 100000) showGiftBroadcast3D({ fromId: ev.fromId, fromName: ev.fromName, toName: ev.toName, gift: { id: ev.giftId, name: ev.giftName, svg: ev.giftSvg, anim: ev.giftAnim, sound: ev.giftSound, price: ev.cost }, qty: ev.qty });
+          else showGiftToast({ fromId: ev.fromId, fromName: ev.fromName, toName: ev.toName, gift: { id: ev.giftId, name: ev.giftName, svg: ev.giftSvg }, qty: ev.qty });
         }
       }
     });
@@ -1707,6 +1764,10 @@ function giftCat(cat, btn) {
 }
 async function sendGift(giftId) {
   const toUserId = giftTarget ? giftTarget.userId : (currentRoom ? (currentRoom.seats[0] || {}).userId || ME.id : ME.id);
+  /* COMBO: bump optimistically so rapid resends count at once; a failed
+     send rolls the counter back (see catch below). */
+  const ck = comboKey(ME.id, giftId);
+  comboBump(ck);
   try {
     const d = await api('/api/v2/gifts/send', { method: 'POST', headers: headers(true), body: JSON.stringify({ giftId, toUserId, qty: giftQty, roomId: currentRoom ? currentRoom.id : null }) });
     closeGiftPanel();
@@ -1714,11 +1775,11 @@ async function sendGift(giftId) {
     /* GIFT VISIBILITY (owner rule): big gifts (>=100,000 coins) get the big
        3D banner + sound for 5 seconds; smaller gifts get the animated toast
        with sender + gift + recipient. Every gift is visible to the room. */
-    if (d.broadcast) showGiftBroadcast3D({ fromName: d.fromName, toName: d.toName, gift: d.gift, qty: giftQty });
-    else showGiftToast({ fromName: d.fromName, toName: d.toName, gift: d.gift, qty: giftQty });
+    if (d.broadcast) showGiftBroadcast3D({ fromName: d.fromName, toName: d.toName, gift: d.gift, qty: giftQty, combo: giftCombo.count });
+    else showGiftToast({ fromName: d.fromName, toName: d.toName, gift: d.gift, qty: giftQty, combo: giftCombo.count });
     if (d.broadcastText) showBroadcast(d.broadcastText);
     loadMe();
-  } catch (e) { alert(e.message); }
+  } catch (e) { comboRollback(ck); alert(e.message); }
 }
 /* 3D gift BROADCAST — big animated banner with sound across the whole screen,
    naming sender, gift and recipient. Runs 5 seconds, then closes by itself. */
@@ -1726,6 +1787,9 @@ function showGiftBroadcast3D(ev) {
   const fx = document.getElementById('giftFx3d');
   if (!fx) return;
   const g = ev.gift || {};
+  /* COMBO: an explicit count comes from our own send (already bumped);
+     incoming banners (room poll, notifications) bump here instead. */
+  const combo = ev.combo !== undefined ? ev.combo : comboBump(comboKey(ev.fromId || ev.fromName, g.id || g.name));
   fx.className = 'play big-gift';
   fx.classList.remove('hidden');
   /* Animated gifts (g45/g49): lazy dotLottie animation on a canvas instead
@@ -1733,7 +1797,7 @@ function showGiftBroadcast3D(ev) {
   const animCanvas = g.animFile ? '<div class="gift3d-lottie" data-lottie-json="' + g.animFile + '"></div>' : '';
   fx.innerHTML = '<div class="gift-broadcast-3d">' +
     (animCanvas || (g.svg ? '<img class="gift3d-img anim-' + (g.anim || 'bloom') + '" src="' + g.svg + '" alt="' + esc(g.name || 'gift') + '">' : '<img class="gift3d-img anim-bloom" src="assets/icons/gift.svg" alt="gift">')) +
-    '<div class="gift3d-name">' + esc(displayName(ev.fromName)) + ' sent ' + esc(g.name || 'a gift') + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to ' + esc(displayName(ev.toName)) + '</div>' +
+    '<div class="gift3d-name">' + esc(displayName(ev.fromName)) + ' sent ' + esc(g.name || 'a gift') + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to ' + esc(displayName(ev.toName)) + ' ' + comboPill(combo) + '</div>' +
     (g.price ? '<div class="gift3d-sub">' + fmt(g.price * (ev.qty || 1)) + ' coins</div>' : '') + '</div>';
   const bc = fx.querySelector('[data-lottie-json]'); if (bc) playLottieAnim(bc, bc.dataset.lottieJson, true);
   if (!APP_CONTROLS || APP_CONTROLS.sounds) {
@@ -2037,17 +2101,20 @@ async function openVipGiftShop() {
   } catch (e) { alert(e.message); }
 }
 async function sendVipGift(giftId) {
+  /* COMBO: same optimistic bump + rollback on failure as sendGift. */
+  const ck = comboKey(ME.id, giftId);
+  comboBump(ck);
   try {
     const body = { giftId, qty: giftQty || 1 };
     if (giftEveryone) { body.toUserId = 'everyone'; body.roomId = currentRoom ? currentRoom.id : null; }
     else if (giftTarget) body.toUserId = giftTarget.userId;
-    else { alert('Pick a user to gift, or switch target to Everyone on Mic (join a room first).'); return; }
+    else { comboRollback(ck); alert('Pick a user to gift, or switch target to Everyone on Mic (join a room first).'); return; }
     const d = await api('/api/v2/vip/vip-gifts/send', { method: 'POST', headers: headers(true), body: JSON.stringify(body) });
     if (d.event) { shownGiftEventIds.add(d.event.id); appendRoomGiftEvent(d.event); }
-    showGiftBroadcast3D({ fromName: d.fromName, toName: d.toName, gift: d.gift, qty: giftQty });
+    showGiftBroadcast3D({ fromName: d.fromName, toName: d.toName, gift: d.gift, qty: giftQty, combo: giftCombo.count });
     if (d.broadcastText) showBroadcast(d.broadcastText);
     loadMe();
-  } catch (e) { alert(e.message); }
+  } catch (e) { comboRollback(ck); alert(e.message); }
 }
 async function toggleAnonymous() {
   try { const d = await api('/api/v2/vip/anonymous', { method: 'POST', headers: headers(true), body: JSON.stringify({}) }); alert(d.anonymous ? ' Anonymous Display is now ON — you appear as "Anonymous" in Visitors and Top Gifters.' : ' Anonymous Display is now OFF.'); openVipClub(); loadMe(); }
@@ -2350,7 +2417,7 @@ async function loadNotifications() {
     (d.notifications || []).forEach(n => {
       if (n.id > lastNotifId && n.kind === 'gift' && n.giftEventId && !shownGiftEventIds.has(n.giftEventId)) {
         shownGiftEventIds.add(n.giftEventId);
-        if (n.fromId !== ME.id) showGiftBroadcast3D({ fromName: n.from, toName: n.to, gift: n.gift, qty: n.qty });
+        if (n.fromId !== ME.id) showGiftBroadcast3D({ fromId: n.fromId, fromName: n.from, toName: n.to, gift: n.gift, qty: n.qty });
       }
     });
     lastNotifId = maxId;
@@ -2648,6 +2715,16 @@ async function openBonusHistoryRedemptions() {
 }
 async function upgradeVip10Points() { try { const d = await api('/api/v2/vipx/bonus-points/upgrade-vip10', { method: 'POST', headers: headers() }); alert(' You are now VIP10!'); loadMe(); openVipClub(); } catch (e) { alert(e.message); } }
 async function renewVip10Points() { try { const d = await api('/api/v2/vipx/bonus-points/renew-vip10', { method: 'POST', headers: headers() }); alert(' VIP10 renewed for 31 more days!'); loadMe(); } catch (e) { alert(e.message); } }
+
+/* Room-theme background URL: most themes are SVG stems under assets/themes/,
+   but the animated GIF themes live under assets/free/backgrounds/ — resolve
+   them by id instead of guessing a .svg path that would 404. */
+const ROOM_THEME_BG = {
+ 'magic-stars': 'assets/free/backgrounds/magic-stars.gif',
+ 'bg-loop': 'assets/free/backgrounds/background-loop.gif',
+ 'abstract-bg': 'assets/free/backgrounds/abstract-background.gif'
+};
+function roomThemeBgUrl(id) { if (!id) return ''; return ROOM_THEME_BG[id] ? 'url(' + ROOM_THEME_BG[id] + ')' : 'url(assets/themes/' + id + '.svg)'; }
 
 /* ---------------- Room themes ---------------- */
 async function openThemes() {

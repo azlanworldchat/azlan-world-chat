@@ -26,10 +26,18 @@ module.exports = function (ctx) {
     const rooms = [...db.rooms].sort((a, b) => (b.members.length - a.members.length));
     res.json({ rooms: rooms.slice(0, 20) });
   });
-  // Search rooms by name / topic
+  // Search rooms by name / topic, with optional country + topic filters
+  // (room discovery, Yalla pattern). hostCountry comes from the host's
+  // profile country — rooms carry no country of their own.
   router.get('/search', (req, res) => {
     const q = (req.query.q || '').toLowerCase();
-    res.json({ rooms: db.rooms.filter(r => r.name.toLowerCase().includes(q) || (r.topic || '').toLowerCase().includes(q)) });
+    const country = (req.query.country || '').trim();
+    const topic = (req.query.topic || '').trim().toLowerCase();
+    const hostCountryOf = (r) => { const h = db.users.find(u => u.id === r.hostId); return (h && h.country) || ''; };
+    let rooms = db.rooms.filter(r => r.name.toLowerCase().includes(q) || (r.topic || '').toLowerCase().includes(q));
+    if (country) rooms = rooms.filter(r => hostCountryOf(r) === country);
+    if (topic) rooms = rooms.filter(r => (r.topic || '').toLowerCase() === topic);
+    res.json({ rooms: rooms.map(r => ({ ...r, hostCountry: hostCountryOf(r) })) });
   });
   // Mic on/off for my seat
   router.post('/:id/mic', (req, res) => {
