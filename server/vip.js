@@ -1,4 +1,6 @@
-/* VIP SERVER — VIP Club: 11 levels (VIP1–VIP11).
+/* VIP SERVER — VIP Club: 12 levels (VIP1–VIP12).
+  VIP12 is the NEW ultimate divine level — Divine Celestial Crown, 72 benefits,
+  25,000,000 coins, 300,000 points, 30% discount, divine throne entrance.
   EXACT data from the user's Yalla VIP screenshots (rebuilt as original work —
   emblems are drawn with CSS/SVG/canvas in the app, no copied images):
    VIP1 Bronze Winged Medal, brown/bronze theme, 18 benefits, 2,400 points
@@ -12,6 +14,7 @@
    VIP9 Golden LION head + crown + flames, gold-red theme, 51 benefits
    VIP10 Flaming DRAGON head, fire-gold theme, 58 benefits
    VIP11 Thunder Dragon, 65 benefits (not in the screenshots — kept from before)
+   VIP12 Divine Celestial Crown, 72 benefits — the ultimate divine level
   Every level page: VIP Points 0, "V1 2,400" points bar, 31 days, Earn button,
   Bonus Points 0, VIP Offer 0, Bonus Points Store.
   Benefit tabs: Status / Decorations / Functions / Rewards / Discounts.
@@ -77,29 +80,42 @@ const VIP11_EXTRA = {
  Rewards: ['Free Marquis for Life'],
  Discounts: ['Legend Discount — 25% Off Everything']
 };
+/* VIP12 extras — the divine level gets everything VIP11 has, plus these. */
+const VIP12_EXTRA = {
+ Status: ['Divine Title — Celestial Sovereign'],
+ Decorations: ['Divine Throne Entrance', 'Cosmic Crown Frame'],
+ Functions: ['Divine Protection — Cannot Be Removed', 'Ultimate Room Entrance'],
+ Rewards: ['Divine Golds — 2,000,000 on Upgrade'],
+ Discounts: ['Divine Discount — 30% Off Everything']
+};
+/* Entry animation type per level: 1–3 badge sweep, 4–6 gold wings,
+   7–8 diamond portal + luxury car, 9 phoenix, 10 dragon, 11 cosmic portal,
+   12 ULTIMATE DIVINE entrance (celestial gate, particles, aura). */
+const ENTRY_TYPES = { 1: 'sweep', 2: 'sweep', 3: 'sweep', 4: 'wings', 5: 'wings', 6: 'wings', 7: 'portal-car', 8: 'portal-car', 9: 'phoenix', 10: 'dragon', 11: 'cosmic', 12: 'divine' };
 /* EXACT cumulative benefit counts per level, from the screenshots. */
-const LEVEL_COUNTS = { 1: 18, 2: 25, 3: 30, 4: 32, 5: 34, 6: 37, 7: 40, 8: 44, 9: 51, 10: 58, 11: 65 };
+const LEVEL_COUNTS = { 1: 18, 2: 25, 3: 30, 4: 32, 5: 34, 6: 37, 7: 40, 8: 44, 9: 51, 10: 58, 11: 65, 12: 72 };
 
 /* Emblems exactly as in the screenshots — original CSS/SVG art in the app. */
 const EMBLEMS = [
  null,
- { emblem: 'Bronze Winged Medal', kind: 'medal', svg: 'assets/vip/vip1.svg', color: '#cd7f32', color2: '#8a5a28', theme: 'brown', themeBg: 'linear-gradient(160deg,#3a2410,#1c1005)', effect: 'bronze glow' },
- { emblem: 'Silver-Blue Winged Medal', kind: 'medal', svg: 'assets/vip/vip2.svg', color: '#aebfd6', color2: '#7d99c4', theme: 'blue-grey', themeBg: 'linear-gradient(160deg,#232c3d,#10151f)', effect: 'silver-blue shimmer' },
- { emblem: 'Blue-Gold Star Medal', kind: 'medal', svg: 'assets/vip/vip3.svg', color: '#4aa8ff', color2: '#ffd24a', theme: 'blue', themeBg: 'linear-gradient(160deg,#0b2a52,#061426)', effect: 'starlight shine' },
- { emblem: 'Gold-Red Crown Medal', kind: 'medal', svg: 'assets/vip/vip4.svg', color: '#ffd24a', color2: '#e63946', theme: 'gold-red', themeBg: 'linear-gradient(160deg,#4d2a05,#1c0a02)', effect: 'ruby crown glow', gem: 'red' },
- { emblem: 'Purple Winged Medal', kind: 'medal', svg: 'assets/vip/vip5.svg', color: '#a06bff', color2: '#4aa8ff', theme: 'purple', themeBg: 'linear-gradient(160deg,#2b1155,#12082b)', effect: 'violet wing glow', gem: 'blue' },
- { emblem: 'Red-Gold Crown Medal', kind: 'medal', svg: 'assets/vip/vip6.svg', color: '#ff6b4a', color2: '#ffd24a', theme: 'red-gold', themeBg: 'linear-gradient(160deg,#571505,#1c0802)', effect: 'ember crown glow', gem: 'purple' },
- { emblem: 'Wolf Head', kind: 'wolf', svg: 'assets/vip/vip7.svg', color: '#2fd6a3', color2: '#0f7a5c', theme: 'green', themeBg: 'linear-gradient(160deg,#04291d,#02120c)', effect: 'forest howl glow', crown: true },
- { emblem: 'Eagle Head', kind: 'eagle', svg: 'assets/vip/vip8.svg', color: '#b678ff', color2: '#5b2ea6', theme: 'purple', themeBg: 'linear-gradient(160deg,#2b1155,#0d0424)', effect: 'storm wing glow', crown: true },
- { emblem: 'Lion Head', kind: 'lion', svg: 'assets/vip/vip9.svg', color: '#ffb52e', color2: '#e63946', theme: 'gold-red', themeBg: 'linear-gradient(160deg,#571505,#1c0802)', effect: 'flame mane glow', crown: true, flames: true },
- { emblem: 'Flaming Dragon Head', kind: 'dragon', svg: 'assets/vip/vip10.svg', color: '#ff7a1a', color2: '#ffd24a', theme: 'fire-gold', themeBg: 'linear-gradient(160deg,#571505,#160302)', effect: 'full-screen dragon fire', flames: true },
- { emblem: 'Thunder Dragon', kind: 'dragon', svg: 'assets/vip/vip11.svg', color: '#ffe600', color2: '#7a5cff', theme: 'thunder', themeBg: 'linear-gradient(160deg,#2b1155,#0d0424)', effect: 'lightning + gold fire', flames: true }
+ { emblem: 'Bronze Winged Medal', kind: 'medal', svg: 'assets/vip/vip1.svg', color: '#a67c00', color2: '#8a5a28', theme: 'brown', themeBg: 'linear-gradient(160deg,#fff8e1,#f3e2c0)', effect: 'bronze glow' },
+ { emblem: 'Silver Winged Medal', kind: 'medal', svg: 'assets/vip/vip2.svg', color: '#7a8899', color2: '#8a94a6', theme: 'silver-grey', themeBg: 'linear-gradient(160deg,#f4f6f8,#e2e8f0)', effect: 'silver shimmer' },
+ { emblem: 'Gold Star Medal', kind: 'medal', svg: 'assets/vip/vip3.svg', color: '#a67c00', color2: '#ffd24a', theme: 'gold', themeBg: 'linear-gradient(160deg,#fff8e1,#f5e6b8)', effect: 'starlight shine' },
+ { emblem: 'Gold-Red Crown Medal', kind: 'medal', svg: 'assets/vip/vip4.svg', color: '#b8860b', color2: '#e63946', theme: 'gold-red', themeBg: 'linear-gradient(160deg,#fff3e0,#ffe0b2)', effect: 'ruby crown glow', gem: 'red' },
+ { emblem: 'Purple Winged Medal', kind: 'medal', svg: 'assets/vip/vip5.svg', color: '#8b5cf6', color2: '#ffd24a', theme: 'purple', themeBg: 'linear-gradient(160deg,#f3e8ff,#e9d5ff)', effect: 'violet wing glow', gem: 'gold' },
+ { emblem: 'Red-Gold Crown Medal', kind: 'medal', svg: 'assets/vip/vip6.svg', color: '#d94f2b', color2: '#ffd24a', theme: 'red-gold', themeBg: 'linear-gradient(160deg,#ffede8,#ffd9cc)', effect: 'ember crown glow', gem: 'purple' },
+ { emblem: 'Wolf Head', kind: 'wolf', svg: 'assets/vip/vip7.svg', color: '#1e7a4c', color2: '#0f7a5c', theme: 'green', themeBg: 'linear-gradient(160deg,#e6f7f0,#c8ecdd)', effect: 'forest howl glow', crown: true },
+ { emblem: 'Eagle Head', kind: 'eagle', svg: 'assets/vip/vip8.svg', color: '#8b5cf6', color2: '#5b2ea6', theme: 'purple', themeBg: 'linear-gradient(160deg,#f3e8ff,#e9d5ff)', effect: 'storm wing glow', crown: true },
+ { emblem: 'Lion Head', kind: 'lion', svg: 'assets/vip/vip9.svg', color: '#d99a00', color2: '#e63946', theme: 'gold-red', themeBg: 'linear-gradient(160deg,#fff3e0,#ffe0b2)', effect: 'flame mane glow', crown: true, flames: true },
+ { emblem: 'Flaming Dragon Head', kind: 'dragon', svg: 'assets/vip/vip10.svg', color: '#e85d00', color2: '#ffd24a', theme: 'fire-gold', themeBg: 'linear-gradient(160deg,#ffede8,#ffd9cc)', effect: 'full-screen dragon fire', flames: true },
+ { emblem: 'Thunder Dragon', kind: 'dragon', svg: 'assets/vip/vip11.svg', color: '#a67c00', color2: '#7a5cff', theme: 'thunder', themeBg: 'linear-gradient(160deg,#fffde7,#fff3c4)', effect: 'lightning + gold fire', flames: true },
+ { emblem: 'Divine Celestial Crown', kind: 'crown', svg: 'assets/vip/vip12.svg', color: '#7a5cff', color2: '#ffd24a', theme: 'divine', themeBg: 'linear-gradient(160deg,#f3e8ff,#fff8e1)', effect: 'divine aura', gem: 'divine', crown: true, flames: true }
 ];
 /* VIP points needed to REACH each level (VIP1 = 2,400, from the screenshots). */
-const POINTS = { 1: 2400, 2: 6000, 3: 12000, 4: 20000, 5: 30000, 6: 45000, 7: 65000, 8: 90000, 9: 120000, 10: 160000, 11: 220000 };
+const POINTS = { 1: 2400, 2: 6000, 3: 12000, 4: 20000, 5: 30000, 6: 45000, 7: 65000, 8: 90000, 9: 120000, 10: 160000, 11: 220000, 12: 300000 };
 const DAYS = 31;
-const PRICES = { 1: 500000, 2: 1000000, 3: 1500000, 4: 2000000, 5: 2500000, 6: 3000000, 7: 3500000, 8: 5000000, 9: 7000000, 10: 10000000, 11: 15000000 };
-const DISCOUNTS = { 0: 0, 1: 2, 2: 4, 3: 6, 4: 8, 5: 10, 6: 12, 7: 14, 8: 16, 9: 18, 10: 20, 11: 25 };
+const PRICES = { 1: 500000, 2: 1000000, 3: 1500000, 4: 2000000, 5: 2500000, 6: 3000000, 7: 3500000, 8: 5000000, 9: 7000000, 10: 10000000, 11: 15000000, 12: 25000000 };
+const DISCOUNTS = { 0: 0, 1: 2, 2: 4, 3: 6, 4: 8, 5: 10, 6: 12, 7: 14, 8: 16, 9: 18, 10: 20, 11: 25, 12: 30 };
 
 /* Colored Username — exact rules from the detail screenshots. */
 const USERNAME_STYLES = {
@@ -113,25 +129,27 @@ const USERNAME_STYLES = {
  8: 'Colorful and Shiny Username',
  9: 'Colorful and Shiny Username',
  10: 'Colorful and Shiny Username',
- 11: 'Colorful and Shiny Username'
+ 11: 'Colorful and Shiny Username',
+ 12: 'Divine and Shiny Username'
 };
 const USERNAME_NOTE = 'VIP 1–3 users need the latest app version to see colorful usernames.';
 /* Username display mode per level: single | shiny | colorful */
-const USERNAME_MODE = { 1: 'single', 2: 'shiny', 3: 'shiny', 4: 'shiny', 5: 'colorful', 6: 'colorful', 7: 'colorful', 8: 'colorful', 9: 'colorful', 10: 'colorful', 11: 'colorful' };
+const USERNAME_MODE = { 1: 'single', 2: 'shiny', 3: 'shiny', 4: 'shiny', 5: 'colorful', 6: 'colorful', 7: 'colorful', 8: 'colorful', 9: 'colorful', 10: 'colorful', 11: 'colorful', 12: 'divine' };
 
 /* Exclusive Mic Animation — speaking ring colour per VIP level. */
 const MIC_RINGS = {
  1: { name: 'Bronze Ring', color: '#cd7f32' },
  2: { name: 'Teal Ring', color: '#2fb8a6' },
- 3: { name: 'Silver-Blue Ring', color: '#9fc3e8' },
+ 3: { name: 'Silver-Gold Ring', color: '#d4af37' },
  4: { name: 'Gold-Green Ring', color: '#d4af37' },
- 5: { name: 'Purple-Blue Ring', color: '#8b7bff' },
+ 5: { name: 'Purple Ring', color: '#8b7bff' },
  6: { name: 'Red-Orange Ring', color: '#ff5a2a' },
- 7: { name: 'Light-Blue Ring', color: '#7fd4ff' },
+ 7: { name: 'Golden Ring', color: '#ff9d00' },
  8: { name: 'Teal Ring', color: '#2fd6c3' },
  9: { name: 'Gold Ring', color: '#ffd24a' },
  10: { name: 'Fire Ring', color: '#ff5a00' },
- 11: { name: 'Thunder Ring', color: '#ffe600' }
+ 11: { name: 'Thunder Ring', color: '#ffe600' },
+ 12: { name: 'Divine Halo Ring', color: '#ffd700' }
 };
 
 /* Exclusive Gifts (Privilege tab) — exact prices from the screenshots. */
@@ -143,7 +161,8 @@ const VIP_GIFTS = [
  { id: 'vg5', name: 'Sports Car', price: 2999, minVip: 2, icon: 'assets/gifts/sports-car.svg', tab: 'privilege', svg: 'assets/gifts/sports-car.svg', anim: 'drive', sound: 'engine' },
  { id: 'vg6', name: 'Palace', price: 3999, minVip: 3, icon: 'assets/gifts/palace.svg', tab: 'privilege', svg: 'assets/gifts/palace.svg', anim: 'zoom', sound: 'fanfare' },
  { id: 'vg7', name: 'Blue Dragon', price: 4999, minVip: 4, icon: 'assets/gifts/blue-dragon.svg', tab: 'privilege', svg: 'assets/gifts/blue-dragon.svg', anim: 'fly', sound: 'roar' },
- { id: 'vg8', name: 'White Beast', price: 5999, minVip: 5, icon: 'assets/gifts/white-beast.svg', tab: 'privilege', svg: 'assets/gifts/white-beast.svg', anim: 'sparkle', sound: 'magic' }
+ { id: 'vg8', name: 'White Beast', price: 5999, minVip: 5, icon: 'assets/gifts/white-beast.svg', tab: 'privilege', svg: 'assets/gifts/white-beast.svg', anim: 'sparkle', sound: 'magic' },
+ { id: 'vg9', name: 'Divine Throne', price: 9999, minVip: 12, icon: 'assets/vip/vip12.svg', tab: 'privilege', svg: 'assets/vip/vip12.svg', anim: 'sparkle', sound: 'fanfare' }
 ];
 
 /* Exclusive Stickers on Mic — fun stickers shown on the mic seat while speaking. */
@@ -197,8 +216,11 @@ function benefitsForLevel(vip) {
   if (taken >= want) break;
   out[TAB_OF[b]].push(b); taken++;
  }
- if (vip === 11) {
+ if (vip >= 11) {
   for (const tab of Object.keys(VIP11_EXTRA)) out[tab].push(...VIP11_EXTRA[tab]);
+ }
+ if (vip === 12) {
+  for (const tab of Object.keys(VIP12_EXTRA)) out[tab].push(...VIP12_EXTRA[tab]);
  }
  return out;
 }
@@ -209,13 +231,15 @@ function totalBenefits(vip) {
 function featuredForLevel(vip) {
  return FEATURED.slice(0, Math.min(FEATURED.length, LEVEL_COUNTS[vip] || 0));
 }
-const VIP_LEVELS = Array.from({ length: 11 }, (_, i) => {
+const VIP_LEVELS = Array.from({ length: 12 }, (_, i) => {
  const v = i + 1;
  const e = EMBLEMS[v];
  return {
   vip: v, emblem: e.emblem, kind: e.kind, svg: e.svg,
   color: e.color, color2: e.color2, theme: e.theme, themeBg: e.themeBg,
   effect: e.effect, gem: e.gem || null, crown: !!e.crown, flames: !!e.flames,
+  entry: ENTRY_TYPES[v],
+  frameSvg: v === 10 ? 'assets/vip/profile-frame-gold.svg' : 'assets/vip/frame' + v + '.svg',
   price: PRICES[v], points: POINTS[v], pointsNeeded: POINTS[v], days: DAYS,
   discountPct: DISCOUNTS[v],
   usernameStyle: USERNAME_STYLES[v], usernameMode: USERNAME_MODE[v],
@@ -249,7 +273,8 @@ const BANNERS = [
  { vip: 8, name: 'VIP 8 Banner', animal: 'Crown + Dragons', svg: 'assets/vip/banner8.svg', colors: 'red', desc: 'Red banner with a crown and two golden dragons.' },
  { vip: 9, name: 'VIP 9 Banner', animal: 'Golden Lion', svg: 'assets/vip/banner9.svg', colors: 'gold-red', desc: 'Gold-red banner with a golden lion and flames.' },
  { vip: 10, name: 'VIP 10 Banner', animal: 'Flaming Dragon', svg: 'assets/vip/banner10.svg', colors: 'fire-gold', desc: 'Fire-gold banner with a flaming dragon.' },
- { vip: 11, name: 'VIP 11 Banner', animal: 'Thunder Dragon', svg: 'assets/vip/banner11.svg', colors: 'thunder', desc: 'Thunder banner with a lightning dragon.' }
+ { vip: 11, name: 'VIP 11 Banner', animal: 'Thunder Dragon', svg: 'assets/vip/banner11.svg', colors: 'thunder', desc: 'Thunder banner with a lightning dragon.' },
+ { vip: 12, name: 'VIP 12 Banner', animal: 'Divine Throne', svg: 'assets/vip/banner12.svg', colors: 'gold-purple celestial', desc: 'Celestial banner with a divine throne and golden wings.' }
 ];
 /* SVIP badges — shown WITH the user's name. SVIP9 is 3D animated. */
 const SVIP_BADGES = {
@@ -266,9 +291,11 @@ function rankBadgeSize(vip) { return 60 + (vip || 1) * 14; } /* px — grows wit
 function vipKit(vip) {
  const e = EMBLEMS[vip] || EMBLEMS[1];
  const b = BANNERS[vip - 1] || BANNERS[0];
+ const frameSvg = vip === 10 ? 'assets/vip/profile-frame-gold.svg' : 'assets/vip/frame' + (vip || 1) + '.svg';
  return {
   vip, emblem: e.emblem, animal: b.animal, color: e.color, color2: e.color2, themeBg: e.themeBg,
-  profileFrame: { name: e.emblem + ' Profile Frame', svg: e.svg },
+  entry: ENTRY_TYPES[vip] || 'sweep',
+  profileFrame: { name: e.emblem + ' Profile Frame', svg: frameSvg },
   chatBar: { name: e.emblem + ' Chat Bar', color: e.color, color2: e.color2 },
   entryBanner: { name: b.name, svg: b.svg, animal: b.animal },
   nameBanner: { name: e.emblem + ' Name Banner', svg: b.svg },
@@ -322,11 +349,11 @@ module.exports = function (ctx) {
  router.use(auth);
  const me = (req) => db.users.find(x => x.id === req.user.id);
 
- // VIP Club: all 11 levels + my status + points + offers + detail data
+ // VIP Club: all 12 levels + my status + points + offers + detail data
  router.get('/club', (req, res) => {
   const u = me(req);
   const myVip = u.vip || 0;
-  const next = myVip < 11 ? VIP_LEVELS[myVip] : null; // next level (index myVip)
+  const next = myVip < 12 ? VIP_LEVELS[myVip] : null; // next level (index myVip)
   res.json({
    levels: VIP_LEVELS,
    myVip, myVipUntil: u.vipUntil || null, mySvip: !!u.svip,
@@ -340,7 +367,7 @@ module.exports = function (ctx) {
    benefitsDisabled: (db.settings.controls && db.settings.controls.benefitsDisabled) || [],
    micRings: MIC_RINGS, vipGifts: VIP_GIFTS, micStickers: MIC_STICKERS,
    offers: {
-    nextLevel: next ? `Upgrade to VIP${next.vip} (${next.emblem}) — ${next.price.toLocaleString()} coins, save 10% this week` : 'You are VIP11 — the highest!',
+    nextLevel: next ? `Upgrade to VIP${next.vip} (${next.emblem}) — ${next.price.toLocaleString()} coins, save 10% this week` : 'You are VIP12 — the highest, divine level!',
     crossLevel: myVip > 0 ? `Gift VIP${myVip} to a friend for 20% off` : 'First VIP purchase gets +500 bonus points'
    },
    bonusStore: BONUS_STORE
@@ -375,10 +402,11 @@ module.exports = function (ctx) {
   const { isOn, giftEnabled } = require('./controls');
   if (!isOn(db, 'gifts')) return res.status(403).json({ error: 'Gifts are turned off by the owner' });
   if (!giftEnabled(db, giftId)) return res.status(403).json({ error: 'This gift is turned off by the owner' });
-  if ((u.vip || 0) < gift.minVip) return res.status(403).json({ error: `This gift needs VIP${gift.minVip} or higher` });
+  if ((u.vip || 0) < gift.minVip && u.role !== 'owner') return res.status(403).json({ error: `This gift needs VIP${gift.minVip} or higher` });
   const n = [1, 7, 17, 77, 777].includes(Number(qty)) ? Number(qty) : 1;
   const discountPct = DISCOUNTS[u.vip || 0] || 0;
-  const cost = Math.floor(gift.price * n * (1 - discountPct / 100));
+  // Owner is FREE — all gifts at 0 coins (standing owner rule).
+  const cost = u.role === 'owner' ? 0 : Math.floor(gift.price * n * (1 - discountPct / 100));
   if (u.coins < cost) return res.status(400).json({ error: 'Not enough coins' });
   let recipients = [];
   if (toUserId === 'everyone') {
@@ -399,20 +427,34 @@ module.exports = function (ctx) {
   const broadcast = cost >= 100000;
   u.giftsSent = (u.giftsSent || 0) + n; u.biggestGift = Math.max(u.biggestGift || 0, cost);
   save();
+  // VIP gift event: visible in the room for everyone, and notifies each recipient.
+  const toNames = recipients.map(id => { const t = db.users.find(x => x.id === id); return t ? t.name : id; });
+  const event = { id: Date.now() + '' + Math.floor(Math.random() * 1000), roomId: roomId || null,
+   fromId: u.id, fromName: u.anonymous ? 'Anonymous' : u.name, fromVip: u.vip || 0,
+   toId: toUserId === 'everyone' ? 'everyone' : recipients[0], toName: toUserId === 'everyone' ? 'Everyone on Mic' : (toNames[0] || ''),
+   giftId: gift.id, giftName: gift.name, giftSvg: gift.svg, giftAnim: gift.anim, giftSound: gift.sound, qty: n, cost, at: new Date().toISOString() };
+  if (roomId) {
+   db.roomGiftFeed = db.roomGiftFeed || {};
+   db.roomGiftFeed[roomId] = db.roomGiftFeed[roomId] || [];
+   db.roomGiftFeed[roomId].unshift(event);
+   if (db.roomGiftFeed[roomId].length > 20) db.roomGiftFeed[roomId] = db.roomGiftFeed[roomId].slice(0, 20);
+  }
+  const giftExtra = { kind: 'gift', giftEventId: event.id, gift: { id: gift.id, name: gift.name, svg: gift.svg, anim: gift.anim, sound: gift.sound }, from: event.fromName, fromId: u.id, to: event.toName, qty: n, cost };
   const text = broadcast
-   ? `${u.anonymous ? 'Anonymous' : u.name} sent ${gift.name} x${n} to everyone on mic — ${cost.toLocaleString()} coins!`
-   : `${u.anonymous ? 'Anonymous' : u.name} sent you ${gift.icon} ${gift.name} x${n} (VIP gift)`;
+   ? `${u.anonymous ? 'Anonymous' : u.name} sent ${gift.name} x${n} to ${toUserId === 'everyone' ? 'everyone on mic' : toNames.join(', ')} — ${cost.toLocaleString()} coins!`
+   : `${u.anonymous ? 'Anonymous' : u.name} sent you ${gift.name} x${n} (VIP gift) — you received a gift!`;
   // Exclusive Gifting Banner & Broadcast: fire-dragon banner across rooms
-  if (broadcast) { db.broadcasts = db.broadcasts || []; db.broadcasts.unshift({ id: Date.now(), text, kind: 'gift', at: new Date().toISOString() }); db.users.forEach(x => notify(x.id, text)); }
-  else recipients.forEach(id => notify(id, text));
+  if (broadcast) { db.broadcasts = db.broadcasts || []; db.broadcasts.unshift({ id: Date.now(), text, kind: 'gift', at: new Date().toISOString() }); db.users.forEach(x => notify(x.id, text, giftExtra)); }
+  else recipients.forEach(id => notify(id, text, giftExtra));
   save();
-  res.json({ ok: true, broadcast, animation: gift.price >= 5000 ? 'huge' : 'big', coins: u.coins, recipients: recipients.length, gift: { id: gift.id, name: gift.name, svg: gift.svg, anim: gift.anim, sound: gift.sound, icon: gift.icon } });
+  res.json({ ok: true, broadcast, broadcastText: text, animation: gift.price >= 5000 ? 'huge' : 'big', coins: u.coins, recipients: recipients.length, fromName: event.fromName, toName: event.toName, event, gift: { id: gift.id, name: gift.name, svg: gift.svg, anim: gift.anim, sound: gift.sound, icon: gift.icon, price: gift.price } });
  });
 
  // Anonymous Display — toggle (VIP benefit)
  router.post('/anonymous', (req, res) => {
   const u = me(req);
-  if (!u.vip) return res.status(403).json({ error: 'Anonymous Display needs VIP' });
+  // VIP10 benefit ONLY: hide your ID, name and identity — become mysterious/anonymous.
+  if ((u.vip || 0) < 10) return res.status(403).json({ error: 'Anonymous Display is a VIP10 benefit — upgrade to VIP10 to hide your identity.' });
   u.anonymous = (req.body || {}).hasOwnProperty('on') ? !!req.body.on : !u.anonymous;
   save();
   res.json({ ok: true, anonymous: !!u.anonymous });
@@ -449,16 +491,16 @@ module.exports = function (ctx) {
   });
  });
 
- // Buy / upgrade VIP (1–11, 31 days)
+ // Buy / upgrade VIP (1–12, 31 days)
  router.post('/buy', (req, res) => {
   const u = me(req);
   const { vip } = req.body || {};
   const level = VIP_LEVELS.find(l => l.vip === vip);
-  if (!level) return res.status(400).json({ error: 'VIP must be 1–11' });
+  if (!level) return res.status(400).json({ error: 'VIP must be 1–12' });
   const { isOn, vipLevelEnabled } = require('./controls');
   if (!isOn(db, 'vip')) return res.status(403).json({ error: 'VIP is turned off by the owner' });
   if (!vipLevelEnabled(db, vip)) return res.status(403).json({ error: `VIP${vip} is turned off by the owner` });
-  const price = (db.settings.vipPriceOverride && db.settings.vipPriceOverride[vip]) || level.price;
+  const price = u.role === 'owner' ? 0 : ((db.settings.vipPriceOverride && db.settings.vipPriceOverride[vip]) || level.price);
   if (u.coins < price) return res.status(400).json({ error: 'Not enough coins' });
   const wasVip = u.vip || 0;
   u.coins -= price; u.vip = vip;
@@ -471,13 +513,15 @@ module.exports = function (ctx) {
   db.users.forEach(x => notify(x.id, bText));
   // Get Golds (one-time): VIP9 500,000 / VIP10 1,000,000 on upgrade
   u.goldsClaimed = u.goldsClaimed || {};
-  const golds = { 9: 500000, 10: 1000000 }[vip];
+  const golds = { 9: 500000, 10: 1000000, 12: 2000000 }[vip];
   let goldsBonus = 0;
   if (golds && !u.goldsClaimed[vip]) { u.goldsClaimed[vip] = true; u.coins += golds; goldsBonus = golds; }
   // Renewing VIP10 gives 200,000 golds
   if (vip === 10 && wasVip === 10) { u.coins += 200000; goldsBonus += 200000; }
   // Bonus Points: VIP10 upgrade gives +700,000 bonus points
   if (vip === 10 && wasVip !== 10) { u.bonusPoints = (u.bonusPoints || 0) + 700000; u.bonusHistory = u.bonusHistory || []; u.bonusHistory.unshift({ type: 'earn', text: 'Given for the VIP privilege', amount: 700000, at: new Date().toISOString() }); }
+  // VIP12 upgrade gives +1,000,000 bonus points
+  if (vip === 12 && wasVip !== 12) { u.bonusPoints = (u.bonusPoints || 0) + 1000000; u.bonusHistory = u.bonusHistory || []; u.bonusHistory.unshift({ type: 'earn', text: 'Given for the VIP12 divine privilege', amount: 1000000, at: new Date().toISOString() }); }
   // Renewing VIP extends custom items by another 90 days
   if (u.vipCustom && Object.keys(u.vipCustom).length) {
    const base = u.vipCustomUntil && new Date(u.vipCustomUntil) > new Date() ? new Date(u.vipCustomUntil) : new Date();
@@ -554,12 +598,12 @@ module.exports = function (ctx) {
  // Customize my ID (VIP4+, 2–8 digits, costs 100,000 coins)
  router.post('/custom-id', (req, res) => {
   const u = me(req);
-  if ((u.vip || 0) < 4) return res.status(403).json({ error: 'Customize ID needs VIP4 or higher' });
+  if ((u.vip || 0) < 4 && u.role !== 'owner') return res.status(403).json({ error: 'Customize ID needs VIP4 or higher' });
   const { newId } = req.body || {};
   if (!newId || !/^\d{2,8}$/.test(String(newId))) return res.status(400).json({ error: 'ID must be 2–8 digits' });
   if (db.users.find(x => x.id === String(newId))) return res.status(400).json({ error: 'That ID is already taken' });
-  if (u.coins < 100000) return res.status(400).json({ error: 'Custom ID costs 100,000 coins' });
-  u.coins -= 100000; u.id = String(newId); save();
+  if (u.coins < 100000 && u.role !== 'owner') return res.status(400).json({ error: 'Custom ID costs 100,000 coins' });
+  if (u.role !== 'owner') u.coins -= 100000; u.id = String(newId); save();
   res.json({ ok: true, newId: u.id });
  });
 
@@ -612,4 +656,7 @@ module.exports.honorTitleFor = honorTitleFor;
 module.exports.UPGRADE_GUIDE = UPGRADE_GUIDE;
 module.exports.VIP_CENTER_BENEFITS = VIP_CENTER_BENEFITS;
 module.exports.LEVEL_TIERS = LEVEL_TIERS;
+module.exports.LEVEL_COUNTS = LEVEL_COUNTS;
+module.exports.ENTRY_TYPES = ENTRY_TYPES;
+module.exports.VIP12_EXTRA = VIP12_EXTRA;
 module.exports.levelTier = levelTier;

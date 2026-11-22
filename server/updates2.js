@@ -31,8 +31,8 @@ const ROOM_THEMES = [
 const THEME_PRICE = 1000000, THEME_VIP_PRICE = 500000;
 function themePriceFor(u) { if (!u) return THEME_PRICE; if (u.role === 'owner') return 0; return (u.vip || 0) > 0 ? THEME_VIP_PRICE : THEME_PRICE; }
 
-/* 3D luxury emojis for the mic (original drawn faces, same style as the video
-   the user sent — crowns, sunglasses, gold, designer bags — NOT copied frames). */
+/* 3D luxury emojis for the mic (original drawn faces, same style as the reference
+   images the owner sent — crowns, sunglasses, gold, designer bags — NOT copied frames). */
 const MIC_EMOJIS = [
  { id: 'emo-crown', name: 'Golden Crown', svg: 'assets/emoji/emo-crown.svg', desc: 'Smiling face with a golden crown and gold coins.' },
  { id: 'emo-shades', name: 'Cool Shades', svg: 'assets/emoji/emo-shades.svg', desc: 'Black sunglasses, gold coins and a gold chain.' },
@@ -155,13 +155,13 @@ module.exports = function (ctx) {
   const u = me(req);
   const level = Number(req.params.level);
   const l = VIP_LEVELS.find(x => x.vip === level);
-  if (!l) return res.status(400).json({ error: 'VIP level must be 1–11' });
+  if (!l) return res.status(400).json({ error: 'VIP level must be 1–12' });
   res.json({
    level: l,
    benefits: VIP_CENTER_BENEFITS.map(b => ({ ...b, color: l.color, color2: l.color2, animal: l.emblem })),
    identification: '6/6',
    price: l.price, days: l.days, totalBenefits: l.totalBenefits,
-   myVip: u.vip || 0,
+   myVip: u.vip || 0, myAnonymous: !!u.anonymous,
    note: 'Each VIP level gets its own version of these 6 benefits in its own colours and animal.'
   });
  });
@@ -186,6 +186,9 @@ module.exports = function (ctx) {
    const g = (db.gifts || []).find(x => x.id === gid) || (vipMod.VIP_GIFTS || []).find(x => x.id === gid) || { name: gid, price: 0, svg: 'assets/icons/gift.svg' };
    return { id: gid, name: g.name, price: g.price, svg: g.svg || g.icon, count: giftsBy[gid] };
   }).sort((a, b) => b.count - a.count);
+  const fFollowing = (viewer.following || []).includes(u.id);
+  const fFollowedBy = (u.following || []).includes(viewer.id);
+  const fMutual = fFollowing && fFollowedBy;
   const followers = (u.followers || []).map(id => { const f = db.users.find(x => x.id === id); return f ? { id: f.id, name: f.name, vip: f.vip || 0 } : null; }).filter(Boolean);
   const following = (u.following || []).map(id => { const f = db.users.find(x => x.id === id); return f ? { id: f.id, name: f.name, vip: f.vip || 0 } : null; }).filter(Boolean);
   const moments = (db.moments || []).filter(m => m.userId === u.id).slice(-10).reverse();
@@ -203,6 +206,7 @@ module.exports = function (ctx) {
    stats: { visitors: u.visitors || 0, followers: followers.length, following: following.length, coins: u.coins, charm: u.charm, wealth: u.wealth },
    giftsReceived: { total: u.giftsReceived || 0, coins: u.giftsReceivedCoins || 0, grid: giftGrid },
    followers, following, moments, rooms, cp,
+   follow: { following: fFollowing, followedBy: fFollowedBy, mutual: fMutual, state: fMutual ? 'friends' : fFollowing ? 'following' : fFollowedBy ? 'follow-back' : 'follow' },
    isMe: viewer.id === u.id
   });
  });

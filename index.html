@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#1e0b3d">
+<meta name="theme-color" content="#ffffff">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AZLAN WORLD CHAT">
@@ -24,29 +24,19 @@
 <section id="authScreen" class="screen auth-light">
   <button class="guest-pill" onclick="guestLogin()"><img class="ic" src="assets/icons/users.svg" alt=""> Guest Mode</button>
   <div class="logo-wrap">
-    <div class="orbit">
-      <img src="icons/icon-512.png" alt="AZLAN WORLD CHAT logo" class="app-logo orbit-center">
-      <span class="orbit-chip oc1"><img class="ic" src="assets/icons/mic.svg" alt=""></span>
-      <span class="orbit-chip oc2"><img class="ic" src="assets/icons/game.svg" alt=""></span>
-      <span class="orbit-chip oc3"><img class="ic" src="assets/icons/gift.svg" alt=""></span>
-      <span class="orbit-chip oc4"><img class="ic" src="assets/icons/coin.svg" alt=""></span>
-      <span class="orbit-chip oc5"><img class="ic" src="assets/icons/lucky.svg" alt=""></span>
-      <span class="orbit-chip oc6"><img class="ic" src="assets/icons/users.svg" alt=""></span>
-    </div>
-    <h1 class="auth-title">AZLAN WORLD CHAT</h1>
-    <p class="auth-tag">Voice &bull; Rooms &bull; Gifts &bull; Friends</p>
+    <img src="assets/logo-azlan.png" alt="Azlan" class="auth-logo">
+    <h1 class="auth-title-big">Azlan</h1>
+    <p class="auth-tag-big">World Chat</p>
   </div>
   <button class="btn-google" onclick="socialLogin('google')"><span class="g-badge">G</span> Google</button>
   <button class="btn-fb" onclick="socialLogin('facebook')"><span class="f-badge">f</span> Facebook</button>
   <div class="or-divider"><span></span> or <span></span></div>
   <div class="auth-social-row">
     <div class="social-col">
-      <span class="last-login-badge">Last Login</span>
-      <button class="social-circle email-circle" onclick="showAuth('login')" title="Log in with email"><svg viewBox="0 0 24 24" width="26" height="26"><rect x="2" y="5" width="20" height="14" rx="2" fill="#fff"/><path d="M3 7 L12 13 L21 7" fill="none" stroke="#00a99d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="social-circle email-circle" onclick="showAuth('login')" title="Log in with email"><svg viewBox="0 0 24 24" width="26" height="26"><rect x="2" y="5" width="20" height="14" rx="2" fill="#fff"/><path d="M3 7 L12 13 L21 7" fill="none" stroke="#b8860b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <span class="social-label">Email</span>
     </div>
     <div class="social-col">
-      <span class="last-login-badge" style="visibility:hidden">Last Login</span>
       <button class="social-circle dots-circle" onclick="showAuth('register')" title="More ways to join">&middot;&middot;&middot;</button>
       <span class="social-label">More</span>
     </div>
@@ -65,6 +55,7 @@
       <input id="regName" type="text" placeholder="Your name" required>
       <input id="regEmail" type="email" placeholder="Email" required>
       <input id="regPass" type="password" placeholder="Password (6+ characters)" required>
+      <input id="regPhone" type="tel" placeholder="Mobile number (optional)">
       <input id="regInvite" type="text" placeholder="Invite code (optional)">
       <button class="btn gold" type="submit">Create Account &mdash; get 1,000,000 coins</button>
     </form>
@@ -73,6 +64,26 @@
   <button class="btn owner-btn" onclick="ownerEnter()"><img class="ic" src="assets/icons/crown.svg" alt=""> Owner Portal &mdash; Enter Directly (Azlan, no login)</button>
   <p class="tiny">Owner account: owner@azlanworld.chat &mdash; change the default password after first entry.</p>
   <p class="auth-terms">By continuing, you agree to AZLAN WORLD CHAT&apos;s Terms of Service and Privacy Policy.</p>
+</section>
+
+<!-- ============ VERIFICATION SCREEN ============ -->
+<section id="verifyScreen" class="screen auth-light hidden">
+  <div class="logo-wrap">
+    <img src="assets/logo-azlan.png" alt="Azlan" class="auth-logo">
+    <h1 class="auth-title-big">Azlan</h1>
+    <p class="auth-tag-big">World Chat</p>
+  </div>
+  <div class="card verify-box">
+    <h3>Verify your account</h3>
+    <p class="muted">Enter the 6-digit code below to activate your ID. Your account cannot log in until it is verified.</p>
+    <p class="muted">Your code (shown here in the app — no SMS is sent):</p>
+    <div id="verifyCodeDisplay" class="verify-code-display">••••••</div>
+    <input id="verifyInput" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code">
+    <button class="btn gold" onclick="submitVerify()">Verify</button>
+    <button class="btn" onclick="resendVerifyCode()">Resend Code</button>
+    <button class="btn ghost" onclick="backToAuth()">Back to Login</button>
+    <p id="verifyMsg" class="msg"></p>
+  </div>
 </section>
 
 <!-- ============ MAIN APP ============ -->
@@ -90,28 +101,36 @@
   <div id="tab-party" class="tab-page">
     <div id="honorBanner"></div>
     <div class="room-hero">
-      <h2>Voice Rooms</h2>
+      <div><span class="eyebrow">Live now</span><h2>Voice Rooms</h2></div>
       <button class="btn gold" onclick="createRoomPrompt()">+ Create Room</button>
     </div>
-    <input id="roomSearch" placeholder="<img class="ic" src="assets/icons/search.svg" alt=""> Search rooms..." oninput="searchRooms()">
+    <input id="roomSearch" placeholder="Search rooms..." oninput="searchRooms()">
     <div id="roomList" class="room-list"></div>
   </div>
 
-  <!-- ROOM VIEW -->
+  <!-- ROOM VIEW — dark luxury room (purple/black + gold), 8 mic seats -->
   <div id="roomView" class="tab-page hidden">
-    <button class="btn ghost" onclick="leaveRoom()">&larr; Leave room</button>
-    <div class="room-stage">
+    <div class="room-stage dark-room">
       <div id="roomBg" class="room-bg" aria-hidden="true"></div>
       <div id="roomHeader" class="room-header"></div>
-      <div id="roomAnnounce" class="room-announce"></div>
-      <div id="roomWelcome" class="room-welcome"></div>
-      <h2 id="roomName">Room</h2>
-      <p id="roomMeta" class="muted"></p>
       <div id="micGrid" class="mic-grid"></div>
       <p id="micConnNote" class="tiny"></p>
+      <div id="roomPkBar"></div>
+      <div id="roomTabs" class="room-tabs"></div>
+      <div id="roomGiftFeed" class="room-gift-feed"></div>
+      <div id="roomChat" class="chat-box"></div>
+      <div class="room-side-icons">
+        <div class="side-event" onclick="playRoomMusic()" title="Music Festival"><img src="assets/icons/music.svg" alt="">Music Festival</div>
+        <div class="side-event" onclick="openLucky()" title="Fruit Game"><img src="assets/icons/fruit.svg" alt="">Fruit Game</div>
+        <div class="side-gamepad" onclick="openEvents()" title="Games"><img src="assets/icons/game.svg" alt=""></div>
+      </div>
       <div id="onlineUsers" class="online-list"></div>
       <div class="room-controls">
         <button class="btn" id="micBtn" onclick="toggleMic()"><img class="ic" src="assets/icons/mic.svg" alt=""> Mic: ON</button>
+        <button class="btn" onclick="requestMic()"><img class="ic" src="assets/icons/room/mic-seat.svg" alt=""> Request Mic</button>
+        <button class="btn" onclick="raiseHand()"><img class="ic" src="assets/icons/room/raise-hand.svg" alt=""> Raise Hand</button>
+        <button class="btn" onclick="openVoiceSettings(true)"><img class="ic" src="assets/icons/room/microphone.svg" alt=""> Mic Settings</button>
+        <button class="btn" onclick="openRoomSettings()"><img class="ic" src="assets/icons/admin/settings.svg" alt=""> Room Settings</button>
         <button class="btn" onclick="startVoiceNote()"><img class="ic" src="assets/icons/mic.svg" alt=""> Voice Message</button>
         <select id="voiceEffect" title="Voice effect">
           <option value="normal">Voice: Normal</option>
@@ -124,25 +143,25 @@
         <button class="btn" onclick="showGiftPanel()"><img class="ic" src="assets/icons/gift.svg" alt=""> Send Gift</button>
         <button class="btn" onclick="openMicStyles()"><img class="ic" src="assets/icons/mic.svg" alt=""> Mic Style</button>
         <button class="btn" onclick="openMicWaves()"><img class="ic" src="assets/icons/wave.svg" alt=""> Mic Wave</button>
+        <button class="btn" onclick="openVoiceSettings(true)"><img class="ic" src="assets/icons/room/speaker.svg" alt=""> Voice Settings</button>
+        <button class="btn danger" onclick="leaveRoom()"><img class="ic" src="assets/icons/room/leave-room.svg" alt=""> Leave Room</button>
       </div>
       <div id="voiceNotes"></div>
-      <div id="roomChat" class="chat-box"></div>
-      <div class="chat-input">
-        <input id="chatText" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendRoomChat()">
-        <button class="btn gold" onclick="sendRoomChat()">Send</button>
-      </div>
       <div class="room-bottom-bar">
-        <button class="icon-btn" onclick="toggleMic()" title="Speaker"><img class="ic" src="assets/icons/volume.svg" alt=""></button>
-        <button class="icon-btn" onclick="toggleMic()" title="Mic"><img class="ic" src="assets/icons/mic.svg" alt=""></button>
-        <button class="icon-btn" onclick="openEmojiPanel()" title="3D Emoji on Mic"><img class="ic" src="assets/icons/smile.svg" alt=""></button>
-        <button class="icon-btn" onclick="document.getElementById('chatText').focus()" title="Chat"><img class="ic" src="assets/icons/chat.svg" alt=""></button>
-        <button class="icon-btn" onclick="openRoomThemes()" title="Menu"><img class="ic" src="assets/icons/menu.svg" alt=""></button>
-        <button class="icon-btn" onclick="alert('Raise your hand to request the mic!')" title="Raise Hand"><img class="ic" src="assets/icons/hand.svg" alt=""></button>
-        <button class="icon-btn" onclick="showGiftPanel()" title="Gift"><img class="ic" src="assets/icons/gift.svg" alt=""></button>
-        <button class="icon-btn" onclick="openVipClub()" title="More"><img class="ic" src="assets/icons/grid.svg" alt=""></button>
+        <div class="say-input">
+          <img src="assets/icons/chat.svg" alt="">
+          <input id="chatText" placeholder="Say some..." onkeydown="if(event.key==='Enter')sendRoomChat()">
+        </div>
+        <button class="round-gold-btn" id="roomSoundBtn" onclick="toggleRoomSound()" title="Mute the whole room"><img src="assets/icons/volume.svg" alt="Sound"></button>
+        <button class="round-gold-btn" onclick="showNotifications()" title="Notifications"><img src="assets/icons/bell.svg" alt="Notifications"></button>
+        <button class="round-gold-btn" onclick="openRoomThemes()" title="Menu"><img src="assets/icons/grid.svg" alt="Menu"></button>
+        <button class="round-gold-btn" onclick="showGiftPanel()" title="Send Gift"><img src="assets/icons/gift.svg" alt="Gift"></button>
       </div>
     </div>
   </div>
+
+  <!-- MIC & VOICE CHAT SETTINGS (dark screen, rendered by app.js) -->
+  <div id="voiceSettingsView" class="tab-page hidden"></div>
 
   <!-- DISCOVER -->
   <div id="tab-discover" class="tab-page hidden">
@@ -172,8 +191,9 @@
   <!-- FRIENDS / SEARCH -->
   <div id="tab-friends" class="tab-page hidden">
     <h2>Friends &amp; Search</h2>
-    <input id="userSearch" placeholder="<img class="ic" src="assets/icons/search.svg" alt=""> Search by name or ID..." oninput="searchUsers()">
+    <input id="userSearch" placeholder="Search by name or ID..." oninput="searchUsers()">
     <div id="userList"></div>
+    <div id="friendsList"></div>
     <h3>Rankings</h3>
     <div class="tabs-mini">
       <button class="mini-tab active" onclick="loadRankings('wealth',this)">Wealth</button>
@@ -210,6 +230,8 @@
       <button class="btn" onclick="openAI()"><img class="ic" src="assets/icons/ai.svg" alt=""> AI Assistant</button>
       <button class="btn" onclick="openFeedback()"><img class="ic" src="assets/icons/chat.svg" alt=""> Feedback</button>
       <button class="btn" onclick="openSettings()"><img class="ic" src="assets/icons/settings.svg" alt=""> Settings</button>
+      <button class="btn" onclick="openVoiceSettings(false)"><img class="ic" src="assets/icons/room/microphone.svg" alt=""> Voice Settings</button>
+      <button class="btn" onclick="window.open('icon-library.html','_blank')"><img class="ic" src="assets/icons/room/mic-seat.svg" alt=""> Icon Library</button>
       <button class="btn" onclick="openAchievements()"><img class="ic" src="assets/icons/trophy.svg" alt=""> Achievements</button>
       <button class="btn" onclick="openBadges()"><img class="ic" src="assets/icons/medal.svg" alt=""> Badges</button>
       <button class="btn" onclick="openWealthLevels()"><img class="ic" src="assets/icons/coin.svg" alt=""> Wealth Levels</button>
@@ -231,6 +253,7 @@
       <button class="btn" onclick="ownerRecharges()"><img class="ic" src="assets/icons/card.svg" alt=""> Recharges to Approve</button>
       <button class="btn" onclick="ownerAudit()"><img class="ic" src="assets/icons/legal.svg" alt=""> Audit Log</button>
       <button class="btn gold" onclick="openOwnerControls()"><img class="ic" src="assets/icons/control.svg" alt=""> Total Control</button>
+      <button class="btn gold" onclick="ownerVipPanel()"><img class="ic" src="assets/icons/crown.svg" alt=""> VIP Admin Panel</button>
     </div>
     <div class="card">
       <h3>Give / Take Coins</h3>

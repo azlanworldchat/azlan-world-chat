@@ -16,9 +16,18 @@ let vipSelected = 1;
 let vipBenefitTab = 'Status';
 let APP_CONTROLS = null;
 let giftCatalog = [];
-const VIP_ANIMALS = { 1: 'Bronze Medal', 2: 'Silver Medal', 3: 'Star Medal', 4: 'Crown Medal', 5: 'Purple Medal', 6: 'Red-Gold Crown', 7: 'Wolf', 8: 'Eagle', 9: 'Lion', 10: 'Flaming Dragon', 11: 'Thunder Dragon' };
+let shownGiftEventIds = new Set();
+let roomGiftEvents = [];
+let roomFeedTimer = null, notifTimer = null, lastNotifId = 0, notifInit = false;
+let roomTabFilter = 'all';
+let roomMuted = false;
+let profileFromMic = false;
+let verifyUserId = null;
+const VIP_ANIMALS = { 1: 'Bronze Medal', 2: 'Silver Medal', 3: 'Star Medal', 4: 'Crown Medal', 5: 'Purple Medal', 6: 'Red-Gold Crown', 7: 'Wolf', 8: 'Eagle', 9: 'Lion', 10: 'Flaming Dragon', 11: 'Thunder Dragon', 12: 'Divine Throne' };
 /* Custom-drawn icons (original SVG art, no emoji anywhere in the app) */
 function ic(name) { return '<img class="ic" src="assets/icons/' + name + '.svg" alt="">'; }
+/* Categorised icon library (assets/icons/<category>/<name>.svg) */
+function ic2(cat, name) { return '<img class="ic" src="assets/icons/' + cat + '/' + name + '.svg" alt="">'; }
 function iconImg(v) { if (!v) return ic('gift'); if (typeof v === 'string' && v.indexOf('.svg') !== -1) return '<img class="ic" src="' + v + '" alt="">'; return ic('gift'); }
 function vipEmblemImg(v) { return '<img class="vip-emblem-img" src="assets/vip/vip' + (v || 1) + '.svg" alt="VIP' + (v || 1) + '">'; }
 function vipEmblemMini(v) { return '<img class="vip-emblem-mini" src="assets/vip/vip' + (v || 1) + '.svg" alt="">'; }
@@ -66,7 +75,7 @@ function headers(json) {
 async function api(path, opts) {
   const res = await fetch(API + path, opts);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || ('Request failed: ' + res.status));
+  if (!res.ok) { const e = new Error(data.error || ('Request failed: ' + res.status)); e.data = data; throw e; }
   return data;
 }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -85,13 +94,17 @@ async function doLogin(e) {
   try {
     const d = await api('/api/auth/login', { method: 'POST', headers: headers(true), body: JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPass').value }) });
     enterApp(d);
-  } catch (err) { document.getElementById('authMsg').textContent = err.message; window.SFX && SFX.error(); }
+  } catch (err) {
+    if (err.data && err.data.needsVerification) showVerifyScreen(err.data.userId, err.data.code);
+    else { document.getElementById('authMsg').textContent = err.message; window.SFX && SFX.error(); }
+  }
 }
 async function doRegister(e) {
   e.preventDefault();
   try {
-    const d = await api('/api/auth/register', { method: 'POST', headers: headers(true), body: JSON.stringify({ name: document.getElementById('regName').value, email: document.getElementById('regEmail').value, password: document.getElementById('regPass').value, inviteCode: document.getElementById('regInvite').value || undefined }) });
-    enterApp(d);
+    const d = await api('/api/auth/register', { method: 'POST', headers: headers(true), body: JSON.stringify({ name: document.getElementById('regName').value, email: document.getElementById('regEmail').value, password: document.getElementById('regPass').value, phone: document.getElementById('regPhone').value || undefined, inviteCode: document.getElementById('regInvite').value || undefined }) });
+    if (d.needsVerification) showVerifyScreen(d.userId, d.code);
+    else enterApp(d);
   } catch (err) { document.getElementById('authMsg').textContent = err.message; window.SFX && SFX.error(); }
 }
 /* Owner enters DIRECTLY — no login. Uses the owner key (change it in server.js / .env). */
@@ -111,6 +124,30 @@ function socialLogin(provider) {
     : 'Facebook sign-in needs a server key — sign up with email below (takes 10 seconds).';
   document.getElementById('regName').focus();
 }
+/* ---------------- verification screen (6-digit code, shown in-app) ---------------- */
+function showVerifyScreen(userId, code) {
+  verifyUserId = userId;
+  show('authScreen', false); show('verifyScreen', true); show('appScreen', false);
+  document.getElementById('verifyCodeDisplay').textContent = code || '••••••';
+  document.getElementById('verifyInput').value = '';
+  document.getElementById('verifyMsg').textContent = '';
+}
+async function submitVerify() {
+  const code = document.getElementById('verifyInput').value.trim();
+  if (!/^\d{6}$/.test(code)) { document.getElementById('verifyMsg').textContent = 'Enter the 6-digit code.'; return; }
+  try {
+    const d = await api('/api/auth/verify', { method: 'POST', headers: headers(true), body: JSON.stringify({ userId: verifyUserId, code }) });
+    show('verifyScreen', false); enterApp(d);
+  } catch (e) { document.getElementById('verifyMsg').textContent = e.message; }
+}
+async function resendVerifyCode() {
+  try {
+    const d = await api('/api/auth/resend-code', { method: 'POST', headers: headers(true), body: JSON.stringify({ userId: verifyUserId }) });
+    document.getElementById('verifyCodeDisplay').textContent = d.code || '••••••';
+    document.getElementById('verifyMsg').textContent = 'New code sent — it is shown above.';
+  } catch (e) { document.getElementById('verifyMsg').textContent = e.message; }
+}
+function backToAuth() { show('verifyScreen', false); show('authScreen', true); }
 /* Icon for a VIP benefit name (keyword match). */
 function benefitIcon(name) {
   const n = (name || '').toLowerCase();
@@ -151,6 +188,8 @@ function enterApp(d, isOwner) {
   show('authScreen', false); show('appScreen', true);
   showEntrance(ME);
   loadMe(); loadRooms(); loadAnnouncement(); loadNotifications(); loadControls();
+  if (notifTimer) clearInterval(notifTimer);
+  notifTimer = setInterval(loadNotifications, 8000);
   if (isOwner || ME.role === 'owner') openOwner();
 }
 function logout() { TOKEN = ''; ME = null; localStorage.removeItem('awc_token'); location.reload(); }
@@ -189,22 +228,40 @@ async function loadAnnouncement() {
 
 /* ---------------- entrance effect ---------------- */
 /* ENTRY EFFECT — RULE: the entry (animal, luxury car, anything) is SEPARATE and
-   clearly VISIBLE on its own. The whole effect lasts only 2–3 seconds, never
-   more. It closes BY ITSELF 1–2 seconds later — auto-close, no user action. */
+   clearly VISIBLE on its own — one big standalone element, name below it.
+   The whole entry lasts only 2–3 seconds, never more. It closes BY ITSELF
+   1–2 seconds after the entry — auto-close, the user never closes it. */
+/* Entry animation per level (2.5s, one-time, auto-close — no loops):
+   1-3 badge sweep, 4-6 gold wings, 7-8 diamond portal + luxury car,
+   9 phoenix, 10 dragon, 11 cosmic portal, 12 ULTIMATE DIVINE. */
+/* Tiered entry durations (ms) — VIP 1-3: 2-3s, 4-6: 3-4s, 7-8: 4-5s,
+   9-10: 5-7s, 11: 6-8s, 12: 8-10s. Entries auto-close and never block voice. */
+const ENTRY_DUR = { 1: 2500, 2: 2500, 3: 3000, 4: 3500, 5: 3500, 6: 4000, 7: 4500, 8: 5000, 9: 6000, 10: 7000, 11: 7000, 12: 9000 };
+function skipEntrance() { const fx = document.getElementById('entranceFx'); if (fx) fx.classList.add('hidden'); }
 function showEntrance(user) {
   const fx = document.getElementById('entranceFx');
+  if (APP_CONTROLS && APP_CONTROLS.entryEffects === false) { window.SFX && SFX.join(); return; }
+  const dur = ENTRY_DUR[user.vip] || 2500;
+  fx.style.setProperty('--entry-dur', (dur / 1000) + 's');
+  const entry = user.entry || (user.vip >= 12 ? 'divine' : user.vip >= 11 ? 'cosmic' : user.vip === 10 ? 'dragon' : user.vip === 9 ? 'phoenix' : user.vip >= 7 ? 'portal-car' : user.vip >= 4 ? 'wings' : 'sweep');
   if (user.vip) {
     const animCls = user.vip >= 5 ? ' vip5-anim' : '';
-    fx.innerHTML = '<div class="entrance-standalone' + animCls + '">' +
-      (user.banner ? '<img class="entrance-banner-img" src="' + user.banner + '" alt="VIP banner">' : '<div class="entrance-dragon">' + vipEmblemImg(user.vip) + '</div>') +
+    let visual = '';
+    if (entry === 'phoenix') visual = '<img class="entrance-phoenix-img" src="assets/vip/phoenix-entry.svg" alt="Phoenix entrance">';
+    else if (entry === 'cosmic' || entry === 'divine') visual = '<img class="entrance-portal-img" src="assets/vip/divine-portal.svg" alt="Divine portal entrance">';
+    else if (entry === 'portal-car') visual = '<img class="entrance-car-img" src="assets/rides/' + (user.vip === 8 ? 'cp-car.svg' : 'blue-car.svg') + '" alt="Luxury car entrance">';
+    else if (user.banner) visual = '<img class="entrance-banner-img" src="' + user.banner + '" alt="VIP banner">';
+    else visual = '<div class="entrance-dragon">' + vipEmblemImg(user.vip) + '</div>';
+    fx.innerHTML = '<div class="entrance-standalone entry-' + entry + animCls + '">' + visual +
       '<div class="entrance-name' + animCls + '">' + esc(user.name) + ' entered</div>' +
       '<div class="entrance-sub">' + ic('crown') + ' VIP' + user.vip + (user.animal ? ' • ' + esc(user.animal) : '') + '</div></div>';
   } else {
-    fx.innerHTML = '<div class="entrance-standalone"><div class="entrance-text">' + ic('sparkle') + ' ' + esc(user.name) + ' entered ' + ic('sparkle') + '<br><span style="font-size:18px">Welcome to AZLAN WORLD CHAT</span></div></div>';
+    fx.innerHTML = '<div class="entrance-standalone"><div class="entrance-text">' + ic('sparkle') + ' ' + esc(user.name) + ' entered ' + ic('sparkle') + '<br><span style="font-size:13px">Welcome to AZLAN WORLD CHAT</span></div></div>';
   }
   fx.classList.remove('hidden'); fx.classList.remove('play'); void fx.offsetWidth; fx.classList.add('play');
-  /* Auto-close after 2.5 seconds — the user never closes it. */
-  setTimeout(() => fx.classList.add('hidden'), 2500);
+  fx.innerHTML += '<button class="entrance-skip" onclick="skipEntrance()">Skip</button>';
+  /* Auto-close after the tiered duration — the user never closes it. */
+  setTimeout(() => fx.classList.add('hidden'), dur);
   window.SFX && SFX.join();
 }
 
@@ -212,11 +269,12 @@ function showEntrance(user) {
 function switchTab(tab) {
   ['party', 'discover', 'messages', 'friends', 'me', 'owner'].forEach(t => show('tab-' + t, t === tab));
   show('roomView', false);
+  show('voiceSettingsView', false);
   document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   if (tab === 'party') loadRooms();
   if (tab === 'discover') loadMoments();
   if (tab === 'messages') loadInbox();
-  if (tab === 'friends') loadRankings('wealth');
+  if (tab === 'friends') { loadRankings('wealth'); loadFriends(); }
   if (tab === 'me') loadMe();
 }
 function openOwner() {
@@ -237,15 +295,16 @@ async function loadHonorBanner() {
   try {
     const d = await api('/api/v2/vipx/honor', { headers: headers() });
     const el = document.getElementById('honorBanner');
-    if (el && d.banner) el.innerHTML = '<div class="honor-banner">"+ic("trophy")+" ' + esc(d.banner) + '<br><span class="muted">Your personal information can be displayed on the banner by official in the Room-Recommend page.</span></div>';
+    if (el && d.banner) el.innerHTML = '<div class="honor-banner">' + ic("trophy") + ' ' + esc(d.banner) + '<br><span class="muted">Your personal information can be displayed on the banner by official in the Room-Recommend page.</span></div>';
   } catch (e) {}
 }
 function renderRooms(rooms) {
   const el = document.getElementById('roomList');
-  if (!rooms.length) { el.innerHTML = '<p class="muted">No rooms yet — create the first one!</p>'; return; }
+  if (!rooms.length) { el.innerHTML = '<div class="empty-state">' + ic("mic") + '<p>No rooms yet — create the first one!</p></div>'; return; }
   el.innerHTML = rooms.map(r =>
     '<div class="room-card" onclick="joinRoom(\'' + r.id + '\')"><h3>' + esc(r.name) + '</h3>' +
-    '<p>'+ic("mic")+' ' + (r.topic || 'Chat') + ' • '+ic("users")+' ' + (r.members || []).length + ' members • Lv.' + (r.level || 1) + ' • ID ' + r.id + '</p></div>'
+    '<div class="room-meta"><span class="chip">' + ic("mic") + ' ' + esc(r.topic || 'Chat') + '</span><span class="chip">' + ic("users") + ' ' + (r.members || []).length + ' members</span><span class="chip">Lv.' + (r.level || 1) + '</span><span class="chip">ID ' + r.id + '</span></div>' +
+    '<button class="btn gold room-join">Join Room ›</button></div>'
   ).join('');
 }
 async function searchRooms() {
@@ -266,42 +325,124 @@ async function joinRoom(id) {
   try {
     const d = await api('/api/rooms/' + id + '/join', { method: 'POST', headers: headers() });
     currentRoom = d.room;
-    show('tab-party', false); show('roomView', true);
-    document.getElementById('roomName').textContent = currentRoom.name;
-    document.getElementById('roomMeta').textContent = 'ID ' + currentRoom.id + ' • Lv.' + (currentRoom.level || 1) + ' • ' + (currentRoom.topic || '');
+    roomTabFilter = 'all'; roomGiftEvents = [];
+    show('tab-party', false); show('roomView', true); show('voiceSettingsView', false);
     const stage = document.querySelector('.room-stage');
     if (stage) {
-      stage.className = 'room-stage' + (ME.roomTheme && ME.roomTheme !== 'default' ? ' theme-' + ME.roomTheme : '') + (currentRoom.hostTheme ? ' theme-' + currentRoom.hostTheme : '');
+      /* Keep the dark luxury room class — joinRoom must not wipe it. */
+      stage.className = 'room-stage dark-room' + (ME.roomTheme && ME.roomTheme !== 'default' ? ' theme-' + ME.roomTheme : '') + (currentRoom.hostTheme ? ' theme-' + currentRoom.hostTheme : '');
       const bg = document.getElementById('roomBg');
       if (bg) bg.style.backgroundImage = currentRoom.hostTheme ? 'url(assets/themes/' + currentRoom.hostTheme + '.svg)' : '';
     }
     renderRoomHeader(); renderMicGrid(); renderRoomChat(); renderVoiceNotes(); renderOnlineUsers();
+    addWelcomeMessage(ME.name, false);
+    startRoomFeedPoll();
     if (d.entrance) showEntrance({ name: d.entrance.name, vip: d.entrance.vip, banner: d.entrance.banner, animal: d.entrance.animal });
     window.SFX && SFX.join();
     joinAgoraChannel(currentRoom.id);
   } catch (e) { alert(e.message); }
 }
-function leaveRoom() { currentRoom = null; show('roomView', false); show('tab-party', true); loadRooms(); }
+function leaveRoom() { if (roomFeedTimer) { clearInterval(roomFeedTimer); roomFeedTimer = null; } currentRoom = null; show('roomView', false); show('tab-party', true); loadRooms(); }
 /* Room header: icon + name + ID, trophy count, host + shortcuts */
+/* Room top bar like the example room: bold room name + golden winged badge,
+   level pill, member count, top-member avatars, share + power (exit) icons. */
 function renderRoomHeader() {
   const el = document.getElementById('roomHeader'); if (!el || !currentRoom) return;
   const host = (currentRoom.members || []).find(m => m.id === currentRoom.hostId);
-  el.innerHTML = '<div class="rh-left"><span class="rh-icon">' + ic('mic') + '</span><span><b>' + esc(currentRoom.name) + '</b><br><span class="muted">ID: ' + currentRoom.id + '</span></span></div>' +
-    '<div class="rh-right"><span class="rh-trophy">' + ic('trophy') + ' ' + fmt((currentRoom.xp || 0) * 10) + '</span>' +
-    '<button class="icon-btn" onclick="openHonorTitles()" title="Honor System">' + ic('trophy') + '</button>' +
-    '<button class="icon-btn" onclick="openEvents()" title="Yalla Season">' + ic('party') + '</button>' +
-    '<button class="icon-btn" onclick="switchTab(\'messages\')" title="Message">' + ic('chat') + '</button>' +
-    '<button class="icon-btn" onclick="openLucky()" title="Fruit Party">' + ic('lucky') + '</button></div>';
-  const ann = document.getElementById('roomAnnounce');
-  if (ann) ann.innerHTML = '<b>Announcement:</b> Welcome to ' + esc(currentRoom.name) + ' — enjoy the party!';
-  const wel = document.getElementById('roomWelcome');
-  if (wel) wel.textContent = 'Welcome to AZLAN WORLD CHAT. Please respect each other and chat in a decent manner.';
+  const members = currentRoom.members || [];
+  const topAvatars = members.slice(0, 5).map(m => '<span class="rt-mini-av">' + esc((m.name || 'U')[0].toUpperCase()) + '</span>').join('');
+  el.innerHTML = '<div class="room-topbar"><div><div class="rt-name">' + esc(currentRoom.name) + ' <img class="rt-wing" src="assets/icons/wing-badge.svg" alt="wing badge"></div>' +
+    '<div class="rt-sub">' + (host ? '<span>' + esc(host.name) + '</span>' : '') + ' <span class="lv-pill">LV' + (currentRoom.level || 1) + '</span> <span class="member-pill">' + ic('users') + ' ' + members.length + '</span> <span class="muted">ID: ' + currentRoom.id + '</span></div></div>' +
+    '<div class="rt-right"><span class="rt-top-members">' + topAvatars + '<span class="rt-count">' + members.length + '</span></span>' +
+    '<button class="icon-btn" onclick="shareRoom()" title="Share room">' + ic('invite') + '</button>' +
+    '<button class="icon-btn" onclick="leaveRoom()" title="Exit room"><img class="ic" src="assets/icons/power.svg" alt="Exit"></button></div></div>';
+  renderPkBar(); renderRoomTabs();
+}
+/* PK announcement bar — clean comment bar under the mics. Host taps to set it. */
+function renderPkBar() {
+  const el = document.getElementById('roomPkBar'); if (!el || !currentRoom) return;
+  const text = currentRoom.announce || ('Welcome to ' + currentRoom.name + ' — enjoy the party!');
+  el.innerHTML = '<div class="pk-bar" onclick="pkBarTap()"><span class="pk-badge">PK</span><span class="pk-text">' + esc(text) + '</span></div>';
+}
+function pkBarTap() {
+  if (currentRoom && currentRoom.hostId === ME.id) {
+    const a = prompt('Room announcement (shows on the PK bar):', currentRoom.announce || '');
+    if (a !== null) { currentRoom.announce = a; renderPkBar(); }
+  }
+}
+/* All / Chat / Gift tabs under the mics */
+function renderRoomTabs() {
+  const el = document.getElementById('roomTabs'); if (!el) return;
+  el.innerHTML = ['all', 'chat', 'gift'].map(t => '<button class="room-tab' + (roomTabFilter === t ? ' active' : '') + '" onclick="setRoomTab(\'' + t + '\')">' + t[0].toUpperCase() + t.slice(1) + '</button>').join('');
+}
+function setRoomTab(t) { roomTabFilter = t; renderRoomTabs(); renderRoomChat(); }
+/* Share the room (copies an invite) */
+function shareRoom() {
+  if (!currentRoom) return;
+  const text = 'Join my room "' + currentRoom.name + '" on AZLAN WORLD CHAT! Room ID: ' + currentRoom.id;
+  if (navigator.clipboard) { navigator.clipboard.writeText(text); alert('Room invite copied — share it anywhere!'); }
+  else alert(text);
+}
+/* Speaker button: mute the WHOLE room's sound */
+function toggleRoomSound() {
+  roomMuted = !roomMuted;
+  window.SFX_MUTED = roomMuted;
+  const btn = document.getElementById('roomSoundBtn');
+  if (btn) { btn.style.opacity = roomMuted ? '0.45' : '1'; btn.title = roomMuted ? 'Room sound OFF — tap to unmute' : 'Mute the whole room'; }
+}
+/* Welcome message when a real user comes into the room */
+function addWelcomeMessage(name, onMount) {
+  const box = document.getElementById('roomChat'); if (!box) return;
+  const div = document.createElement('p');
+  div.className = 'welcome-msg';
+  div.innerHTML = 'Welcome <b>' + esc(name) + '</b> come into the room' + (onMount ? ' on a mount' : '');
+  box.appendChild(div); box.scrollTop = box.scrollHeight;
+}
+/* Room gift feed: every gift shows in the room with sender, gift, recipient */
+function appendRoomGiftEvent(ev) {
+  const feed = document.getElementById('roomGiftFeed'); if (!feed || !ev) return;
+  roomGiftEvents.push(ev);
+  if (roomGiftEvents.length > 20) roomGiftEvents = roomGiftEvents.slice(-20);
+  const div = document.createElement('div');
+  div.className = 'gift-feed-item';
+  div.innerHTML = (ev.giftSvg ? '<img src="' + ev.giftSvg + '" alt="">' : '') + '<span><b>' + esc(ev.fromName) + '</b> sent <b>' + esc(ev.giftName) + '</b>' + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to <b>' + esc(ev.toName) + '</b></span>';
+  feed.appendChild(div);
+  while (feed.children.length > 5) feed.removeChild(feed.firstChild);
+  renderRoomChat();
+}
+function startRoomFeedPoll() {
+  if (roomFeedTimer) clearInterval(roomFeedTimer);
+  roomFeedTimer = setInterval(pollRoomGiftFeed, 5000);
+  pollRoomGiftFeed();
+}
+async function pollRoomGiftFeed() {
+  if (!currentRoom) return;
+  try {
+    const d = await api('/api/v2/gifts/room-feed?roomId=' + currentRoom.id, { headers: headers() });
+    (d.events || []).forEach(ev => {
+      if (!shownGiftEventIds.has(ev.id)) {
+        shownGiftEventIds.add(ev.id);
+        appendRoomGiftEvent(ev);
+        if (ev.fromId !== ME.id) showGiftBroadcast3D({ fromName: ev.fromName, toName: ev.toName, gift: { name: ev.giftName, svg: ev.giftSvg, anim: ev.giftAnim, sound: ev.giftSound, price: ev.cost }, qty: ev.qty });
+      }
+    });
+    const rooms = await api('/api/rooms', { headers: headers() });
+    const fresh = (rooms.rooms || []).find(r => r.id === currentRoom.id);
+    if (fresh) {
+      const oldMembers = (currentRoom.members || []).map(m => m.id);
+      fresh.members.forEach(m => { if (!oldMembers.includes(m.id)) addWelcomeMessage(m.name, false); });
+      currentRoom = fresh; renderMicGrid(); renderRoomHeader();
+    }
+  } catch (e) {}
 }
 function renderMicGrid() {
   const grid = document.getElementById('micGrid');
   let html = '';
-  /* Host seat 1 on top, then mic seats 2–11 as purple UFO/glass domes */
-  for (let s = 1; s <= 11; s++) {
+  /* Host seat 1 sits in the MIDDLE of the top row (like the example room),
+     seats 2–8 around it. 8 mic seats total (host + 7) — rooms start EMPTY,
+     only real users appear. */
+  const order = [2, 3, 1, 4, 5, 6, 7, 8];
+  for (const s of order) {
     const seat = (currentRoom.seats || []).find(x => x.seat === s);
     if (seat) {
       const u = seat.user || {};
@@ -314,11 +455,15 @@ function renderMicGrid() {
       const emoji = u.micEmoji ? '<span class="seat-emoji"><img src="' + u.micEmoji.svg + '" alt="' + esc(u.micEmoji.name) + '"></span>' : '';
       const ringStyle = ring ? ' style="border-color:' + ring + ';box-shadow:0 0 16px ' + ring + '"' : '';
       const speaking = seat.micOn ? ' speaking' : '';
-      const frame = u.profileFrame === 'owner-frame' ? '<img class="seat-frame" src="assets/vip/owner-frame.svg" alt="Owner frame">' : '';
-      html += '<div class="mic-seat ufo taken vip' + vip + styleCls + waveCls + speaking + (s === 1 ? ' host-seat' : '') + '"' + ringStyle + ' onclick="takeSeat(' + s + ')">' + frame + sticker + emoji +
-        '<span class="seat-avatar">' + (u.micEmoji ? '' : ic('mic')) + '</span>' +
+      /* Golden winged badge ABOVE the host seat (the marked badge). */
+      const wing = s === 1 ? '<img class="host-wing-badge" src="assets/icons/wing-badge.svg" alt="Host badge">' : '';
+      /* VIP icon + rank at the SIDE of the mic — never on top of the photo. */
+      const vipSide = vip ? '<span class="seat-vip-side">' + vipEmblemMini(vip) + '<span>VIP' + vip + '</span></span>' : '';
+      /* The user's photo (initial) stays clear in the middle of the seat. */
+      const photo = u.micEmoji ? '' : '<span class="seat-avatar seat-photo">' + esc((name || 'U')[0].toUpperCase()) + '</span>';
+      html += '<div class="mic-seat ufo taken vip' + vip + styleCls + waveCls + speaking + (s === 1 ? ' host-seat' : '') + '"' + ringStyle + ' onclick="takeSeat(' + s + ')">' + wing + sticker + emoji + vipSide +
+        photo +
         '<span class="seat-name vip-color-' + vip + '">' + esc(name) + '</span>' +
-        '<span class="seat-tags">' + roleTag(u) + ' ' + vipTagHtml(u) + (vip ? ' VIP' + vip : '') + '</span>' +
         '<span class="seat-num">' + s + '</span>' +
         '<span>' + (seat.micOn ? '' + ic('volume') + '' : '' + ic('mic-off') + '') + '</span></div>';
     } else {
@@ -342,27 +487,62 @@ function renderOnlineUsers() {
   (currentRoom.hostId === ME.id || ME.role === 'owner' ? '<p class="muted">Host tools: tap a user above to open their profile, or <button class="btn ghost" onclick="makeRoomAdminPrompt()">Make Admin</button></p>' : '');
 }
 async function takeSeat(s) {
+  const seat = (currentRoom.seats || []).find(x => x.seat === s);
+  if (seat) { openMicProfile(seat.userId); return; }
   try {
     const d = await api('/api/rooms/' + currentRoom.id + '/seat', { method: 'POST', headers: headers(true), body: JSON.stringify({ seat: s, micOn }) });
     currentRoom = d.room; renderMicGrid();
   } catch (e) { alert(e.message); }
 }
-async function toggleMic() {
-  micOn = !micOn;
-  document.getElementById('micBtn').innerHTML = micOn ? ''+ic("mic")+' Mic: ON' : ''+ic("mic-off")+' Mic: OFF';
+/* Profile opened from the mic seat — shows Mic Mute / Mic Leave for my own
+   seat, or Remove from Mic for host/admin viewing someone else. */
+function openMicProfile(userId) { openProfile(userId, true); }
+function backToRoom() { if (currentRoom) { show('tab-me', false); show('roomView', true); } }
+async function micMuteFromProfile() { if (micOn) await toggleMic(); backToRoom(); }
+async function micLeaveFromProfile() {
+  try { const d = await api('/api/rooms/' + currentRoom.id + '/leave-seat', { method: 'POST', headers: headers() }); currentRoom = d.room; renderMicGrid(); }
+  catch (e) { alert(e.message); }
+  profileFromMic = false; backToRoom();
+}
+async function removeFromMic(userId) {
+  if (!confirm('Remove this user from the mic?')) return;
+  try {
+    const d = await api('/api/rooms/' + currentRoom.id + '/remove-seat', { method: 'POST', headers: headers(true), body: JSON.stringify({ userId }) });
+    currentRoom = d.room; renderMicGrid(); profileFromMic = false; backToRoom();
+  } catch (e) { alert(e.message); }
+}
+function micProfileActionsHtml(d, u) {
+  if (!currentRoom) return '';
+  if (d.isMe) return '<div class="mic-profile-actions"><button class="btn gold" onclick="micMuteFromProfile()">' + ic("mic-off") + ' Mic Mute</button><button class="btn danger" onclick="micLeaveFromProfile()">Mic Leave</button><button class="btn" onclick="backToRoom()">Back to Room</button></div>';
+  const canRemove = currentRoom.hostId === ME.id || (currentRoom.admins || []).includes(ME.id) || ME.role === 'owner';
+  if (canRemove) return '<div class="mic-profile-actions"><button class="btn danger" onclick="removeFromMic(\'' + u.id + '\')">Remove from Mic</button><button class="btn" onclick="backToRoom()">Back to Room</button></div>';
+  return '<div class="mic-profile-actions"><button class="btn" onclick="backToRoom()">Back to Room</button></div>';
+}
+async function setMicState(on, opts) {
+  micOn = !!on;
+  const btn = document.getElementById('micBtn');
+  if (btn) btn.innerHTML = micOn ? '' + ic("mic") + ' Mic: ON' : '' + ic("mic-off") + ' Mic: OFF';
   window.SFX && (micOn ? SFX.micOn() : SFX.micOff());
   if (!currentRoom) return;
-  try {
-    const d = await api('/api/v2/rooms/' + currentRoom.id + '/mic', { method: 'POST', headers: headers(true), body: JSON.stringify({ micOn }) });
-    currentRoom.seats = currentRoom.seats || [];
-  } catch (e) {}
+  try { await api('/api/v2/rooms/' + currentRoom.id + '/mic', { method: 'POST', headers: headers(true), body: JSON.stringify({ micOn }) }); } catch (e) {}
   renderMicGrid();
 }
+async function toggleMic() { await setMicState(!micOn); }
 function renderRoomChat() {
   const box = document.getElementById('roomChat');
-  box.innerHTML = (currentRoom.chat || []).slice(-30).map(m =>
-    '<p class="chat-msg' + (m.chatBox === 'dragon-flame' ? ' vip-bubble' : '') + '"><b class="chat-name vip-color-' + (m.vip || 0) + '">' + esc(m.name) + (m.vip ? ' '+ic("crown")+'VIP' + m.vip : '') + ':</b> ' + esc(m.text) + '</p>'
-  ).join('') || '<p class="muted">No messages yet — say hello!</p>';
+  if (!box || !currentRoom) return;
+  let html = '';
+  if (roomTabFilter === 'all' || roomTabFilter === 'chat') {
+    html += (currentRoom.chat || []).slice(-30).map(m =>
+      '<p class="chat-msg' + (m.chatBox === 'dragon-flame' ? ' vip-bubble' : '') + '"><b class="chat-name vip-color-' + (m.vip || 0) + '">' + esc(m.name) + (m.vip ? ' '+ic("crown")+'VIP' + m.vip : '') + ':</b> ' + esc(m.text) + '</p>'
+    ).join('');
+  }
+  if (roomTabFilter === 'all' || roomTabFilter === 'gift') {
+    html += roomGiftEvents.slice(-10).map(ev =>
+      '<p class="chat-msg gift-line">' + ic('gift') + ' <b>' + esc(ev.fromName) + '</b> sent <b>' + esc(ev.giftName) + '</b>' + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to <b>' + esc(ev.toName) + '</b></p>'
+    ).join('');
+  }
+  box.innerHTML = html || '<p class="muted">No messages yet — say hello!</p>';
   box.scrollTop = box.scrollHeight;
 }
 async function sendRoomChat() {
@@ -387,7 +567,10 @@ function startVoiceNote() {
   if (!currentRoom) return;
   const effect = document.getElementById('voiceEffect').value;
   alert('Recording 5 seconds — speak now! Effect: ' + effect);
-  const rec = window.recordVoiceNote(async (blob) => {
+  const recFn = window.recordVoiceNoteEx
+    ? (cb, err) => window.recordVoiceNoteEx(vsRecordOpts(), cb, err)
+    : window.recordVoiceNote;
+  const rec = recFn(async (blob) => {
     const fd = new FormData();
     fd.append('audio', blob, 'voice.webm');
     fd.append('effect', effect);
@@ -420,6 +603,315 @@ async function joinAgoraChannel(roomId) {
   } catch (e) { console.log('Agora unavailable:', e.message); }
 }
 
+/* ---------------- mic & voice settings (dark screen, real Web Audio) ----------------
+   Audio only: getUserMedia({ audio: ... }) — never video. Noise suppression is
+   the browser's own processing ("standard") or off ("none"); Krisp AI is NOT
+   available and is never claimed. Settings are saved per user on the server
+   and applied in rooms (mic state, speaker volume, recorder constraints). */
+const VS_DEFAULTS = { micOn: true, muted: false, speakerOn: true, micVolume: 50, speakerVolume: 100, sensitivity: 50, autoSensitivity: true, noiseSuppression: 'standard', echoCancellation: true, autoGain: true, voiceEnhancement: false, inputMode: 'voice', inputDeviceId: 'default', outputDeviceId: 'default' };
+let voiceSettings = null, vsReturnToRoom = false;
+let vsStream = null, vsAudioCtx = null, vsAnalyser = null, vsRaf = null, vsTestRec = null, vsTestUrl = null, vsSaveTimer = null, vsDevicesLoaded = false;
+function vsEffective() {
+  const s = voiceSettings || VS_DEFAULTS;
+  const enh = !!s.voiceEnhancement;
+  return { echoCancellation: enh ? true : !!s.echoCancellation, noiseSuppression: enh ? 'standard' : s.noiseSuppression, autoGain: enh ? true : !!s.autoGain };
+}
+function vsConstraints() {
+  const s = voiceSettings || VS_DEFAULTS, e = vsEffective();
+  const a = { echoCancellation: e.echoCancellation, noiseSuppression: e.noiseSuppression === 'standard', autoGainControl: e.autoGain };
+  if (s.inputDeviceId && s.inputDeviceId !== 'default') a.deviceId = { exact: s.inputDeviceId };
+  return { audio: a };
+}
+function vsRecordOpts() {
+  const s = voiceSettings || VS_DEFAULTS, e = vsEffective();
+  return { echoCancellation: e.echoCancellation, noiseSuppression: e.noiseSuppression, autoGain: e.autoGain, deviceId: s.inputDeviceId, micVolume: s.micVolume };
+}
+async function ensureVoiceSettings() {
+  if (voiceSettings) return voiceSettings;
+  try { const d = await api('/api/voice-settings', { headers: headers() }); voiceSettings = { ...VS_DEFAULTS, ...(d.settings || {}) }; }
+  catch (e) { voiceSettings = { ...VS_DEFAULTS }; }
+  vsApplyLocal();
+  return voiceSettings;
+}
+function vsApplyLocal() {
+  const s = voiceSettings || VS_DEFAULTS;
+  window.AWC_SPEAKER_VOL = s.speakerOn ? s.speakerVolume / 100 : 0;
+  if (micOn !== !!s.micOn) { micOn = !!s.micOn; const b = document.getElementById('micBtn'); if (b) b.innerHTML = micOn ? '' + ic("mic") + ' Mic: ON' : '' + ic("mic-off") + ' Mic: OFF'; }
+}
+function vsSaveNote(msg) { const el = document.getElementById('vsSaveNote'); if (el) el.textContent = msg; }
+async function vsSave() {
+  if (!voiceSettings) return;
+  try {
+    const d = await api('/api/voice-settings', { method: 'PUT', headers: headers(true), body: JSON.stringify(voiceSettings) });
+    voiceSettings = { ...VS_DEFAULTS, ...(d.settings || {}) };
+    vsApplyLocal();
+    vsSaveNote('Saved ' + new Date().toLocaleTimeString());
+    vsUpdateStatus();
+  } catch (e) { vsSaveNote('Save failed: ' + e.message); }
+}
+function vsSaveDebounced() { clearTimeout(vsSaveTimer); vsSaveTimer = setTimeout(vsSave, 400); }
+function vsCollect() {
+  const g = id => document.getElementById(id);
+  voiceSettings = {
+    micOn: g('vsMicOn').checked, muted: g('vsMuted').checked, speakerOn: g('vsSpeakerOn').checked,
+    micVolume: +g('vsMicVol').value, speakerVolume: +g('vsSpkVol').value,
+    sensitivity: +g('vsSens').value, autoSensitivity: g('vsAutoSens').checked,
+    noiseSuppression: g('vsNS').value, echoCancellation: g('vsEcho').checked, autoGain: g('vsAGC').checked,
+    voiceEnhancement: g('vsEnhance').checked,
+    inputMode: document.querySelector('input[name="vsMode"]:checked').value,
+    inputDeviceId: g('vsInputDev').value, outputDeviceId: g('vsOutputDev').value
+  };
+  g('vsMicVolVal').textContent = voiceSettings.micVolume + '%';
+  g('vsSpkVolVal').textContent = voiceSettings.speakerVolume + '%';
+  g('vsSensVal').textContent = voiceSettings.sensitivity + '%';
+  const ptt = document.getElementById('vsPttWrap');
+  if (ptt) ptt.classList.toggle('hidden', voiceSettings.inputMode !== 'ptt');
+}
+function vsChanged(restartMeter) {
+  vsCollect();
+  vsApplyLocal();
+  if (restartMeter) vsStartMeter();
+  vsSaveDebounced();
+  vsUpdateStatus();
+}
+function renderVoiceSettings() {
+  const s = voiceSettings || VS_DEFAULTS;
+  const el = document.getElementById('voiceSettingsView');
+  const chk = (id, on, label) => '<label class="vs-row"><span>' + label + '</span><input type="checkbox" class="vs-switch" id="' + id + '"' + (on ? ' checked' : '') + ' onchange="vsChanged(' + (id === 'vsMicOn' || id === 'vsMuted' ? 'true' : 'false') + ')"></label>';
+  el.innerHTML = '<div class="vs-wrap">' +
+    '<div class="vs-head"><button class="btn ghost" onclick="closeVoiceSettings()">← Back</button>' +
+    '<h2>' + ic2('room', 'microphone') + ' Mic &amp; Voice Chat Settings</h2>' +
+    '<p class="vs-sub">Audio only — your microphone is captured with audio, never video. No camera, no video calls.</p>' +
+    '<p id="vsSaveNote" class="vs-saved"></p></div>' +
+    '<div class="vs-status" id="vsStatus"></div>' +
+    '<div class="vs-grid">' +
+    '<div class="vs-card"><h3>' + ic2('room', 'microphone') + ' Microphone</h3>' +
+    chk('vsMicOn', s.micOn, 'Mic On / Off') + chk('vsMuted', s.muted, 'Mute / Unmute') +
+    '<label class="vs-row"><span>Mic volume <b id="vsMicVolVal">' + s.micVolume + '%</b></span><input type="range" class="vs-range" id="vsMicVol" min="0" max="100" value="' + s.micVolume + '" oninput="vsChanged(false)"></label>' +
+    '<div class="vs-meter-box"><canvas id="vsLevelCanvas" class="vs-meter" width="520" height="64"></canvas>' +
+    '<div class="vs-level-bar"><div class="vs-level-fill" id="vsLevelFill"></div></div>' +
+    '<p class="vs-meter-line"><span id="vsSpeakDot" class="vs-dot"></span> Level <b id="vsLevelPct">0%</b> <span id="vsSpeakState" class="muted">— silent</span></p></div></div>' +
+    '<div class="vs-card"><h3>' + ic2('room', 'speaker') + ' Speaker</h3>' +
+    chk('vsSpeakerOn', s.speakerOn, 'Speaker On / Off') +
+    '<label class="vs-row"><span>Speaker volume <b id="vsSpkVolVal">' + s.speakerVolume + '%</b></span><input type="range" class="vs-range" id="vsSpkVol" min="0" max="100" value="' + s.speakerVolume + '" oninput="vsChanged(false)"></label>' +
+    '<button class="btn gold" id="vsSpkTestBtn" onclick="vsSpeakerTest()">' + ic2('room', 'speaker') + ' Test Speaker — play test tone</button>' +
+    '<p class="muted">Plays a short tone at your speaker volume, on the selected output device.</p></div>' +
+    '<div class="vs-card"><h3>' + ic2('room', 'volume') + ' Sensitivity</h3>' +
+    '<label class="vs-row"><span>Mic sensitivity <b id="vsSensVal">' + s.sensitivity + '%</b></span><input type="range" class="vs-range" id="vsSens" min="0" max="100" value="' + s.sensitivity + '" oninput="vsChanged(false)"></label>' +
+    chk('vsAutoSens', s.autoSensitivity, 'Auto-detect sensitivity') +
+    '<p class="muted">Higher sensitivity picks up quieter speech. Auto-detect adjusts it for you.</p></div>' +
+    '<div class="vs-card"><h3>' + ic2('admin', 'settings') + ' Voice Processing</h3>' +
+    '<label class="vs-row"><span>Noise suppression</span><select id="vsNS" class="vs-select" onchange="vsChanged(true)"><option value="standard"' + (s.noiseSuppression === 'standard' ? ' selected' : '') + '>Standard (browser)</option><option value="none"' + (s.noiseSuppression === 'none' ? ' selected' : '') + '>None</option></select></label>' +
+    '<p class="muted">Browser processing only. Krisp AI suppression is not available.</p>' +
+    chk('vsEcho', s.echoCancellation, 'Echo cancellation') + chk('vsAGC', s.autoGain, 'Automatic gain control') + chk('vsEnhance', s.voiceEnhancement, 'Voice enhancement (all processing on)') + '</div>' +
+    '<div class="vs-card"><h3>' + ic2('room', 'raise-hand') + ' Input Mode</h3>' +
+    '<label class="vs-row"><span>Voice activity (mic always live)</span><input type="radio" name="vsMode" value="voice" class="vs-switch"' + (s.inputMode !== 'ptt' ? ' checked' : '') + ' onchange="vsChanged(false)"></label>' +
+    '<label class="vs-row"><span>Push-to-talk (hold to talk)</span><input type="radio" name="vsMode" value="ptt" class="vs-switch"' + (s.inputMode === 'ptt' ? ' checked' : '') + ' onchange="vsChanged(false)"></label>' +
+    '<div id="vsPttWrap" class="' + (s.inputMode === 'ptt' ? '' : 'hidden') + '"><button class="vs-ptt" id="vsPttBtn" onpointerdown="vsPttDown(event)" onpointerup="vsPttUp()" onpointerleave="vsPttUp()">HOLD TO TALK</button><p class="muted">Hold the button — your mic is live only while you hold it.</p></div></div>' +
+    '<div class="vs-card"><h3>' + ic2('room', 'mic-seat') + ' Mic Test</h3>' +
+    '<button class="btn gold" id="vsTestBtn" onclick="vsMicTest()">Record 5-second mic test</button> ' +
+    '<button class="btn" id="vsTestPlay" onclick="vsTestPlay()" disabled>Play back my test</button>' +
+    '<p class="muted" id="vsTestNote">Records with your current settings, then plays it back so you can hear yourself.</p>' +
+    '<audio id="vsTestAudio" controls class="vs-audio hidden"></audio></div>' +
+    '<div class="vs-card"><h3>' + ic2('room', 'invite') + ' Audio Devices</h3>' +
+    '<label class="vs-row"><span>Microphone</span><select id="vsInputDev" class="vs-select" onchange="vsChanged(true)"><option value="default">Default microphone</option></select></label>' +
+    '<label class="vs-row"><span>Speaker</span><select id="vsOutputDev" class="vs-select" onchange="vsChanged(false)"><option value="default">Default speaker</option></select></label>' +
+    '<button class="btn" onclick="vsRefreshDevices()">Refresh devices</button>' +
+    '<p class="muted" id="vsDevNote">Device names appear after microphone permission is granted.</p></div>' +
+    '<div class="vs-card"><h3>' + ic2('support', 'help') + ' Voice Connection</h3>' +
+    '<p id="vsConnText" class="vs-conn">Checking…</p>' +
+    '<button class="btn danger" onclick="vsReset()">Reset to default settings</button></div>' +
+    '</div></div>';
+  vsUpdateStatus();
+}
+async function openVoiceSettings(fromRoom) {
+  vsReturnToRoom = !!fromRoom;
+  ['party', 'discover', 'messages', 'friends', 'me', 'owner'].forEach(t => show('tab-' + t, false));
+  show('roomView', false);
+  show('voiceSettingsView', true);
+  await ensureVoiceSettings();
+  renderVoiceSettings();
+  vsStartMeter();
+  vsRefreshDevices();
+}
+function closeVoiceSettings() {
+  vsStopMeter();
+  if (vsTestRec) { try { vsTestRec.stop(); } catch (e) {} vsTestRec = null; }
+  show('voiceSettingsView', false);
+  if (vsReturnToRoom && currentRoom) { show('roomView', true); vsReturnToRoom = false; }
+  else switchTab('me');
+}
+function vsUpdateStatus() {
+  const s = voiceSettings || VS_DEFAULTS;
+  const el = document.getElementById('vsStatus');
+  if (el) el.innerHTML = '<b>Status:</b> Mic ' + (s.micOn ? (s.muted ? 'ON — muted' : 'ON') : 'OFF') + ' • Speaker ' + (s.speakerOn ? 'ON ' + s.speakerVolume + '%' : 'OFF') + ' • Mode ' + (s.inputMode === 'ptt' ? 'Push-to-talk' : 'Voice activity') + ' • Noise suppression ' + (s.noiseSuppression === 'standard' ? 'Standard (browser)' : 'None') + ' • Settings saved on server for <b>' + esc(ME ? ME.name : '') + '</b>';
+  const c = document.getElementById('vsConnText');
+  if (c) {
+    const dev = vsStream ? (vsStream.getAudioTracks()[0] || {}).label || 'microphone' : 'none';
+    c.innerHTML = 'Mic stream: <b>' + (vsStream ? 'LIVE (' + esc(dev) + ')' : 'off — enable Mic to start it') + '</b><br>' +
+      'Server: logged in as <b>' + esc(ME ? ME.name : '?') + '</b> (ID ' + esc(ME ? ME.id : '?') + ')<br>' +
+      'Room: ' + (currentRoom ? '<b>in “' + esc(currentRoom.name) + '”</b>' : 'not in a room') + '<br>' +
+      'Live multi-party voice: voice-notes mode (Agora voice server not configured — see settings note).';
+  }
+}
+function vsStopMeter() {
+  if (vsRaf) cancelAnimationFrame(vsRaf);
+  vsRaf = null;
+  if (vsStream) { vsStream.getTracks().forEach(t => t.stop()); vsStream = null; }
+  if (vsAudioCtx) { vsAudioCtx.close().catch(() => {}); vsAudioCtx = null; }
+  vsAnalyser = null;
+}
+async function vsStartMeter() {
+  vsStopMeter();
+  const s = voiceSettings || VS_DEFAULTS;
+  const canvas = document.getElementById('vsLevelCanvas');
+  if (!canvas) return;
+  const ctx2d = canvas.getContext('2d');
+  const drawFlat = () => { ctx2d.fillStyle = '#0d0518'; ctx2d.fillRect(0, 0, canvas.width, canvas.height); ctx2d.strokeStyle = '#6b4fa1'; ctx2d.beginPath(); ctx2d.moveTo(0, 32); ctx2d.lineTo(canvas.width, 32); ctx2d.stroke(); };
+  const setLevel = pct => {
+    const f = document.getElementById('vsLevelFill'); if (f) f.style.width = pct + '%';
+    const p = document.getElementById('vsLevelPct'); if (p) p.textContent = Math.round(pct) + '%';
+    const dot = document.getElementById('vsSpeakDot'); if (dot) dot.style.background = pct > 5 ? '#4ade80' : '#5b5470';
+    const st = document.getElementById('vsSpeakState'); if (st) st.textContent = pct > 5 ? '— speaking' : '— silent';
+  };
+  if (!s.micOn || s.muted) { drawFlat(); setLevel(0); vsUpdateStatus(); return; }
+  try {
+    vsStream = await navigator.mediaDevices.getUserMedia(vsConstraints());
+    vsAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = vsAudioCtx.createMediaStreamSource(vsStream);
+    vsAnalyser = vsAudioCtx.createAnalyser();
+    vsAnalyser.fftSize = 2048;
+    src.connect(vsAnalyser);
+    const data = new Uint8Array(vsAnalyser.fftSize);
+    const thresh = s.autoSensitivity ? 0.02 : (1 - s.sensitivity / 100) * 0.25 + 0.005;
+    const loop = () => {
+      if (!vsAnalyser) return;
+      vsAnalyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
+      const rms = Math.sqrt(sum / data.length);
+      const pct = Math.min(100, rms * 400);
+      ctx2d.fillStyle = '#0d0518'; ctx2d.fillRect(0, 0, canvas.width, canvas.height);
+      ctx2d.strokeStyle = '#ffd24a'; ctx2d.lineWidth = 2; ctx2d.beginPath();
+      for (let x = 0; x < canvas.width; x++) { const v = data[Math.floor(x / canvas.width * data.length)]; const y = (v / 255) * canvas.height; x === 0 ? ctx2d.moveTo(x, y) : ctx2d.lineTo(x, y); }
+      ctx2d.stroke();
+      setLevel(pct);
+      const dot = document.getElementById('vsSpeakDot'); if (dot) dot.style.background = rms > thresh ? '#4ade80' : '#5b5470';
+      const st = document.getElementById('vsSpeakState'); if (st) st.textContent = rms > thresh ? '— speaking' : '— silent';
+      vsRaf = requestAnimationFrame(loop);
+    };
+    loop();
+  } catch (e) {
+    drawFlat(); setLevel(0);
+    const st = document.getElementById('vsSpeakState'); if (st) st.textContent = '— mic unavailable: ' + e.message;
+  }
+  vsUpdateStatus();
+}
+async function vsRefreshDevices() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const s = voiceSettings || VS_DEFAULTS;
+    const fill = (id, kind, cur) => {
+      const sel = document.getElementById(id); if (!sel) return;
+      const list = devs.filter(d => d.kind === kind);
+      sel.innerHTML = '<option value="default">Default ' + (kind === 'audioinput' ? 'microphone' : 'speaker') + '</option>' +
+        list.map((d, i) => '<option value="' + esc(d.deviceId) + '"' + (d.deviceId === cur ? ' selected' : '') + '>' + esc(d.label || (kind === 'audioinput' ? 'Microphone ' : 'Speaker ') + (i + 1)) + '</option>').join('');
+      if (!list.some(d => d.label)) { const n = document.getElementById('vsDevNote'); if (n) n.textContent = 'Device names are hidden until microphone permission is granted — enable the mic above, then tap Refresh devices.'; }
+    };
+    fill('vsInputDev', 'audioinput', s.inputDeviceId);
+    fill('vsOutputDev', 'audiooutput', s.outputDeviceId);
+    vsDevicesLoaded = true;
+  } catch (e) {}
+}
+async function vsSpeakerTest() {
+  const s = voiceSettings || VS_DEFAULTS;
+  if (!s.speakerOn) { alert('Speaker is OFF — turn Speaker On first.'); return; }
+  try {
+    const a = new (window.AudioContext || window.webkitAudioContext)();
+    if (s.outputDeviceId && s.outputDeviceId !== 'default' && a.setSinkId) { try { await a.setSinkId(s.outputDeviceId); } catch (e) {} }
+    const vol = s.speakerVolume / 100;
+    [880, 1318].forEach((f, i) => {
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.25 * vol, a.currentTime + i * 0.25);
+      g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + i * 0.25 + 0.22);
+      o.connect(g); g.connect(a.destination);
+      o.start(a.currentTime + i * 0.25); o.stop(a.currentTime + i * 0.25 + 0.25);
+    });
+    setTimeout(() => a.close().catch(() => {}), 800);
+  } catch (e) { alert('Speaker test failed: ' + e.message); }
+}
+function vsMicTest() {
+  const btn = document.getElementById('vsTestBtn');
+  const note = document.getElementById('vsTestNote');
+  if (!window.recordVoiceNoteEx) { alert('Recorder not available in this browser.'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Recording… speak now (5s)'; }
+  if (note) note.textContent = 'Recording for 5 seconds with your current settings…';
+  vsTestRec = window.recordVoiceNoteEx(vsRecordOpts(), blob => {
+    if (vsTestUrl) URL.revokeObjectURL(vsTestUrl);
+    vsTestUrl = URL.createObjectURL(blob);
+    const au = document.getElementById('vsTestAudio');
+    if (au) {
+      au.src = vsTestUrl; au.classList.remove('hidden');
+      const s = voiceSettings || VS_DEFAULTS;
+      if (s.outputDeviceId && s.outputDeviceId !== 'default' && au.setSinkId) au.setSinkId(s.outputDeviceId).catch(() => {});
+      au.volume = (voiceSettings || VS_DEFAULTS).speakerVolume / 100;
+    }
+    const play = document.getElementById('vsTestPlay'); if (play) play.disabled = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Record 5-second mic test'; }
+    if (note) note.textContent = 'Test recorded — tap “Play back my test” to hear yourself.';
+  }, err => {
+    if (btn) { btn.disabled = false; btn.textContent = 'Record 5-second mic test'; }
+    if (note) note.textContent = 'Mic test failed: ' + err;
+  });
+  if (vsTestRec) setTimeout(() => { if (vsTestRec) { vsTestRec.stop(); vsTestRec = null; } }, 5000);
+}
+function vsTestPlay() { const au = document.getElementById('vsTestAudio'); if (au && vsTestUrl) au.play(); }
+function vsPttDown(e) { if (e) e.preventDefault(); setMicState(true); const b = document.getElementById('vsPttBtn'); if (b) b.classList.add('holding'); }
+function vsPttUp() { const b = document.getElementById('vsPttBtn'); if (b) b.classList.remove('holding'); if ((voiceSettings || VS_DEFAULTS).inputMode === 'ptt') setMicState(false); }
+async function vsReset() {
+  if (!confirm('Reset all voice settings to defaults?')) return;
+  voiceSettings = { ...VS_DEFAULTS };
+  await vsSave();
+  renderVoiceSettings();
+  vsStartMeter();
+  vsRefreshDevices();
+}
+/* ---------------- room actions (normal user voice room) ---------------- */
+async function requestMic() {
+  if (!currentRoom) { alert('Join a room first.'); return; }
+  const seat = prompt('Which seat number do you want? (leave empty for any seat)', '');
+  try {
+    await api('/api/rooms/' + currentRoom.id + '/request-mic', { method: 'POST', headers: headers(true), body: JSON.stringify({ seat: seat ? Number(seat) : undefined }) });
+    alert('Mic request sent to the host.');
+  } catch (e) { alert(e.message); }
+}
+async function raiseHand() {
+  if (!currentRoom) { alert('Join a room first.'); return; }
+  try {
+    const d = await api('/api/rooms/' + currentRoom.id + '/raise-hand', { method: 'POST', headers: headers() });
+    alert(d.raised ? 'Hand raised — the host can see you.' : 'Hand lowered.');
+    pollRoomGiftFeed();
+  } catch (e) { alert(e.message); }
+}
+async function openRoomSettings() {
+  if (!currentRoom) { alert('Join a room first.'); return; }
+  const can = currentRoom.hostId === ME.id || (currentRoom.admins || []).includes(ME.id) || ME.role === 'owner';
+  if (!can) { alert('Only the room host or an admin can change room settings.'); return; }
+  const announce = prompt('Room announcement (PK bar):', currentRoom.announce || '');
+  if (announce === null) return;
+  const topic = prompt('Room topic:', currentRoom.topic || 'Chat');
+  if (topic === null) return;
+  const locks = prompt('Locked seats (numbers separated by commas, e.g. 3,4 — empty = none):', (currentRoom.lockedSeats || []).join(','));
+  if (locks === null) return;
+  try {
+    const d = await api('/api/rooms/' + currentRoom.id + '/settings', { method: 'POST', headers: headers(true), body: JSON.stringify({ announce, topic, lockedSeats: locks.split(',').map(x => Number(x.trim())).filter(n => n >= 2 && n <= 8) }) });
+    currentRoom = d.room; renderRoomHeader(); renderMicGrid();
+    alert('Room settings saved.');
+  } catch (e) { alert(e.message); }
+}
+
 /* ---------------- gifts ---------------- */
 function showGiftPanel() {
   if (!currentRoom && !giftTarget) { alert('Join a room first, or pick a user to gift.'); return; }
@@ -430,7 +922,11 @@ function showGiftPanel() {
 function closeGiftPanel() { document.getElementById('giftPanel').classList.add('hidden'); }
 function setQty(n) { giftQty = n; document.getElementById('qtyLabel').textContent = 'x' + n; }
 function giftIconHtml(g) {
-  if (g.svg) return '<img class="gift-svg-img" src="' + g.svg + '" alt="' + esc(g.name) + '" onerror="this.outerHTML=\'<span class=&quot;g-icon&quot;>' + iconImg(g.icon) + '</span>\'">';
+  /* NOTE: the old onerror fallback embedded an <img> (with double quotes)
+     inside the onerror="..." attribute — the quotes ended the attribute
+     early and leaked '"> text before every gift name. No inline fallback:
+     the gift SVGs are bundled and verified to serve 200. */
+  if (g.svg) return '<img class="gift-svg-img" src="' + g.svg + '" alt="' + esc(g.name) + '">';
   return '<span class="g-icon">' + iconImg(g.icon) + '</span>';
 }
 async function loadGiftCatalog() {
@@ -460,12 +956,31 @@ function giftCat(cat, btn) {
 async function sendGift(giftId) {
   const toUserId = giftTarget ? giftTarget.userId : (currentRoom ? (currentRoom.seats[0] || {}).userId || ME.id : ME.id);
   try {
-    const d = await api('/api/v2/gifts/send', { method: 'POST', headers: headers(true), body: JSON.stringify({ giftId, toUserId, qty: giftQty }) });
+    const d = await api('/api/v2/gifts/send', { method: 'POST', headers: headers(true), body: JSON.stringify({ giftId, toUserId, qty: giftQty, roomId: currentRoom ? currentRoom.id : null }) });
     closeGiftPanel();
-    playGift3D(d.gift || { id: giftId, name: '', anim: d.animation === 'huge' ? 'spin3d' : 'bloom', sound: d.animation === 'huge' ? 'fanfare' : 'gift', icon: ''+ic("gift")+'' });
-    if (d.broadcast) showBroadcast('A gift of 100,000+ coins was just sent!');
+    if (d.event) { shownGiftEventIds.add(d.event.id); appendRoomGiftEvent(d.event); }
+    showGiftBroadcast3D({ fromName: d.fromName, toName: d.toName, gift: d.gift, qty: giftQty });
+    if (d.broadcastText) showBroadcast(d.broadcastText);
     loadMe();
   } catch (e) { alert(e.message); }
+}
+/* 3D gift BROADCAST — big animated banner with sound across the whole screen,
+   naming sender, gift and recipient. Runs 5 seconds, then closes by itself. */
+function showGiftBroadcast3D(ev) {
+  const fx = document.getElementById('giftFx3d');
+  if (!fx) return;
+  const g = ev.gift || {};
+  fx.className = 'play big-gift';
+  fx.classList.remove('hidden');
+  fx.innerHTML = '<div class="gift-broadcast-3d">' +
+    (g.svg ? '<img class="gift3d-img anim-' + (g.anim || 'bloom') + '" src="' + g.svg + '" alt="' + esc(g.name || 'gift') + '">' : '<img class="gift3d-img anim-bloom" src="assets/icons/gift.svg" alt="gift">') +
+    '<div class="gift3d-name">' + esc(ev.fromName || 'Someone') + ' sent ' + esc(g.name || 'a gift') + (ev.qty > 1 ? ' ×' + ev.qty : '') + ' to ' + esc(ev.toName || 'you') + '</div>' +
+    (g.price ? '<div class="gift3d-sub">' + fmt(g.price * (ev.qty || 1)) + ' coins</div>' : '') + '</div>';
+  if (!APP_CONTROLS || APP_CONTROLS.sounds) {
+    if (window.SFX && SFX.giftSound) SFX.giftSound(g.sound || 'gift');
+    else if (window.SFX) SFX.gift();
+  }
+  setTimeout(() => { fx.classList.add('hidden'); fx.classList.remove('play'); }, 5000);
 }
 /* 3-second 3D gift animation WITH SOUND — every gift has its own animation
    (lion runs and roars, rocket flies, car drives, crown spins in 3D...).
@@ -485,7 +1000,7 @@ function playGift3D(gift) {
     if (window.SFX && SFX.giftSound) SFX.giftSound(gift && gift.sound || 'gift');
     else if (window.SFX) SFX.gift();
   }
-  setTimeout(() => { fx.classList.add('hidden'); fx.classList.remove('play'); }, 3000);
+  setTimeout(() => { fx.classList.add('hidden'); fx.classList.remove('play'); }, 5000);
 }
 function playGiftFx(size) {
   const fx = document.getElementById('giftFx');
@@ -534,8 +1049,8 @@ async function convertDiamonds(stage) {
 }
 
 /* ---------------- VIP CLUB (VIP1–VIP11, exact screenshot emblems) ---------------- */
-const VIP_EMBLEMS = { 1: 'Bronze Winged Medal', 2: 'Silver-Blue Winged Medal', 3: 'Blue-Gold Star Medal', 4: 'Gold-Red Crown Medal', 5: 'Purple Winged Medal', 6: 'Red-Gold Crown Medal', 7: 'Wolf Head', 8: 'Eagle Head', 9: 'Lion Head', 10: 'Flaming Dragon Head', 11: 'Thunder Dragon' };
-const MIC_RING_COLORS = { 1: '#cd7f32', 2: '#2fb8a6', 3: '#9fc3e8', 4: '#d4af37', 5: '#8b7bff', 6: '#ff5a2a', 7: '#7fd4ff', 8: '#2fd6c3', 9: '#ffd24a', 10: '#ff5a00', 11: '#ffe600' };
+const VIP_EMBLEMS = { 1: 'Bronze Winged Medal', 2: 'Silver-Blue Winged Medal', 3: 'Blue-Gold Star Medal', 4: 'Gold-Red Crown Medal', 5: 'Purple Winged Medal', 6: 'Red-Gold Crown Medal', 7: 'Wolf Head', 8: 'Eagle Head', 9: 'Lion Head', 10: 'Flaming Dragon Head', 11: 'Thunder Dragon', 12: 'Divine Celestial Crown' };
+const MIC_RING_COLORS = { 1: '#cd7f32', 2: '#2fb8a6', 3: '#d4af37', 4: '#d4af37', 5: '#8b7bff', 6: '#ff5a2a', 7: '#ff9d00', 8: '#2fd6c3', 9: '#ffd24a', 10: '#ff5a00', 11: '#ffe600', 12: '#ffd700' };
 let vipGiftTab = 'Privilege';
 let giftEveryone = false;
 async function openVipClub() {
@@ -560,88 +1075,108 @@ function renderVipClub() {
   const nextVip = d.levels.find(l => l.vip === sel.vip + 1) || null;
   const vipPct = Math.min(100, Math.round(((d.myPoints || 0) / (sel.points || 1)) * 100));
   const moreCount = Math.max(0, sel.totalBenefits - featured.length);
-  p.innerHTML =
-    '<div class="card"><h3>'+ic("crown")+' VIP Club — ' + (d.myVip ? 'You are VIP' + d.myVip + ' (' + (myLevel ? myLevel.emblem : '') + ')' : 'You have no VIP yet') + '</h3>' +
-    '<p>VIP Points: <b>' + fmt(d.myPoints) + '</b> • Bonus Points: <b>' + fmt(d.myBonusPoints) + '</b></p>' +
-    (d.nextLevel ? '<p>Next: VIP' + d.nextLevel.vip + ' (' + d.nextLevel.emblem + ') — need <b>' + fmt(d.pointsToNext) + '</b> more points</p>' +
-      '<div style="background:rgba(255,255,255,.12);border-radius:10px;height:14px;overflow:hidden"><div style="width:' + Math.min(100, Math.round((d.myPoints / d.nextLevel.points) * 100)) + '%;height:100%;background:linear-gradient(90deg,#f5c542,#ffd700)"></div></div>' : '<p>'+ic("trophy")+' You are VIP11 — the highest level!</p>') +
-    '<button class="btn gold" onclick="earnVipPoints()">'+ic("star")+' Earn Points</button> ' +
-    '<button class="btn" onclick="openBonusStore()">'+ic("gift")+' Bonus Points Store</button>' +
-    '<p class="muted">'+ic("gift")+' Offer: ' + esc(d.offers.nextLevel) + '<br>'+ic("invite")+' ' + esc(d.offers.crossLevel) + '</p></div>' +
-    '<div class="tabs-mini">' + d.levels.map(l =>
-      '<button class="mini-tab' + (l.vip === vipSelected ? ' active' : '') + '" onclick="selectVip(' + l.vip + ')" style="' + (l.vip === vipSelected ? 'border-color:' + l.color : '') + '">' + vipEmblemMini(l.vip) + ' VIP' + l.vip + '</button>'
-    ).join('') + '</div>' +
-    '<div class="vip-level vip' + sel.vip + '" style="background:' + sel.themeBg + ';border-color:' + sel.color + '">' +
-      '<div style="text-align:center"><div class="vip-badge-big" style="animation:dragonGlow 2s infinite">' + vipEmblemImg(sel.vip) + '</div>' +
-      '<h3 class="vip-level-title" style="color:' + sel.color + '">VIP' + sel.vip + (nextVip ? ' <span class="vip-next-dim">VIP' + nextVip.vip + '</span>' : '') + '</h3>' +
-      '<p class="vip-emblem-name">' + esc(sel.emblem) + '</p>' +
-      '<div class="vip-progress-line"><div class="vip-progress-dot" style="left:' + vipPct + '%;background:' + sel.color + '"></div></div>' +
-      '<p>' + ic("lock") + ' ' + fmt(pointsNeeded) + ' more VIP points needed for this level</p>' +
-      '<button class="btn ghost" onclick="openUpgradeGuide()">Upgrade Guide ›</button> ' +
-      '<button class="btn gold" onclick="openVipCenter(' + sel.vip + ')">' + ic("crown") + ' VIP Center — VIP' + sel.vip + ' Benefits</button>' +
-      '<div class="vip-points-card">' +
-      '<div class="vip-points-row"><span class="vip-points-avatar">' + esc((ME && ME.name ? ME.name : 'U')[0].toUpperCase()) + '</span><span>VIP Points: <b>' + fmt(d.myPoints) + '</b></span><button class="btn earn-pill" style="background:' + sel.color + '" onclick="earnVipPoints()">Earn</button></div>' +
-      '<div class="vip-progress-bar"><div style="width:' + vipPct + '%;background:' + sel.color + '"></div></div>' +
-      '<p class="vip-points-sub">V1 2,400 &nbsp;•&nbsp; 31 days</p>' +
-      '<p class="vip-points-split"><span><b>' + fmt(d.myBonusPoints) + '</b><br>Bonus Points</span><span><b>0</b><br>VIP Offer</span></p>' +
-      '</div>' +
-      '<p class="vip-price">' + fmt(sel.price) + ' coins • 31 days • ' + sel.totalBenefits + ' benefits • ' + sel.discountPct + '% discount</p>' +
-      '<p class="muted">Effect: ' + esc(sel.effect) + ' • Username: ' + esc(sel.usernameStyle) + ' • Mic ring: ' + esc(sel.micRing.name) + '</p>' +
-      (d.myVip === sel.vip ? '<p>'+ic("check")+' Your current level</p>' : '<button class="btn gold" onclick="buyVip(' + sel.vip + ')">Buy VIP' + sel.vip + '</button>') +
-      '</div></div>' +
-    '<div class="card vip-benefits-card"><div class="vip-sec-head"><h3>' + sel.totalBenefits + ' Benefits</h3><button class="link-btn" onclick="vipTab(\'Status\')">All ›</button></div>' +
-      '<div class="benefit-row">' +
-      featured.map(b => '<div class="benefit-cell" onclick="openBenefitDetail(\'' + esc(b).replace(/'/g, "\\'") + '\')"><span class="benefit-ico">' + benefitIcon(b) + '</span><span>' + esc(b) + '</span></div>').join('') +
-      (moreCount > 0 ? '<div class="benefit-cell" onclick="vipTab(\'Status\')"><span class="benefit-ico">•••</span><span>' + moreCount + ' More Benefits</span></div>' : '') +
-      '</div><p class="muted">' + esc(d.usernameNote || '') + '</p></div>' +
-    '<div class="card vip-benefits-card"><div class="vip-sec-head"><h3>Bonus Points Store</h3><button class="link-btn" onclick="openBonusStore()">View More ›</button></div>' +
-      '<div class="benefit-row">' +
-      '<div class="benefit-cell" onclick="openBonusStore()"><span class="benefit-ico">' + ic('lock') + '</span><span>Room Lock</span></div>' +
-      '<div class="benefit-cell" onclick="openBonusStore()"><span class="benefit-ico">' + ic('ticket') + '</span><span>ID Coupon</span></div>' +
-      '<div class="benefit-cell" onclick="openBonusStore()"><span class="benefit-ico">' + ic('frame') + '</span><span>Golden Frame</span></div>' +
-      '<div class="benefit-cell" onclick="openBonusStore()"><span class="benefit-ico">' + ic('coin') + '</span><span>1,000,000 Coins</span></div>' +
-      '</div></div>' +
+  const nn = String(sel.vip).padStart(2, '0');
+  const isHot = sel.vip === 7, isRoyal = sel.vip >= 10;
+  const nextPct = d.nextLevel ? Math.min(100, Math.round((d.myPoints / d.nextLevel.points) * 100)) : 100;
+  /* --- Hero: per-level gradient, composed art (frame + badge + crown) --- */
+  let h = '<div class="vip-hero" style="background:' + sel.themeBg + ';box-shadow:0 16px 40px ' + sel.color + '44, 0 4px 12px rgba(0,0,0,.06)">' +
+    '<span class="eyebrow">VIP Club</span>' +
+    '<div class="vip-hero-art"><img class="vip-hero-frame" src="assets/icons/vip/frame-' + nn + '.svg" alt="VIP' + sel.vip + ' frame"><img class="vip-hero-badge" src="assets/icons/vip/badge-' + nn + '.svg" alt="VIP' + sel.vip + ' badge"><img class="vip-hero-crown" src="assets/icons/vip/crown-' + nn + '.svg" alt="VIP' + sel.vip + ' crown"></div>' +
+    '<h2 style="color:' + sel.color + '">VIP' + sel.vip + '</h2>' +
+    '<p class="vip-hero-emblem">' + esc(sel.emblem) + (isHot ? ' — Fire Wings' : '') + (sel.vip === 10 ? ' — Golden Dragon' : '') + (sel.vip === 12 ? ' — Divine Sovereign' : '') + '</p>' +
+    '<p class="vip-hero-points">' + (d.myVip ? 'You are VIP' + d.myVip + (myLevel ? ' (' + esc(myLevel.emblem) + ')' : '') : 'You have no VIP yet') + ' • ' + fmt(d.myPoints) + ' VIP points</p>' +
+    '<div class="vip-progress"><div style="width:' + vipPct + '%;background:linear-gradient(90deg,' + sel.color + ',' + sel.color2 + ')"></div></div>' +
+    '<p class="vip-hero-next">' + (d.nextLevel ? fmt(d.pointsToNext) + ' more points to VIP' + d.nextLevel.vip + ' (' + esc(d.nextLevel.emblem) + ') — ' + nextPct + '%' : (d.myVip >= 12 ? 'You are VIP12 — the highest, divine level!' : 'You are VIP11 — one level from the divine!')) + '</p>' +
+    '<div class="vip-stat-grid">' +
+    '<div class="vip-stat"><b>' + fmt(sel.price) + '</b><span>Coins</span></div>' +
+    '<div class="vip-stat"><b>31 days</b><span>Duration</span></div>' +
+    '<div class="vip-stat"><b>' + sel.totalBenefits + '</b><span>Benefits</span></div>' +
+    '<div class="vip-stat"><b>' + sel.discountPct + '%</b><span>Discount</span></div></div>' +
+    (d.myVip === sel.vip ? '<span class="vip-current-chip">' + ic("check") + ' Your current level</span>'
+      : '<button class="btn gold vip-buy-btn" onclick="buyVip(' + sel.vip + ')">' + ic("crown") + ' Buy VIP' + sel.vip + ' — ' + fmt(sel.price) + ' coins</button>') +
+    '<p class="vip-hero-links"><a href="vip-preview.html">View VIP 1–12 Preview — badges, frames, entries &amp; room themes</a></p></div>';
+  /* --- Level rail: 12 chips --- */
+  h += '<div class="vip-rail">' + d.levels.map(l =>
+    '<button class="vip-rail-chip' + (l.vip === vipSelected ? ' active' : '') + (l.vip === 7 ? ' vip-hot' : '') + (l.vip >= 10 ? ' vip-royal' : '') + '" onclick="selectVip(' + l.vip + ')">' + vipEmblemMini(l.vip) + ' VIP' + l.vip + '</button>'
+  ).join('') + '</div>';
+  /* --- What you get: badge / crown / frame / nameplate --- */
+  h += '<div class="vip-sec"><div class="sec-head"><span class="eyebrow">What you get</span><h3>VIP' + sel.vip + ' Identity</h3></div>' +
+    '<div class="vip-art-row">' +
+    '<div class="vip-art-cell"><img src="assets/icons/vip/badge-' + nn + '.svg" alt="Badge"><span>Badge</span></div>' +
+    '<div class="vip-art-cell"><img src="assets/icons/vip/crown-' + nn + '.svg" alt="Crown"><span>Crown</span></div>' +
+    '<div class="vip-art-cell"><img src="assets/icons/vip/frame-' + nn + '.svg" alt="Frame"><span>Frame</span></div>' +
+    '<div class="vip-art-cell"><img src="assets/icons/vip/nameplate-' + nn + '.svg" alt="Nameplate"><span>Nameplate</span></div></div>' +
+    '<p class="vip-note">Effect: ' + esc(sel.effect) + ' • Username: ' + esc(sel.usernameStyle) + ' • Mic ring: ' + esc(sel.micRing.name) + ' • Entry: ' + esc(sel.entry || '') + '</p>' +
+    '<p class="vip-note">' + ic("lock") + ' ' + fmt(pointsNeeded) + ' more VIP points needed for this level &nbsp;•&nbsp; <a href="javascript:void(0)" onclick="openUpgradeGuide()">Upgrade Guide ›</a></p></div>';
+  /* --- Status card: points, bonus points, offer, actions --- */
+  h += '<div class="card vip-status-card"><div class="sec-head"><span class="eyebrow">Your status</span><h3>Points &amp; Rewards</h3></div>' +
+    '<div class="vip-points-row"><span class="vip-points-avatar">' + esc((ME && ME.name ? ME.name : 'U')[0].toUpperCase()) + '</span><span>VIP Points: <b>' + fmt(d.myPoints) + '</b> • Bonus Points: <b>' + fmt(d.myBonusPoints) + '</b></span><button class="btn earn-pill" style="background:' + sel.color + '" onclick="earnVipPoints()">Earn</button></div>' +
+    '<div class="vip-progress-bar"><div style="width:' + nextPct + '%;background:' + sel.color + '"></div></div>' +
+    '<p class="vip-points-sub">Progress to ' + (d.nextLevel ? 'VIP' + d.nextLevel.vip : 'the top') + ' • 31 days per level</p>' +
+    '<div class="action-row"><button class="btn gold" onclick="earnVipPoints()">' + ic("star") + ' Earn Points</button> ' +
+    '<button class="btn" onclick="openBonusStore()">' + ic("gift") + ' Bonus Points Store</button></div>' +
+    '<p class="vip-note">' + ic("gift") + ' Offer: ' + esc(d.offers.nextLevel) + '<br>' + ic("invite") + ' ' + esc(d.offers.crossLevel) + '</p></div>';
+  /* --- Benefits --- */
+  h += '<div class="vip-sec"><div class="sec-head"><span class="eyebrow">' + sel.totalBenefits + ' benefits</span><h3>VIP' + sel.vip + ' Benefits</h3><button class="link-btn" onclick="vipTab(\'Status\')">All ›</button></div>' +
+    '<div class="benefit-row">' +
+    featured.map(b => '<div class="benefit-cell" onclick="openBenefitDetail(\'' + esc(b).replace(/'/g, "\\'") + '\')"><span class="benefit-ico">' + benefitIcon(b) + '</span><span>' + esc(b) + '</span></div>').join('') +
+    (moreCount > 0 ? '<div class="benefit-cell" onclick="vipTab(\'Status\')"><span class="benefit-ico">•••</span><span>' + moreCount + ' More Benefits</span></div>' : '') +
+    '</div><p class="vip-note">' + esc(d.usernameNote || '') + '</p></div>' +
     '<div class="tabs-mini">' + ['Status', 'Decorations', 'Functions', 'Rewards', 'Discounts'].map(t =>
       '<button class="mini-tab' + (t === vipBenefitTab ? ' active' : '') + '" onclick="vipTab(\'' + t + '\')">' + t + ' (' + sel.benefits[t].length + ')</button>'
     ).join('') + '</div>' +
     '<div class="card"><h3>' + vipBenefitTab + ' benefits — VIP' + sel.vip + '</h3>' +
-    (benefits.length ? '<ul>' + benefits.map(b => '<li><a href="javascript:void(0)" onclick="openBenefitDetail(\'' + esc(b).replace(/'/g, "\\'") + '\')">'+ic("check")+' ' + esc(b) + '</a></li>').join('') + '</ul>' : '<p class="muted">No benefits in this tab at this level yet — upgrade for more!</p>') +
-    '<p class="muted">VIP' + sel.vip + ' has ' + sel.totalBenefits + ' benefits in total.' + (sel.vip === 10 ? ' VIP10 has all 58 benefits! '+ic("party")+'' : sel.vip === 11 ? ' VIP11 has 65 benefits — the most! '+iconImg("assets/vip/vip11.svg")+'' : '') + '</p></div>' +
-    '<div class="card"><h3>'+ic("gift")+' Exclusive VIP Gifts</h3><p class="muted">Privilege gifts — V5 white beast 5,999 • V4 blue dragon 4,999 • V3 palace 3,999 • V2 car 2,999 • V1 flowers 799</p><button class="btn gold" onclick="openVipGiftShop()">Open VIP Gift Shop</button></div>' +
-    '<div class="card"><h3>'+ic("gift")+' Daily VIP Claims</h3>' +
-    '<button class="btn" onclick="vipClaim(\'gift-code\')">Gift Code (+100,000 coins)</button> ' +
-    '<button class="btn" onclick="vipClaim(\'crystals\')">Crystals (+5,000)</button> ' +
-    '<button class="btn" onclick="vipClaim(\'golds\')">Golds (+500,000 coins)</button> ' +
-    '<button class="btn" onclick="vipClaim(\'birthday\')">'+iconImg("assets/gifts/cake.svg")+' Birthday Gift</button></div>' +
-    '<div class="card"><h3>'+ic("lucky")+' Lucky Bags (VIP only)</h3>' +
+    (benefits.length ? '<ul>' + benefits.map(b => '<li><a href="javascript:void(0)" onclick="openBenefitDetail(\'' + esc(b).replace(/'/g, "\\'") + '\')">' + ic("check") + ' ' + esc(b) + '</a></li>').join('') + '</ul>' : '<p class="vip-note">No benefits in this tab at this level yet — upgrade for more!</p>') +
+    '<p class="vip-note">VIP' + sel.vip + ' has ' + sel.totalBenefits + ' benefits in total.' + (sel.vip === 10 ? ' VIP10 has all 58 benefits! ' + ic("party") : sel.vip === 11 ? ' VIP11 has 65 benefits! ' + iconImg("assets/vip/vip11.svg") : sel.vip === 12 ? ' VIP12 has 72 benefits — the most, divine level! ' + iconImg("assets/vip/vip12.svg") : '') + '</p></div>';
+  /* --- VIP gifts + daily claims --- */
+  h += '<div class="vip-sec"><div class="sec-head"><span class="eyebrow">Exclusive</span><h3>VIP Gifts &amp; Daily Claims</h3></div>' +
+    '<div class="card"><h3>' + ic("gift") + ' Exclusive VIP Gifts</h3><p class="vip-note">Privilege gifts — V5 white beast 5,999 • V4 blue dragon 4,999 • V3 palace 3,999 • V2 car 2,999 • V1 flowers 799</p><button class="btn gold" onclick="openVipGiftShop()">Open VIP Gift Shop</button></div>' +
+    '<div class="card"><h3>' + ic("gift") + ' Daily VIP Claims</h3><div class="vip-claim-grid">' +
+    '<button class="btn" onclick="vipClaim(\'gift-code\')">Gift Code (+100,000 coins)</button>' +
+    '<button class="btn" onclick="vipClaim(\'crystals\')">Crystals (+5,000)</button>' +
+    '<button class="btn" onclick="vipClaim(\'golds\')">Golds (+500,000 coins)</button>' +
+    '<button class="btn" onclick="vipClaim(\'birthday\')">' + iconImg("assets/gifts/cake.svg") + ' Birthday Gift</button></div></div></div>';
+  /* --- Lucky bags + anonymous + mic --- */
+  h += '<div class="card"><h3>' + ic("lucky") + ' Lucky Bags (VIP only)</h3>' +
     '<input id="lbGold" type="number" placeholder="Gold 20–500" value="100"><input id="lbCount" type="number" placeholder="Recipients 5–30" value="10">' +
     '<button class="btn gold" onclick="sendLuckyBag()">Send Lucky Bag</button></div>' +
-    '<div class="card"><h3>'+ic("anonymous")+' Anonymous Display</h3><p class="muted">When ON, you appear as "Anonymous" in Visitors lists and Top Gifters rankings, and no honor post is sent for you.</p>' +
-    '<button class="btn" onclick="toggleAnonymous()">' + (d.myAnonymous ? ''+ic("eye")+' Anonymous: ON — tap to turn OFF' : ''+ic("anonymous")+' Anonymous: OFF — tap to turn ON') + '</button></div>' +
-    '<div class="card"><h3>'+ic("mic")+' Exclusive Mic Animation</h3><p class="muted">Your ring: <b>' + (d.myVip ? (d.levels[d.myVip - 1].micRing.name + ' (' + d.levels[d.myVip - 1].micRing.color + ')') : 'no VIP yet') + '</b></p>' +
+    '<div class="card"><h3>' + ic("anonymous") + ' Anonymous Display — VIP10 benefit</h3><p class="vip-note">When ON, you appear as "Anonymous" in Visitors lists and Top Gifters rankings, and no honor post is sent for you.</p>' +
+    (d.myVip >= 10 ? '<button class="btn" onclick="toggleAnonymous()">' + (d.myAnonymous ? '' + ic("eye") + ' Anonymous: ON — tap to turn OFF' : '' + ic("anonymous") + ' Anonymous: OFF — tap to turn ON') + '</button>' : '<p class="vip-note">' + ic("lock") + ' VIP10 benefit — upgrade to VIP10 to unlock Anonymous Display.</p>') + '</div>' +
+    '<div class="card"><h3>' + ic("mic") + ' Exclusive Mic Animation</h3><p class="vip-note">Your ring: <b>' + (d.myVip ? (d.levels[d.myVip - 1].micRing.name + ' (' + d.levels[d.myVip - 1].micRing.color + ')') : 'no VIP yet') + '</b></p>' +
     '<button class="btn gold" onclick="useMicAnimation()">Use it Now</button> ' +
-    '<span id="stickerRow">' + (d.micStickers || []).map(s => '<button class="btn" onclick="pickSticker(\'' + s.id + '\')">' + iconImg(s.icon) + ' ' + esc(s.name) + '</button>').join('') + '</span></div>' +
-    '<div class="card"><h3>'+ic("theme")+' Customize My VIP Look</h3>' +
+    '<span id="stickerRow">' + (d.micStickers || []).map(s => '<button class="btn" onclick="pickSticker(\'' + s.id + '\')">' + iconImg(s.icon) + ' ' + esc(s.name) + '</button>').join('') + '</span></div>';
+  /* --- Customize + extras --- */
+  h += '<div class="card"><h3>' + ic("theme") + ' Customize My VIP Look</h3>' +
     '<input id="vcFrame" placeholder="Profile frame (e.g. Dragon Frame)"><input id="vcEntrance" placeholder="Entrance effect (e.g. Dragon fire)"><input id="vcTitle" placeholder="Honor title (e.g. Thunder King)">' +
     '<button class="btn gold" onclick="customizeVip()">Save My VIP Style</button></div>' +
-    '<div class="card"><h3>'+ic("sparkle")+' VIP Extras</h3><div class="grid-btns">' +
-    '<button class="btn" onclick="openMicStyles()">'+ic("mic")+' Mic Style</button>' +
-    '<button class="btn" onclick="openMicWaves()">'+ic("wave")+' Mic Wave</button>' +
-    '<button class="btn" onclick="openMicConnections()">'+ic("link")+' Mic Connection</button>' +
-    '<button class="btn" onclick="openThemesStore()">'+ic("theme")+' Send Items — Themes Store</button>' +
-    '<button class="btn" onclick="openThemes()">'+iconImg("assets/themes/party-lounge.svg")+' Room Themes</button>' +
-    '<button class="btn" onclick="openCoupons()">'+ic("ticket")+' Personal ID Coupon</button>' +
-    '<button class="btn" onclick="openGifPhoto()">'+ic("frame")+' GIF Profile Photo</button>' +
-    '<button class="btn" onclick="openBonusHistory()">'+ic("star")+' Bonus Points History</button>' +
-    '<button class="btn" onclick="openRechargeBonus()">'+ic("coin")+' Bonus Recharge Golds</button>' +
-    '<button class="btn" onclick="openDiscounts()">'+ic("discount")+' Golds Items Discount</button>' +
-    '<button class="btn" onclick="openSupport()">'+ic("support")+' Customer Service Expert</button>' +
-    '<button class="btn" onclick="openProtections()">'+ic("shield")+' My Protections</button>' +
-    '<button class="btn" onclick="openCustomItems()">'+ic("theme")+' Custom Items (90 days)</button>' +
-    '<button class="btn" onclick="openGetGolds()">'+ic("coin")+' Get Golds (VIP9/10)</button>' +
-    '<button class="btn" onclick="openBroadcasts()">'+ic("announce")+' Broadcasts</button>' +
+    '<div class="card"><h3>' + ic("sparkle") + ' VIP Extras</h3><div class="grid-btns">' +
+    '<button class="btn" onclick="openMicStyles()">' + ic("mic") + ' Mic Style</button>' +
+    '<button class="btn" onclick="openMicWaves()">' + ic("wave") + ' Mic Wave</button>' +
+    '<button class="btn" onclick="openMicConnections()">' + ic("link") + ' Mic Connection</button>' +
+    '<button class="btn" onclick="openThemesStore()">' + ic("theme") + ' Send Items — Themes Store</button>' +
+    '<button class="btn" onclick="openThemes()">' + iconImg("assets/themes/party-lounge.svg") + ' Room Themes</button>' +
+    '<button class="btn" onclick="openCoupons()">' + ic("ticket") + ' Personal ID Coupon</button>' +
+    '<button class="btn" onclick="openGifPhoto()">' + ic("frame") + ' GIF Profile Photo</button>' +
+    '<button class="btn" onclick="openBonusHistory()">' + ic("star") + ' Bonus Points History</button>' +
+    '<button class="btn" onclick="openRechargeBonus()">' + ic("coin") + ' Bonus Recharge Golds</button>' +
+    '<button class="btn" onclick="openDiscounts()">' + ic("discount") + ' Golds Items Discount</button>' +
+    '<button class="btn" onclick="openSupport()">' + ic("support") + ' Customer Service Expert</button>' +
+    '<button class="btn" onclick="openProtections()">' + ic("shield") + ' My Protections</button>' +
+    '<button class="btn" onclick="openCustomItems()">' + ic("theme") + ' Custom Items (90 days)</button>' +
+    '<button class="btn" onclick="openGetGolds()">' + ic("coin") + ' Get Golds (VIP9/10)</button>' +
+    '<button class="btn" onclick="openBroadcasts()">' + ic("announce") + ' Broadcasts</button>' +
     '</div></div>';
+  /* --- Bonus Points Store teaser --- */
+  h += '<div class="card vip-benefits-card"><div class="vip-sec-head"><h3>Bonus Points Store</h3><button class="link-btn" onclick="openBonusStore()">View More ›</button></div>' +
+    '<div class="benefit-row">' +
+    '<div class="benefit-cell" onclick="openBonusStore()"><span class="benefit-ico">' + ic('lock') + '</span><span>Room Lock</span></div>' +
+    '<div class="benefit-cell" onclick="openBonusStore()"><span class="benefit-ico">' + ic('ticket') + '</span><span>ID Coupon</span></div>' +
+    '<div class="benefit-cell" onclick="openBonusStore()"><span class="benefit-ico">' + ic('frame') + '</span><span>Golden Frame</span></div>' +
+    '<div class="benefit-cell" onclick="openBonusStore()"><span class="benefit-ico">' + ic('coin') + '</span><span>1,000,000 Coins</span></div>' +
+    '</div></div>';
+  p.innerHTML = h;
 }
+
 /* Benefit detail page — dark header "VIP Benefits", 5 round icons on top,
    cream card below with the benefit title in the middle. */
 const BENEFIT_TOP_ICONS = ['crown', 'mic', 'gift', 'star', 'sparkle'];
@@ -667,7 +1202,7 @@ async function openBenefitDetail(name) {
       '<div class="benefit-cream-card"><h3>' + ic("sparkle") + ' ' + esc(d.title) + '</h3><p>' + esc(d.desc) + '</p>' +
       (d.note ? '<p class="muted">' + esc(d.note) + '</p>' : '') + extra +
       (name === 'Exclusive Mic Animation' ? '<button class="btn gold" onclick="useMicAnimation()">Use it Now</button>' : '') +
-      (name === 'Anonymous Display' ? '<button class="btn gold" onclick="toggleAnonymous()">Toggle Anonymous Display</button>' : '') +
+      (name === 'Anonymous Display' ? ((vipClubData && vipClubData.myVip >= 10) ? '<button class="btn gold" onclick="toggleAnonymous()">Toggle Anonymous Display</button>' : '<p class="muted">'+ic("lock")+' Anonymous Display is a VIP10 benefit — upgrade to VIP10 to unlock it.</p>') : '') +
       '</div></div>';
   } catch (e) {
     document.getElementById('mePanel').innerHTML = '<div class="card"><button class="btn ghost" onclick="renderVipClub()">← Back to VIP Club</button><h3>'+ic("sparkle")+' ' + esc(name) + '</h3><p class="muted">A VIP' + vipSelected + ' benefit. Upgrade your VIP level to unlock more!</p></div>';
@@ -680,19 +1215,33 @@ async function openVipCenter(level) {
     const l = d.level;
     const p = document.getElementById('mePanel');
     const icons = ['crown', 'frame', 'sparkle', 'wave', 'chatbox', 'card'];
-    p.innerHTML = '<div class="card vip-center" style="background:' + l.themeBg + ';border-color:' + l.color + '">' +
-      '<button class="btn ghost" onclick="renderVipClub()">← Back to VIP Club</button><h3>VIP Center</h3>' +
-      '<div class="tabs-mini">' + [1, 2, 3, 4, 5].map(v => '<button class="mini-tab' + (v === level ? ' active' : '') + '" onclick="openVipCenter(' + v + ')">VIP' + v + '</button>').join('') + '</div>' +
-      '<div style="text-align:center"><div class="vip-badge-big" style="animation:dragonGlow 2s infinite">' + vipEmblemImg(level) + '</div>' +
-      '<h3 style="color:' + l.color + '">VIP' + level + ' — ' + esc(l.emblem) + '</h3></div>' +
+    const nn = String(level).padStart(2, '0');
+    p.innerHTML = '<div class="vip-hero vip-center-hero" style="background:' + l.themeBg + ';box-shadow:0 16px 40px ' + l.color + '44, 0 4px 12px rgba(0,0,0,.06)">' +
+      '<button class="btn ghost" onclick="renderVipClub()">← Back to VIP Club</button>' +
+      '<div class="vip-hero-art"><img class="vip-hero-frame" src="assets/icons/vip/frame-' + nn + '.svg" alt="VIP' + level + ' frame"><img class="vip-hero-badge" src="assets/icons/vip/badge-' + nn + '.svg" alt="VIP' + level + ' badge"><img class="vip-hero-crown" src="assets/icons/vip/crown-' + nn + '.svg" alt="VIP' + level + ' crown"></div>' +
+      '<span class="eyebrow">VIP Center</span>' +
+      '<h2 style="color:' + l.color + '">VIP' + level + ' — ' + esc(l.emblem) + '</h2>' +
       '<div class="identification-banner">' + ic("crown") + ' Identification (' + d.identification + ')</div>' +
-      '<div class="benefit-grid-6">' + d.benefits.map((b, i) => '<div class="benefit-cell"><span class="benefit-ico">' + ic(icons[i]) + '</span><span>' + esc(b.name) + '</span><br><span class="muted">' + esc(b.desc) + '</span></div>').join('') + '</div>' +
-      '<p class="muted">Exclusive privilege — each VIP level gets its own version of these 6 benefits in its own colours and animal.</p>' +
-      '<p class="vip-price">' + fmt(d.price) + ' Coins / 30 DAYS</p>' +
-      (d.myVip === level ? '<p>' + ic("check") + ' Your current level</p>' : '<button class="btn gold" onclick="buyVip(' + level + ')">Join VIP</button>') +
-      '</div>';
+      '<div class="vip-stat-grid">' +
+      '<div class="vip-stat"><b>' + fmt(d.price) + '</b><span>Coins / 30 days</span></div>' +
+      '<div class="vip-stat"><b>' + d.benefits.length + '</b><span>Privileges</span></div>' +
+      '<div class="vip-stat"><b>' + esc(l.effect || '—') + '</b><span>Effect</span></div>' +
+      '<div class="vip-stat"><b>' + esc(l.micRing ? l.micRing.name : '—') + '</b><span>Mic ring</span></div></div>' +
+      '<div class="vip-art-row">' +
+      '<div class="vip-art-cell"><img src="assets/icons/vip/badge-' + nn + '.svg" alt="Badge"><span>Badge</span></div>' +
+      '<div class="vip-art-cell"><img src="assets/icons/vip/crown-' + nn + '.svg" alt="Crown"><span>Crown</span></div>' +
+      '<div class="vip-art-cell"><img src="assets/icons/vip/frame-' + nn + '.svg" alt="Frame"><span>Frame</span></div>' +
+      '<div class="vip-art-cell"><img src="assets/icons/vip/nameplate-' + nn + '.svg" alt="Nameplate"><span>Nameplate</span></div></div>' +
+      (d.myVip === level ? '<span class="vip-current-chip">' + ic("check") + ' Your current level</span>' : '<button class="btn gold vip-buy-btn" onclick="buyVip(' + level + ')">' + ic("crown") + ' Join VIP' + level + ' — ' + fmt(d.price) + ' Coins / 30 Days</button>') +
+      '</div>' +
+      '<div class="vip-rail">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(v => '<button class="vip-rail-chip' + (v === level ? ' active' : '') + (v === 7 ? ' vip-hot' : '') + (v >= 10 ? ' vip-royal' : '') + '" onclick="openVipCenter(' + v + ')">' + vipEmblemMini(v) + ' VIP' + v + '</button>').join('') + '</div>' +
+      '<div class="vip-sec"><div class="sec-head"><span class="eyebrow">6 privileges</span><h3>What VIP' + level + ' Unlocks</h3></div>' +
+      '<div class="benefit-grid-6">' + d.benefits.map((b, i) => '<div class="benefit-cell"><span class="benefit-ico">' + ic(icons[i]) + '</span><span>' + esc(b.name) + '</span><br><span class="vip-note">' + esc(b.desc) + '</span></div>').join('') + '</div>' +
+      '<p class="vip-note">Exclusive privilege — each VIP level gets its own version of these 6 benefits in its own colours and animal.</p></div>' +
+      (d.myVip >= 10 ? '<div class="card"><h3>' + ic("anonymous") + ' Anonymous Display — VIP10 benefit</h3><button class="btn" onclick="toggleAnonymous()">' + (d.myAnonymous ? 'Anonymous: ON — tap to turn OFF' : 'Anonymous: OFF — tap to turn ON') + '</button></div>' : '');
   } catch (e) { alert(e.message); }
 }
+
 /* Upgrade Guide popup — exact stages from the screenshot */
 async function openUpgradeGuide() {
   try {
@@ -730,9 +1279,9 @@ async function sendVipGift(giftId) {
     else if (giftTarget) body.toUserId = giftTarget.userId;
     else { alert('Pick a user to gift, or switch target to Everyone on Mic (join a room first).'); return; }
     const d = await api('/api/v2/vip/vip-gifts/send', { method: 'POST', headers: headers(true), body: JSON.stringify(body) });
-    playGift3D(d.gift || { id: giftId, name: '', anim: 'spin3d', sound: 'fanfare', icon: ''+ic("gift")+'' });
-    if (d.broadcast) showBroadcast('A VIP gift of 100,000+ coins was just sent!');
-    alert('VIP gift sent to ' + d.recipients + ' user(s)!');
+    if (d.event) { shownGiftEventIds.add(d.event.id); appendRoomGiftEvent(d.event); }
+    showGiftBroadcast3D({ fromName: d.fromName, toName: d.toName, gift: d.gift, qty: giftQty });
+    if (d.broadcastText) showBroadcast(d.broadcastText);
     loadMe();
   } catch (e) { alert(e.message); }
 }
@@ -942,27 +1491,58 @@ async function openThread(userId) {
   try {
     const d = await api('/api/messages/' + userId, { headers: headers() });
     document.getElementById('threadBox').innerHTML = d.messages.map(m => '<p><b>' + (m.from === ME.id ? 'You' : esc(m.from)) + ':</b> ' + esc(m.text) + '</p>').join('') || '<p class="muted">No messages yet.</p>';
-  } catch (e) {}
+  } catch (e) {
+    /* Server locks DMs until the follow is mutual — show the locked note. */
+    document.getElementById('threadBox').innerHTML = '<p class="locked-note">' + esc(e.message) + '</p>';
+  }
 }
 function closeThread() { show('chatThread', false); show('inboxList', true); loadInbox(); }
 async function sendDM() {
   const text = document.getElementById('dmText').value.trim();
   if (!text || !threadWith) return;
   document.getElementById('dmText').value = '';
-  await api('/api/messages', { method: 'POST', headers: headers(true), body: JSON.stringify({ to: threadWith, text }) });
-  openThread(threadWith);
+  try { await api('/api/messages', { method: 'POST', headers: headers(true), body: JSON.stringify({ to: threadWith, text }) }); openThread(threadWith); }
+  catch (e) { alert(e.message); openThread(threadWith); }
 }
 async function searchUsers() {
   const q = document.getElementById('userSearch').value.trim();
   if (!q) { document.getElementById('userList').innerHTML = ''; return; }
   try {
     const d = await api('/api/users?q=' + encodeURIComponent(q), { headers: headers() });
-    document.getElementById('userList').innerHTML = d.users.map(u =>
-      '<div class="user-row"><span><b class="vip-color-' + (u.vip || 0) + '">' + esc(u.name) + '</b> • ID ' + u.id + (u.vip ? ' • '+ic("crown")+' VIP' + u.vip : '') + '</span><span><button class="btn" onclick="followUser(\'' + u.id + '\')">Follow</button> <button class="btn" onclick="giftToUser(\'' + u.id + '\', \'' + esc(u.name) + '\')">'+ic("gift")+' Gift</button> <button class="btn" onclick="openThread(\'' + u.id + '\');switchTab(\'messages\')">'+ic("chat")+' Chat</button></span></div>'
-    ).join('');
+    const rows = await Promise.all(d.users.map(async u => {
+      let f = null;
+      try { f = await api('/api/users/' + u.id + '/follow-state', { headers: headers() }); } catch (e) {}
+      return '<div class="user-row"><span><b class="vip-color-' + (u.vip || 0) + '">' + esc(u.name) + '</b> • ID ' + u.id + (u.vip ? ' • '+ic("crown")+' VIP' + u.vip : '') + '</span><span>' + followBtnHtml(f, u.id) + ' <button class="btn" onclick="giftToUser(\'' + u.id + '\', \'' + esc(u.name) + '\')">'+ic("gift")+' Gift</button> <button class="btn" onclick="openThread(\'' + u.id + '\');switchTab(\'messages\')">'+ic("chat")+' Chat</button></span></div>';
+    }));
+    document.getElementById('userList').innerHTML = rows.join('');
   } catch (e) {}
 }
-async function followUser(id) { await api('/api/users/' + id + '/follow', { method: 'POST', headers: headers() }); alert('Following!'); }
+function followBtnHtml(f, userId) {
+  if (!f) return '<button class="btn" onclick="followUser(\'' + userId + '\')">+ Follow</button>';
+  if (f.state === 'friends') return '<button class="btn friends" onclick="followUser(\'' + userId + '\')">Friends</button>';
+  if (f.state === 'following') return '<button class="btn following" onclick="followUser(\'' + userId + '\')">Following</button>';
+  if (f.state === 'follow-back') return '<button class="btn follow-back" onclick="followUser(\'' + userId + '\')">Follow Back</button>';
+  return '<button class="btn gold" onclick="followUser(\'' + userId + '\')">+ Follow</button>';
+}
+async function followUser(id) {
+  try {
+    const st = await api('/api/users/' + id + '/follow-state', { headers: headers() });
+    const endpoint = (st.state === 'following' || st.state === 'friends') ? '/unfollow' : '/follow';
+    await api('/api/users/' + id + endpoint, { method: 'POST', headers: headers() });
+    if (honorsData && honorsData.user && honorsData.user.id === id) openProfile(id, profileFromMic);
+    if (document.getElementById('userList').innerHTML) searchUsers();
+    if (document.getElementById('friendsList')) loadFriends();
+  } catch (e) { alert(e.message); }
+}
+async function loadFriends() {
+  const el = document.getElementById('friendsList'); if (!el) return;
+  try {
+    const d = await api('/api/friends', { headers: headers() });
+    el.innerHTML = '<h3>Friends (mutual follows)</h3>' + ((d.friends || []).map(f =>
+      '<div class="user-row"><span><b class="vip-color-' + (f.vip || 0) + '">' + esc(f.name) + '</b> • ID ' + f.id + '</span><button class="btn" onclick="openThread(\'' + f.id + '\');switchTab(\'messages\')">Message</button></div>'
+    ).join('') || '<p class="muted">No friends yet — follow someone and get a follow-back.</p>');
+  } catch (e) {}
+}
 function giftToUser(id, name) { giftTarget = { userId: id, name }; showGiftPanel(); }
 async function loadRankings(kind, btn) {
   if (btn) { document.querySelectorAll('#tab-friends .mini-tab').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
@@ -980,6 +1560,15 @@ async function loadNotifications() {
     const unread = d.notifications.filter(n => !n.read).length;
     document.getElementById('notifDot').classList.toggle('hidden', unread === 0);
     if (unread) window.SFX && SFX.notify();
+    const maxId = (d.notifications || []).reduce((m, n) => Math.max(m, n.id || 0), 0);
+    if (!notifInit) { notifInit = true; lastNotifId = maxId; return; }
+    (d.notifications || []).forEach(n => {
+      if (n.id > lastNotifId && n.kind === 'gift' && n.giftEventId && !shownGiftEventIds.has(n.giftEventId)) {
+        shownGiftEventIds.add(n.giftEventId);
+        if (n.fromId !== ME.id) showGiftBroadcast3D({ fromName: n.from, toName: n.to, gift: n.gift, qty: n.qty });
+      }
+    });
+    lastNotifId = maxId;
   } catch (e) {}
 }
 async function showNotifications() {
@@ -998,8 +1587,13 @@ async function ownerStats() {
   try {
     const d = await api('/api/owner/stats', { headers: headers() });
     document.getElementById('masterWallet').textContent = d.masterWallet;
+    let vc = '';
+    try {
+      const v = await api('/api/owner/verification-codes', { headers: headers() });
+      vc = '<h3>Pending Verification Codes</h3>' + ((v.pending || []).map(p => '<div class="user-row"><span><b>' + esc(p.name) + '</b> • ID ' + p.id + ' • ' + esc(p.email) + (p.phone ? ' • ' + esc(p.phone) : '') + ' • Code: <b>' + esc(p.code || '—') + '</b>' + (p.expiresAt ? ' • expires ' + new Date(p.expiresAt).toLocaleTimeString() : '') + '</span></div>').join('') || '<p class="muted">No accounts waiting for verification.</p>');
+    } catch (e) { vc = '<p class="muted">Verification codes unavailable.</p>'; }
     document.getElementById('ownerPanel').innerHTML = '<div class="card"><h3>'+ic("chart")+' Dashboard</h3><p>Users: <b>' + d.totalUsers + '</b> • Rooms: <b>' + d.totalRooms + '</b> • Pending recharges: <b>' + d.pendingRecharges + '</b></p>' +
-      '<h3>Users</h3>' + d.users.slice(0, 20).map(u => '<div class="user-row"><span><b>' + esc(u.name) + '</b> • ID ' + u.id + ' • ' + fmt(u.coins) + ' coins' + (u.vip ? ' • VIP' + u.vip : '') + '</span></div>').join('') + '</div>';
+      '<h3>Users</h3>' + d.users.slice(0, 20).map(u => '<div class="user-row"><span><b>' + esc(u.name) + '</b> • ID ' + u.id + ' • ' + fmt(u.coins) + ' coins' + (u.vip ? ' • VIP' + u.vip : '') + '</span></div>').join('') + vc + '</div>';
   } catch (e) { alert(e.message); }
 }
 async function ownerRecharges() {
@@ -1013,6 +1607,76 @@ async function ownerRecharges() {
 async function decideRecharge(id, status) {
   await api('/api/owner/recharges/' + id, { method: 'POST', headers: headers(true), body: JSON.stringify({ status }) });
   alert('Recharge ' + status); ownerRecharges();
+}
+/* -------- Owner VIP Admin Panel (VIP 1-12): assign/remove, expiry, rewards,
+   prices, effect toggles, preview of every badge/crown/frame/entry -------- */
+async function resolveUserId(input) {
+  const q = (input || '').trim();
+  if (!q) return null;
+  try {
+    const d = await api('/api/users?q=' + encodeURIComponent(q), { headers: headers() });
+    return (d.users && d.users[0]) ? d.users[0].id : q;
+  } catch (e) { return q; }
+}
+async function ownerVipPanel() {
+  if (!ME || ME.role !== 'owner') { alert('Owner only.'); return; }
+  switchTab('owner');
+  const p = document.getElementById('ownerPanel');
+  p.innerHTML = '<p class="muted">Loading VIP Admin Panel...</p>';
+  try {
+    const pv = await api('/api/owner/vip/preview', { headers: headers() });
+    const lv = await api('/api/owner/vip/list', { headers: headers() });
+    const c = await api('/api/controls', { headers: headers() }).catch(() => ({ controls: {} }));
+    const ct = (c && c.controls) || {};
+    p.innerHTML = '<div class="card"><h3>' + ic('crown') + ' VIP Admin Panel — VIP 1–12</h3><p><a class="btn gold" href="vip-preview.html">Open VIP 1–12 Visual Preview</a></p>' +
+      '<h4>Assign / Remove VIP</h4><input id="vipAdminUser" placeholder="User ID or name"><select id="vipAdminLevel">' + [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(v => '<option value="' + v + '">' + (v === 0 ? 'Remove VIP' : 'VIP' + v) + '</option>').join('') + '</select><input id="vipAdminDays" type="number" value="31" placeholder="Days"><button class="btn gold" onclick="ownerVipSet()">Assign</button>' +
+      '<h4>Give VIP Rewards</h4><input id="vipRewardUser" placeholder="User ID or name"><input id="vipRewardCoins" type="number" placeholder="Coins"><input id="vipRewardDiamonds" type="number" placeholder="Diamonds"><input id="vipRewardBonus" type="number" placeholder="Bonus points"><button class="btn gold" onclick="ownerVipReward()">Give Rewards</button>' +
+      '<h4>Set VIP Price (coins)</h4><select id="vipPriceLevel">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(v => '<option value="' + v + '">VIP' + v + '</option>').join('') + '</select><input id="vipPriceValue" type="number" placeholder="Price in coins"><button class="btn gold" onclick="ownerVipPrice()">Save Price</button>' +
+      '<h4>VIP Effects</h4><p class="muted">Entry effects: <b>' + (ct.entryEffects !== false ? 'ON' : 'OFF') + '</b> <button class="btn" onclick="ownerVipSwitch(\'entryEffects\',' + (ct.entryEffects === false ? 'true' : 'false') + ')">Toggle</button> &nbsp; VIP frames: <b>' + (ct.vipFrames !== false ? 'ON' : 'OFF') + '</b> <button class="btn" onclick="ownerVipSwitch(\'vipFrames\',' + (ct.vipFrames === false ? 'true' : 'false') + ')">Toggle</button></p>' +
+      '<h4>VIP Users (' + lv.vips.length + ')</h4>' + (lv.vips.map(v => '<div class="user-row"><span><b>' + esc(v.name) + '</b> • ID ' + v.id + ' • VIP' + v.vip + (v.vipUntil ? ' • until ' + new Date(v.vipUntil).toLocaleDateString() : '') + '</span><button class="btn danger" onclick="ownerVipSetId(\'' + v.id + '\',0)">Remove</button></div>').join('') || '<p class="muted">No VIP users yet.</p>') +
+      '<h4>Preview — badge, crown, frame & entry for every level</h4><div class="vip-preview-grid">' + pv.levels.map(l => '<div class="vip-preview-cell"><img src="' + l.svg + '" alt="VIP' + l.vip + ' emblem"><img src="' + l.frameSvg + '" class="vip-preview-frame" alt="VIP' + l.vip + ' frame"><b>VIP' + l.vip + '</b><br><span class="muted">' + esc(l.emblem) + '</span><br><span class="muted">' + l.totalBenefits + ' benefits • ' + fmt(l.price) + ' coins</span><br><button class="btn" onclick="previewEntry(' + l.vip + ')">Preview Entry</button></div>').join('') + '</div></div>';
+  } catch (e) { p.innerHTML = '<p class="muted">' + esc(e.message) + '</p>'; }
+}
+async function ownerVipSet() {
+  const id = await resolveUserId(document.getElementById('vipAdminUser').value);
+  if (!id) { alert('Enter a user ID or name.'); return; }
+  const vip = Number(document.getElementById('vipAdminLevel').value);
+  const days = Number(document.getElementById('vipAdminDays').value) || 31;
+  try { await api('/api/owner/vip/set', { method: 'POST', headers: headers(), body: JSON.stringify({ userId: id, vip, days }) }); alert('VIP updated.'); ownerVipPanel(); }
+  catch (e) { alert(e.message); }
+}
+async function ownerVipSetId(id, vip) {
+  try { await api('/api/owner/vip/set', { method: 'POST', headers: headers(), body: JSON.stringify({ userId: id, vip, days: 31 }) }); alert('VIP updated.'); ownerVipPanel(); }
+  catch (e) { alert(e.message); }
+}
+async function ownerVipReward() {
+  const id = await resolveUserId(document.getElementById('vipRewardUser').value);
+  if (!id) { alert('Enter a user ID or name.'); return; }
+  const coins = Number(document.getElementById('vipRewardCoins').value) || 0;
+  const diamonds = Number(document.getElementById('vipRewardDiamonds').value) || 0;
+  const bonusPoints = Number(document.getElementById('vipRewardBonus').value) || 0;
+  try { await api('/api/owner/vip/reward', { method: 'POST', headers: headers(), body: JSON.stringify({ userId: id, coins, diamonds, bonusPoints }) }); alert('Rewards given.'); ownerVipPanel(); }
+  catch (e) { alert(e.message); }
+}
+async function ownerVipPrice() {
+  const vip = Number(document.getElementById('vipPriceLevel').value);
+  const price = Number(document.getElementById('vipPriceValue').value);
+  if (!price || price < 0) { alert('Enter a price.'); return; }
+  try { await api('/api/owner/vip/price', { method: 'POST', headers: headers(), body: JSON.stringify({ vip, price }) }); alert('Price saved.'); ownerVipPanel(); }
+  catch (e) { alert(e.message); }
+}
+async function ownerVipSwitch(key, value) {
+  try { await api('/api/controls/owner/switch', { method: 'POST', headers: headers(true), body: JSON.stringify({ key, value }) }); await loadControls(); ownerVipPanel(); }
+  catch (e) { alert(e.message); }
+}
+/* Preview an entry animation (2.5s, auto-close) from the Owner VIP Admin Panel. */
+async function previewEntry(vip) {
+  try {
+    const pv = await api('/api/owner/vip/preview', { headers: headers() });
+    const l = pv.levels.find(x => x.vip === vip);
+    if (!l) return;
+    showEntrance({ name: ME.name, vip: l.vip, banner: 'assets/vip/banner' + l.vip + '.svg', animal: l.emblem, entry: l.entry });
+  } catch (e) { alert(e.message); }
 }
 async function ownerAudit() {
   try {
@@ -1401,7 +2065,8 @@ function pickLanguage(l) { pendingLang = l; document.querySelectorAll('.lang-row
 async function saveLanguage() { if (!pendingLang) { alert('Pick a language first.'); return; } await setLanguage(pendingLang); }
 async function setLanguage(l) { try { await api('/api/v2/extras/language', { method: 'POST', headers: headers(true), body: JSON.stringify({ lang: l }) }); ME.language = l; alert('Language: ' + l); } catch (e) { alert(e.message); } }
 /* ---------------- HONORS PROFILE (like Yalla Honors profiles) ---------------- */
-async function openProfile(userId) {
+async function openProfile(userId, fromMic) {
+  profileFromMic = !!fromMic;
   const id = userId || ME.id;
   try {
     const d = await api('/api/v2/updates/honors/' + id, { headers: headers() });
@@ -1431,7 +2096,7 @@ function renderHonorsProfile() {
   }
   document.getElementById('mePanel').innerHTML = '<div class="card honors-profile lux-' + lux + '" style="background:' + (u.kit ? u.kit.profileCover.themeBg : '') + '">' +
     '<button class="btn ghost close-x" onclick="switchTab(\'party\')" title="Close">✕ Close</button>' +
-    '<div class="honors-frame"><div class="avatar honors-avatar' + (u.vip ? ' vip-frame' : '') + '">' + frameImgFor(u) + esc((u.name || 'A')[0].toUpperCase()) + '</div>' +
+    '<div class="honors-frame"><div class="avatar honors-avatar' + (u.vip ? ' vip-frame' : '') + '">' + frameImgFor(u) + (u.vip && !(APP_CONTROLS && APP_CONTROLS.vipFrames === false) ? '<img class="frame-img vip-frame-img" src="' + ((u.kit && u.kit.profileFrame) ? u.kit.profileFrame.svg : 'assets/vip/frame' + u.vip + '.svg') + '" alt="VIP frame">' : '') + esc((u.name || 'A')[0].toUpperCase()) + '</div>' +
     (u.vip >= 5 ? '<span class="honors-frame-glow"></span>' : '') + '</div>' +
     '<h2 class="vip-color-' + (u.vip || 0) + '">' + esc(u.name) + '</h2>' +
     (u.svip ? svipBadgeImg() : '') +
@@ -1441,9 +2106,11 @@ function renderHonorsProfile() {
     '<p class="muted">ID: ' + u.id + ' <button class="btn ghost" onclick="navigator.clipboard && navigator.clipboard.writeText(\'' + u.id + '\');alert(\'ID copied: ' + u.id + '\')">Copy</button>' + (u.country ? ' • ' + esc(u.country) : '') + ' • ' + levelPill(u.level) + ' ' + roleTag(u) + ' ' + vipTagHtml(u) + '</p>' +
     '<p class="muted">' + esc(u.bio || '') + '</p>' +
     cpBanner +
-    '<div class="stats-row"><div><b>' + fmt(s.visitors) + '</b><span>Visitors</span></div><div><b>' + fmt(s.followers) + '</b><span>Following</span></div><div><b>' + fmt(s.following) + '</b><span>Followers</span></div></div>' +
+    '<div class="stats-row"><div><b>' + fmt(s.visitors) + '</b><span>Visitors</span></div><div><b>' + fmt(s.followers) + '</b><span>Followers</span></div><div><b>' + fmt(s.following) + '</b><span>Following</span></div></div>' +
     '<div class="action-row"><button class="btn" onclick="alert(\'Liked!\')">' + ic("heart") + ' Like</button>' +
-    (d.isMe ? '' : '<button class="btn" onclick="followUser(\'' + u.id + '\')">+ Follow</button> <button class="btn gold" onclick="openThread(\'' + u.id + '\')">Message</button> <button class="btn" onclick="giftToUser(\'' + u.id + '\', \'' + esc(u.name) + '\')">' + ic("gift") + ' Gift</button>') + '</div>' +
+    (d.isMe ? '' : followBtnHtml(d.follow, u.id) + ' <button class="btn gold" onclick="openThread(\'' + u.id + '\')">Message</button> <button class="btn" onclick="giftToUser(\'' + u.id + '\', \'' + esc(u.name) + '\')">' + ic("gift") + ' Gift</button>') + '</div>' +
+    (profileFromMic ? micProfileActionsHtml(d, u) : '') +
+    (d.isMe ? (u.vip >= 10 ? '<div class="mic-profile-actions"><button class="btn" onclick="toggleAnonymous()">Anonymous Display (VIP10) — tap to toggle</button></div>' : '<p class="muted">' + ic("lock") + ' Anonymous Display is a VIP10 benefit.</p>') : '') +
     '<div class="tabs-mini">' + ['moments', 'honors', 'about', 'rooms'].map(t => '<button class="mini-tab' + (t === honorsTab ? ' active' : '') + '" onclick="honorsTab=\'' + t + '\';renderHonorsProfile()">' + t[0].toUpperCase() + t.slice(1) + '</button>').join('') + '</div>' +
     body +
     (d.isMe ? '' : '<div class="action-row"><button class="btn danger" onclick="blockUser(\'' + u.id + '\')">' + ic("ban") + ' Block</button> <button class="btn danger" onclick="reportUser(\'' + u.id + '\')">' + ic("report") + ' Report</button></div>') +
@@ -1530,7 +2197,7 @@ async function openOwnerControls() {
       sw('rooms', ''+ic("mic")+' Rooms', 'Creating voice rooms') +
       sw('payments', ''+ic("card")+' Payments', 'Recharge requests') +
       sw('chat', ''+ic("chat")+' Chat & Messages', 'Room chat and private messages') +
-      sw('moments', ''+ic("camera")+' Moments', 'Discover moments') +
+      sw('moments', ''+ic("sparkle")+' Moments', 'Discover moments') +
       sw('luckyDraw', ''+ic("lucky")+' Lucky Draw', 'Lucky Draw spins') +
       sw('daily', ''+ic("gift")+' Daily Rewards', 'Daily sign-in rewards') +
       sw('invite', ''+ic("invite")+' Invite & Earn', 'Invite rewards') +

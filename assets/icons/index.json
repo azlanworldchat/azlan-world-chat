@@ -1,0 +1,776 @@
+{
+ "generatedBy": "tools/gen-icons.py",
+ "count": 110,
+ "icons": [
+  {
+   "id": "user/profile",
+   "name": "Profile",
+   "category": "user",
+   "file": "assets/icons/user/profile.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "user/edit-profile",
+   "name": "Edit Profile",
+   "category": "user",
+   "file": "assets/icons/user/edit-profile.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "user/follow",
+   "name": "Follow",
+   "category": "user",
+   "file": "assets/icons/user/follow.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "user/unfollow",
+   "name": "Unfollow",
+   "category": "user",
+   "file": "assets/icons/user/unfollow.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "user/friend",
+   "name": "Friend",
+   "category": "user",
+   "file": "assets/icons/user/friend.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "user/message",
+   "name": "Message",
+   "category": "user",
+   "file": "assets/icons/user/message.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "user/block",
+   "name": "Block",
+   "category": "user",
+   "file": "assets/icons/user/block.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "user/report",
+   "name": "Report",
+   "category": "user",
+   "file": "assets/icons/user/report.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "user/share",
+   "name": "Share",
+   "category": "user",
+   "file": "assets/icons/user/share.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "user/gallery",
+   "name": "Gallery",
+   "category": "user",
+   "file": "assets/icons/user/gallery.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "room/microphone",
+   "name": "Microphone",
+   "category": "room",
+   "file": "assets/icons/room/microphone.svg",
+   "size": "48x48"
+  },
+  {
+   "id": "room/mute",
+   "name": "Mute",
+   "category": "room",
+   "file": "assets/icons/room/mute.svg",
+   "size": "48x48"
+  },
+  {
+   "id": "room/speaker",
+   "name": "Speaker",
+   "category": "room",
+   "file": "assets/icons/room/speaker.svg",
+   "size": "48x48"
+  },
+  {
+   "id": "room/volume",
+   "name": "Volume",
+   "category": "room",
+   "file": "assets/icons/room/volume.svg",
+   "size": "48x48"
+  },
+  {
+   "id": "room/raise-hand",
+   "name": "Raise Hand",
+   "category": "room",
+   "file": "assets/icons/room/raise-hand.svg",
+   "size": "48x48"
+  },
+  {
+   "id": "room/mic-seat",
+   "name": "Mic Seat",
+   "category": "room",
+   "file": "assets/icons/room/mic-seat.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "room/seat-lock",
+   "name": "Seat Lock",
+   "category": "room",
+   "file": "assets/icons/room/seat-lock.svg",
+   "size": "48x48"
+  },
+  {
+   "id": "room/seat-unlock",
+   "name": "Seat Unlock",
+   "category": "room",
+   "file": "assets/icons/room/seat-unlock.svg",
+   "size": "48x48"
+  },
+  {
+   "id": "room/invite",
+   "name": "Invite",
+   "category": "room",
+   "file": "assets/icons/room/invite.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "room/room-chat",
+   "name": "Room Chat",
+   "category": "room",
+   "file": "assets/icons/room/room-chat.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "room/gift",
+   "name": "Gift",
+   "category": "room",
+   "file": "assets/icons/room/gift.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "room/leave-room",
+   "name": "Leave Room",
+   "category": "room",
+   "file": "assets/icons/room/leave-room.svg",
+   "size": "48x48"
+  },
+  {
+   "id": "vip/badge-01",
+   "name": "VIP 1 Badge",
+   "category": "vip",
+   "file": "assets/icons/vip/badge-01.svg",
+   "size": "256x256"
+  },
+  {
+   "id": "vip/crown-01",
+   "name": "VIP 1 Crown",
+   "category": "vip",
+   "file": "assets/icons/vip/crown-01.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/frame-01",
+   "name": "VIP 1 Profile Frame",
+   "category": "vip",
+   "file": "assets/icons/vip/frame-01.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/nameplate-01",
+   "name": "VIP 1 Nameplate",
+   "category": "vip",
+   "file": "assets/icons/vip/nameplate-01.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/entry-01",
+   "name": "VIP 1 Entry Animation",
+   "category": "vip",
+   "file": "assets/icons/vip/entry-01.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/badge-02",
+   "name": "VIP 2 Badge",
+   "category": "vip",
+   "file": "assets/icons/vip/badge-02.svg",
+   "size": "256x256"
+  },
+  {
+   "id": "vip/crown-02",
+   "name": "VIP 2 Crown",
+   "category": "vip",
+   "file": "assets/icons/vip/crown-02.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/frame-02",
+   "name": "VIP 2 Profile Frame",
+   "category": "vip",
+   "file": "assets/icons/vip/frame-02.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/nameplate-02",
+   "name": "VIP 2 Nameplate",
+   "category": "vip",
+   "file": "assets/icons/vip/nameplate-02.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/entry-02",
+   "name": "VIP 2 Entry Animation",
+   "category": "vip",
+   "file": "assets/icons/vip/entry-02.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/badge-03",
+   "name": "VIP 3 Badge",
+   "category": "vip",
+   "file": "assets/icons/vip/badge-03.svg",
+   "size": "256x256"
+  },
+  {
+   "id": "vip/crown-03",
+   "name": "VIP 3 Crown",
+   "category": "vip",
+   "file": "assets/icons/vip/crown-03.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/frame-03",
+   "name": "VIP 3 Profile Frame",
+   "category": "vip",
+   "file": "assets/icons/vip/frame-03.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/nameplate-03",
+   "name": "VIP 3 Nameplate",
+   "category": "vip",
+   "file": "assets/icons/vip/nameplate-03.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/entry-03",
+   "name": "VIP 3 Entry Animation",
+   "category": "vip",
+   "file": "assets/icons/vip/entry-03.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/badge-04",
+   "name": "VIP 4 Badge",
+   "category": "vip",
+   "file": "assets/icons/vip/badge-04.svg",
+   "size": "256x256"
+  },
+  {
+   "id": "vip/crown-04",
+   "name": "VIP 4 Crown",
+   "category": "vip",
+   "file": "assets/icons/vip/crown-04.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/frame-04",
+   "name": "VIP 4 Profile Frame",
+   "category": "vip",
+   "file": "assets/icons/vip/frame-04.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/nameplate-04",
+   "name": "VIP 4 Nameplate",
+   "category": "vip",
+   "file": "assets/icons/vip/nameplate-04.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/entry-04",
+   "name": "VIP 4 Entry Animation",
+   "category": "vip",
+   "file": "assets/icons/vip/entry-04.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/badge-05",
+   "name": "VIP 5 Badge",
+   "category": "vip",
+   "file": "assets/icons/vip/badge-05.svg",
+   "size": "256x256"
+  },
+  {
+   "id": "vip/crown-05",
+   "name": "VIP 5 Crown",
+   "category": "vip",
+   "file": "assets/icons/vip/crown-05.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/frame-05",
+   "name": "VIP 5 Profile Frame",
+   "category": "vip",
+   "file": "assets/icons/vip/frame-05.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/nameplate-05",
+   "name": "VIP 5 Nameplate",
+   "category": "vip",
+   "file": "assets/icons/vip/nameplate-05.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/entry-05",
+   "name": "VIP 5 Entry Animation",
+   "category": "vip",
+   "file": "assets/icons/vip/entry-05.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/badge-06",
+   "name": "VIP 6 Badge",
+   "category": "vip",
+   "file": "assets/icons/vip/badge-06.svg",
+   "size": "256x256"
+  },
+  {
+   "id": "vip/crown-06",
+   "name": "VIP 6 Crown",
+   "category": "vip",
+   "file": "assets/icons/vip/crown-06.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/frame-06",
+   "name": "VIP 6 Profile Frame",
+   "category": "vip",
+   "file": "assets/icons/vip/frame-06.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/nameplate-06",
+   "name": "VIP 6 Nameplate",
+   "category": "vip",
+   "file": "assets/icons/vip/nameplate-06.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/entry-06",
+   "name": "VIP 6 Entry Animation",
+   "category": "vip",
+   "file": "assets/icons/vip/entry-06.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/badge-07",
+   "name": "VIP 7 Badge",
+   "category": "vip",
+   "file": "assets/icons/vip/badge-07.svg",
+   "size": "256x256"
+  },
+  {
+   "id": "vip/crown-07",
+   "name": "VIP 7 Crown",
+   "category": "vip",
+   "file": "assets/icons/vip/crown-07.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/frame-07",
+   "name": "VIP 7 Profile Frame",
+   "category": "vip",
+   "file": "assets/icons/vip/frame-07.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/nameplate-07",
+   "name": "VIP 7 Nameplate",
+   "category": "vip",
+   "file": "assets/icons/vip/nameplate-07.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/entry-07",
+   "name": "VIP 7 Entry Animation",
+   "category": "vip",
+   "file": "assets/icons/vip/entry-07.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/badge-08",
+   "name": "VIP 8 Badge",
+   "category": "vip",
+   "file": "assets/icons/vip/badge-08.svg",
+   "size": "256x256"
+  },
+  {
+   "id": "vip/crown-08",
+   "name": "VIP 8 Crown",
+   "category": "vip",
+   "file": "assets/icons/vip/crown-08.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/frame-08",
+   "name": "VIP 8 Profile Frame",
+   "category": "vip",
+   "file": "assets/icons/vip/frame-08.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/nameplate-08",
+   "name": "VIP 8 Nameplate",
+   "category": "vip",
+   "file": "assets/icons/vip/nameplate-08.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/entry-08",
+   "name": "VIP 8 Entry Animation",
+   "category": "vip",
+   "file": "assets/icons/vip/entry-08.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/badge-09",
+   "name": "VIP 9 Badge",
+   "category": "vip",
+   "file": "assets/icons/vip/badge-09.svg",
+   "size": "256x256"
+  },
+  {
+   "id": "vip/crown-09",
+   "name": "VIP 9 Crown",
+   "category": "vip",
+   "file": "assets/icons/vip/crown-09.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/frame-09",
+   "name": "VIP 9 Profile Frame",
+   "category": "vip",
+   "file": "assets/icons/vip/frame-09.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/nameplate-09",
+   "name": "VIP 9 Nameplate",
+   "category": "vip",
+   "file": "assets/icons/vip/nameplate-09.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/entry-09",
+   "name": "VIP 9 Entry Animation",
+   "category": "vip",
+   "file": "assets/icons/vip/entry-09.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/badge-10",
+   "name": "VIP 10 Badge",
+   "category": "vip",
+   "file": "assets/icons/vip/badge-10.svg",
+   "size": "256x256"
+  },
+  {
+   "id": "vip/crown-10",
+   "name": "VIP 10 Crown",
+   "category": "vip",
+   "file": "assets/icons/vip/crown-10.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/frame-10",
+   "name": "VIP 10 Profile Frame",
+   "category": "vip",
+   "file": "assets/icons/vip/frame-10.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/nameplate-10",
+   "name": "VIP 10 Nameplate",
+   "category": "vip",
+   "file": "assets/icons/vip/nameplate-10.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/entry-10",
+   "name": "VIP 10 Entry Animation",
+   "category": "vip",
+   "file": "assets/icons/vip/entry-10.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/badge-11",
+   "name": "VIP 11 Badge",
+   "category": "vip",
+   "file": "assets/icons/vip/badge-11.svg",
+   "size": "256x256"
+  },
+  {
+   "id": "vip/crown-11",
+   "name": "VIP 11 Crown",
+   "category": "vip",
+   "file": "assets/icons/vip/crown-11.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/frame-11",
+   "name": "VIP 11 Profile Frame",
+   "category": "vip",
+   "file": "assets/icons/vip/frame-11.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/nameplate-11",
+   "name": "VIP 11 Nameplate",
+   "category": "vip",
+   "file": "assets/icons/vip/nameplate-11.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/entry-11",
+   "name": "VIP 11 Entry Animation",
+   "category": "vip",
+   "file": "assets/icons/vip/entry-11.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/badge-12",
+   "name": "VIP 12 Badge",
+   "category": "vip",
+   "file": "assets/icons/vip/badge-12.svg",
+   "size": "256x256"
+  },
+  {
+   "id": "vip/crown-12",
+   "name": "VIP 12 Crown",
+   "category": "vip",
+   "file": "assets/icons/vip/crown-12.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/frame-12",
+   "name": "VIP 12 Profile Frame",
+   "category": "vip",
+   "file": "assets/icons/vip/frame-12.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/nameplate-12",
+   "name": "VIP 12 Nameplate",
+   "category": "vip",
+   "file": "assets/icons/vip/nameplate-12.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/entry-12",
+   "name": "VIP 12 Entry Animation",
+   "category": "vip",
+   "file": "assets/icons/vip/entry-12.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "vip/status",
+   "name": "VIP Status",
+   "category": "vip",
+   "file": "assets/icons/vip/status.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "store/coins",
+   "name": "Coins",
+   "category": "store",
+   "file": "assets/icons/store/coins.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "store/diamonds",
+   "name": "Diamonds",
+   "category": "store",
+   "file": "assets/icons/store/diamonds.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "store/gifts",
+   "name": "Gifts",
+   "category": "store",
+   "file": "assets/icons/store/gifts.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "store/frames",
+   "name": "Frames",
+   "category": "store",
+   "file": "assets/icons/store/frames.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "store/themes",
+   "name": "Themes",
+   "category": "store",
+   "file": "assets/icons/store/themes.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "store/chat-bubbles",
+   "name": "Chat Bubbles",
+   "category": "store",
+   "file": "assets/icons/store/chat-bubbles.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "store/entry-effects",
+   "name": "Entry Effects",
+   "category": "store",
+   "file": "assets/icons/store/entry-effects.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "store/unique-ids",
+   "name": "Unique IDs",
+   "category": "store",
+   "file": "assets/icons/store/unique-ids.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "store/inventory",
+   "name": "Inventory",
+   "category": "store",
+   "file": "assets/icons/store/inventory.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "store/purchase",
+   "name": "Purchase",
+   "category": "store",
+   "file": "assets/icons/store/purchase.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "store/wallet",
+   "name": "Wallet",
+   "category": "store",
+   "file": "assets/icons/store/wallet.svg",
+   "size": "64x64"
+  },
+  {
+   "id": "admin/user-management",
+   "name": "User Management",
+   "category": "admin",
+   "file": "assets/icons/admin/user-management.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "admin/vip-management",
+   "name": "VIP Management",
+   "category": "admin",
+   "file": "assets/icons/admin/vip-management.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "admin/gift-management",
+   "name": "Gift Management",
+   "category": "admin",
+   "file": "assets/icons/admin/gift-management.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "admin/store-management",
+   "name": "Store Management",
+   "category": "admin",
+   "file": "assets/icons/admin/store-management.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "admin/wallet-management",
+   "name": "Wallet Management",
+   "category": "admin",
+   "file": "assets/icons/admin/wallet-management.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "admin/broadcasting",
+   "name": "Broadcasting",
+   "category": "admin",
+   "file": "assets/icons/admin/broadcasting.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "admin/room-management",
+   "name": "Room Management",
+   "category": "admin",
+   "file": "assets/icons/admin/room-management.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "admin/reports",
+   "name": "Reports",
+   "category": "admin",
+   "file": "assets/icons/admin/reports.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "admin/analytics",
+   "name": "Analytics",
+   "category": "admin",
+   "file": "assets/icons/admin/analytics.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "admin/settings",
+   "name": "Settings",
+   "category": "admin",
+   "file": "assets/icons/admin/settings.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "admin/audit-logs",
+   "name": "Audit Logs",
+   "category": "admin",
+   "file": "assets/icons/admin/audit-logs.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "support/help",
+   "name": "Help",
+   "category": "support",
+   "file": "assets/icons/support/help.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "support/customer-service",
+   "name": "Customer Service",
+   "category": "support",
+   "file": "assets/icons/support/customer-service.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "support/support-ticket",
+   "name": "Support Ticket",
+   "category": "support",
+   "file": "assets/icons/support/support-ticket.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "support/complaint",
+   "name": "Complaint",
+   "category": "support",
+   "file": "assets/icons/support/complaint.svg",
+   "size": "128x128"
+  },
+  {
+   "id": "support/payment-support",
+   "name": "Payment Support",
+   "category": "support",
+   "file": "assets/icons/support/payment-support.svg",
+   "size": "128x128"
+  }
+ ]
+}

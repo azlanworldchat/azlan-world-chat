@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>VIP 1–12 Visual Preview — AZLAN WORLD CHAT</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, sans-serif; font-size: 13px; background: #fff; color: #1c1c1c; }
+  header { padding: 14px; background: linear-gradient(180deg, #fff8e1, #fff); border-bottom: 2px solid #d4af37; position: sticky; top: 0; z-index: 10; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  h1 .gold { color: #a67c00; }
+  .muted { color: #6b6b6b; }
+  .btn { display: inline-block; background: #fff; color: #1c1c1c; border: 1px solid #e3d9b8; border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: 700; text-decoration: none; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+  .btn.gold { background: linear-gradient(180deg, #ffe27a, #d4af37); border-color: #a67c00; }
+  main { padding: 12px; max-width: 960px; margin: 0 auto; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 12px; }
+  th, td { border: 1px solid #e3d9b8; padding: 5px 8px; text-align: left; }
+  th { background: #fff8e1; }
+  section.lvl { border: 1px solid #e3d9b8; border-radius: 14px; padding: 12px; margin: 14px 0; background: #fff; box-shadow: 0 3px 10px rgba(0,0,0,.08); }
+  section.lvl.vip12 { border: 3px solid #d4af37; background: linear-gradient(180deg, #fffdf5, #f9f1ff); }
+  section.lvl h2 { font-size: 15px; margin: 0 0 2px; }
+  .tag { font-size: 11px; color: #6b6b6b; font-weight: 400; }
+  .assets { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin: 10px 0; }
+  figure { margin: 0; text-align: center; }
+  figcaption { font-size: 11px; color: #6b6b6b; margin-top: 2px; max-width: 130px; }
+  figure img { max-width: 130px; height: auto; display: block; margin: 0 auto; }
+  figure img.tall { max-width: 96px; }
+  .frame-demo { position: relative; width: 130px; height: 130px; }
+  .frame-demo .avatar-demo { position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(160deg, #ffd24a, #a67c00); color: #fff; font-size: 34px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+  .frame-demo img { position: absolute; inset: 0; max-width: none; width: 130px; height: 130px; }
+  .plate-demo { position: relative; width: 320px; max-width: 100%; }
+  .plate-demo img { max-width: 100%; width: 320px; }
+  .plate-demo .plate-name { position: absolute; left: 14%; top: 50%; transform: translateY(-50%); font-family: Georgia, serif; font-size: 22px; font-weight: 900; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+  #entryStage { position: fixed; inset: 0; z-index: 50; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; }
+  #entryStage.hidden { display: none; }
+  #entryStage .entry-art { width: min(92vw, 380px); }
+  #entryStage .entry-name { font-size: 20px; font-weight: 900; color: #a67c00; text-shadow: 0 2px 0 #fff, 0 0 24px rgba(255,210,74,.9); }
+  #entryStage.play .entry-anim { animation: pvSweep var(--entry-dur, 2.5s) ease forwards; }
+  #entryStage.play .entry-anim.entry-wings { animation-name: pvWings; }
+  #entryStage.play .entry-anim.entry-portal-car { animation-name: pvPortal; }
+  #entryStage.play .entry-anim.entry-phoenix { animation-name: pvPhoenix; }
+  #entryStage.play .entry-anim.entry-dragon { animation-name: pvDragon; }
+  #entryStage.play .entry-anim.entry-cosmic { animation-name: pvCosmic; }
+  #entryStage.play .entry-anim.entry-divine { animation-name: pvDivine; background: radial-gradient(circle at 50% 45%, rgba(255,210,74,.3), rgba(122,92,255,.25) 55%, rgba(122,92,255,0) 78%); padding: 20px; border-radius: 24px; }
+  @keyframes pvSweep { 0% { transform: translateX(-60vw); opacity: 0; } 15% { transform: translateX(0); opacity: 1; } 78% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(60vw); opacity: 0; } }
+  @keyframes pvWings { 0% { transform: translateX(-60vw) rotateY(-35deg); opacity: 0; } 18% { transform: translateX(0) rotateY(0); opacity: 1; } 80% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(60vw); opacity: 0; } }
+  @keyframes pvPortal { 0% { transform: translateX(-70vw); opacity: 0; } 20% { transform: translateX(0); opacity: 1; } 78% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(70vw); opacity: 0; } }
+  @keyframes pvPhoenix { 0% { transform: translateY(40px); opacity: 0; } 15% { transform: translateY(0); opacity: 1; } 82% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-24px); opacity: 0; } }
+  @keyframes pvDragon { 0% { transform: translateX(-60vw); opacity: 0; } 15% { transform: translateX(0); opacity: 1; } 80% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(60vw) rotate(4deg); opacity: 0; } }
+  @keyframes pvCosmic { 0% { transform: rotateY(-50deg); opacity: 0; } 18% { transform: rotateY(0); opacity: 1; } 80% { transform: rotateY(0); opacity: 1; } 100% { transform: rotateY(50deg); opacity: 0; } }
+  @keyframes pvDivine { 0% { transform: rotateY(-30deg); opacity: 0; } 12% { transform: rotateY(0); opacity: 1; } 85% { transform: rotateY(0); opacity: 1; } 100% { transform: rotateY(30deg); opacity: 0; } }
+  #entrySkip { pointer-events: auto; position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,.92); color: #1c1c1c; border: 1px solid #e3d9b8; border-radius: 16px; padding: 4px 12px; font-size: 12px; font-weight: 700; }
+  @media (prefers-reduced-motion: reduce) { #entryStage.play .entry-anim { animation-duration: .01s !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="gold">VIP 1–12</span> Visual Preview — AZLAN WORLD CHAT</h1>
+  <p class="muted" style="margin:0">Preview only — check the badges, crowns, frames, nameplates, profile cards, room themes and entry animations. Full implementation continues after your check. Names on nameplates are dynamic (the "Azlan" shown here is just an example, never baked into the art).</p>
+  <p style="margin:8px 0 0"><a class="btn gold" href="index.html">&larr; Back to App</a>
+  <button class="btn" id="motionBtn" onclick="toggleMotion()">Reduce motion: OFF</button></p>
+</header>
+<main>
+  <h2 style="font-size:14px">Entry timing (tiered)</h2>
+  <table>
+    <tr><th>VIP level</th><th>Entry time</th><th>Entry style</th></tr>
+    <tr><td>VIP 1–3</td><td>2–3 seconds</td><td>Badge reveal + metallic light sweep</td></tr>
+    <tr><td>VIP 4–6</td><td>3–4 seconds</td><td>Gold cinematic reveal + animated wings</td></tr>
+    <tr><td>VIP 7–8</td><td>4–5 seconds</td><td>Diamond portal + luxury car arrival</td></tr>
+    <tr><td>VIP 9–10</td><td>5–7 seconds</td><td>Phoenix flight / dragon + fire trails</td></tr>
+    <tr><td>VIP 11</td><td>6–8 seconds</td><td>Cosmic portal</td></tr>
+    <tr><td>VIP 12</td><td>8–10 seconds</td><td>ULTIMATE DIVINE — celestial gate, throne, particles, aura</td></tr>
+  </table>
+  <p class="muted">Style rules: VIP 7 = FIRE (orange/red/gold, fire wings, blue gems). VIP 10 = GOLD DRAGON (metallic gold, dark gold, red, black, amber light, royal dragon) — never identical to VIP 7. Every level has its own badge, crown, frame, nameplate, room theme and entry. All art is original self-drawn SVG — zero emoji. All entries auto-close and never block voice controls.</p>
+  <div id="levels"></div>
+  <p class="muted" style="text-align:center">End of preview — <a href="index.html">Back to App</a></p>
+</main>
+
+<div id="entryStage" class="hidden">
+  <button id="entrySkip" onclick="skipEntry()">Skip</button>
+  <div id="entryContent"></div>
+</div>
+
+<script>
+const LEVELS = [
+ { v: 1,  name: 'Bronze Hall',     theme: 'Bronze medal, laurel frame, royal hall',            entry: 'sweep',      dur: 2500, benefits: 18, price: 500000,   points: 2400 },
+ { v: 2,  name: 'Silver Hall',     theme: 'Silver winged medal, silver stars, royal hall',     entry: 'sweep',      dur: 2500, benefits: 25, price: 1000000,  points: 6000 },
+ { v: 3,  name: 'Royal Star',      theme: 'Royal blue + gold star medal, royal hall',          entry: 'sweep',      dur: 3000, benefits: 30, price: 1500000,  points: 12000 },
+ { v: 4,  name: 'Golden Crystal',  theme: 'Golden crystal shield, golden palace + throne',     entry: 'wings',      dur: 3500, benefits: 32, price: 2000000,  points: 20000 },
+ { v: 5,  name: 'Purple Royal',    theme: 'Purple crown + wings, golden palace',               entry: 'wings',      dur: 3500, benefits: 34, price: 2500000,  points: 30000 },
+ { v: 6,  name: 'Red-Gold Crown',  theme: 'Red-gold crown, golden palace + throne',            entry: 'wings',      dur: 4000, benefits: 37, price: 3000000,  points: 45000 },
+ { v: 7,  name: 'Fire Kingdom',    theme: 'FIRE — orange/red/gold, fire wings, blue gems',     entry: 'phoenix',    dur: 4500, benefits: 40, price: 3500000,  points: 65000 },
+ { v: 8,  name: 'Crystal Palace',  theme: 'Diamond crystal, blue energy, crystal palace',      entry: 'portal-car', dur: 5000, benefits: 44, price: 5000000,  points: 90000 },
+ { v: 9,  name: 'Phoenix Kingdom', theme: 'Phoenix flight, fiery sky, embers',                 entry: 'phoenix',    dur: 6000, benefits: 51, price: 7000000,  points: 120000 },
+ { v: 10, name: 'Gold Dragon',     theme: 'GOLD DRAGON — metallic gold, dark gold, red, black', entry: 'dragon',     dur: 7000, benefits: 58, price: 10000000, points: 160000 },
+ { v: 11, name: 'Cosmic Galaxy',   theme: 'Cosmic spiky frame, blue lightning, galaxy',         entry: 'cosmic',     dur: 7000, benefits: 65, price: 15000000, points: 220000 },
+ { v: 12, name: 'Divine Universe', theme: 'DIVINE — gold + purple, halo, wings, celestial gate', entry: 'divine',    dur: 9000, benefits: 72, price: 25000000, points: 300000 },
+];
+const pad = v => String(v).padStart(2, '0');
+const fmt = n => n.toLocaleString();
+const wrap = document.getElementById('levels');
+LEVELS.forEach(L => {
+  const d = 'assets/vip/vip' + pad(L.v) + '/';
+  const sec = document.createElement('section');
+  sec.className = 'lvl' + (L.v === 12 ? ' vip12' : '');
+  sec.id = 'vip' + L.v;
+  sec.innerHTML =
+    '<h2>VIP ' + L.v + ' — ' + L.name + (L.v === 12 ? ' — ULTIMATE DIVINE' : '') +
+    ' <span class="tag">' + L.benefits + ' benefits • ' + fmt(L.price) + ' coins • ' + fmt(L.points) + ' points</span></h2>' +
+    '<p class="muted" style="margin:0">' + L.theme + ' • Entry: ' + L.entry + ' • ' + (L.dur / 1000) + 's</p>' +
+    '<div class="assets">' +
+    '<figure><img src="' + d + 'badge.svg" alt="VIP ' + L.v + ' badge" loading="lazy"><figcaption>Badge 256×256</figcaption></figure>' +
+    '<figure><img src="' + d + 'crown.svg" alt="VIP ' + L.v + ' crown" loading="lazy"><figcaption>Crown 512×512</figcaption></figure>' +
+    '<figure class="frame-demo"><div class="avatar-demo">A</div><img src="' + d + 'profile-frame.svg" alt="VIP ' + L.v + ' frame" loading="lazy"><figcaption>Profile Frame 512×512</figcaption></figure>' +
+    '<figure class="plate-demo"><img src="' + d + 'nameplate.svg" alt="VIP ' + L.v + ' nameplate" loading="lazy"><span class="plate-name">Azlan</span><figcaption>Nameplate 1024×256 (name dynamic)</figcaption></figure>' +
+    '<figure><img class="tall" src="' + d + 'profile-card.svg" alt="VIP ' + L.v + ' profile card" loading="lazy"><figcaption>Profile Card 1080×1350</figcaption></figure>' +
+    '<figure><img class="tall" src="' + d + 'room-theme.svg" alt="VIP ' + L.v + ' room theme" loading="lazy"><figcaption>Room Theme 1080×1920</figcaption></figure>' +
+    '<figure><img src="' + d + 'icon.svg" alt="VIP ' + L.v + ' icon" loading="lazy"><img src="' + d + 'frame-small.svg" alt="VIP ' + L.v + ' small frame" loading="lazy"><figcaption>Icon 128×128 • Small Frame 256×256</figcaption></figure>' +
+    '</div>' +
+    '<button class="btn gold" onclick="playEntry(' + L.v + ')">Play Entry — ' + (L.dur / 1000) + 's</button> ' +
+    '<a class="btn" href="' + d + 'entry.svg" target="_blank" rel="noopener">Open Entry Art (1080×1920)</a>';
+  wrap.appendChild(sec);
+});
+
+let entryTimer = null;
+function playEntry(v) {
+  const L = LEVELS.find(x => x.v === v);
+  const stage = document.getElementById('entryStage');
+  const content = document.getElementById('entryContent');
+  stage.style.setProperty('--entry-dur', (L.dur / 1000) + 's');
+  content.innerHTML = '<div class="entry-anim entry-' + L.entry + '">' +
+    '<img class="entry-art" src="assets/vip/vip' + pad(v) + '/entry.svg" alt="VIP ' + v + ' entry">' +
+    '<div class="entry-name">Azlan entered</div>' +
+    '<div class="muted">VIP ' + v + ' • ' + L.name + ' • ' + (L.dur / 1000) + 's</div></div>';
+  stage.classList.remove('hidden');
+  stage.classList.remove('play');
+  void stage.offsetWidth;
+  stage.classList.add('play');
+  clearTimeout(entryTimer);
+  entryTimer = setTimeout(skipEntry, L.dur);
+}
+function skipEntry() {
+  clearTimeout(entryTimer);
+  document.getElementById('entryStage').classList.add('hidden');
+  document.getElementById('entryStage').classList.remove('play');
+}
+let reduced = false;
+function toggleMotion() {
+  reduced = !reduced;
+  document.getElementById('motionBtn').textContent = 'Reduce motion: ' + (reduced ? 'ON' : 'OFF');
+  document.querySelectorAll('#entryStage .entry-anim').forEach(el => el.style.animationDuration = reduced ? '.01s' : '');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs>
+<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset=".5" stop-color="#f5c542"/><stop offset="1" stop-color="#c98f00"/></linearGradient>
+<linearGradient id="t" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5ff2e3"/><stop offset="1" stop-color="#00a99d"/></linearGradient>
+<linearGradient id="r" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8fa3"/><stop offset="1" stop-color="#e63946"/></linearGradient>
+</defs><ellipse cx="60" cy="52" rx="44" ry="34" fill="url(#g)" stroke="#7a5c00" stroke-width="2" opacity=".95"/><ellipse cx="60" cy="52" rx="30" ry="22" fill="#fff" opacity=".35"/><rect x="46" y="38" width="28" height="34" rx="13" fill="#3b1a6e" stroke="#ffd24a" stroke-width="3"/><circle cx="60" cy="50" r="6" fill="#ffd24a"/><rect x="30" y="88" width="60" height="10" rx="5" fill="url(#g)" stroke="#7a5c00" stroke-width="2"/><circle cx="60" cy="20" r="5" fill="url(#t)"/></svg>

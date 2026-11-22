@@ -25,7 +25,7 @@ const ACHIEVEMENTS = [
  { id: 'a6', name: 'Millionaire', desc: 'Hold 1,000,000+ wealth', icon: 'assets/icons/coin.svg', test: u => (u.wealth || 0) >= 1000000 },
  { id: 'a7', name: 'Charm Star', desc: 'Reach 100,000 charm', icon: 'assets/icons/heart.svg', test: u => (u.charm || 0) >= 100000 },
  { id: 'a8', name: 'Popular', desc: 'Get 10 followers', icon: 'assets/icons/users.svg', test: u => (u.followers || []).length >= 10 },
- { id: 'a9', name: 'Storyteller', desc: 'Post 5 moments', icon: 'assets/icons/camera.svg', test: u => (u.momentsPosted || 0) >= 5 },
+ { id: 'a9', name: 'Storyteller', desc: 'Post 5 moments', icon: 'assets/icons/sparkle.svg', test: u => (u.momentsPosted || 0) >= 5 },
  { id: 'a10', name: 'In Love', desc: 'Bind a CP partner', icon: 'assets/icons/cp.svg', test: u => (u.cpBound || 0) >= 1 },
  { id: 'a11', name: 'Family Man', desc: 'Join a family', icon: 'assets/icons/family.svg', test: u => (u.familyJoined || 0) >= 1 },
  { id: 'a12', name: 'Lucky One', desc: 'Win 50,000+ in the Lucky Draw', icon: 'assets/gifts/clover.svg', test: u => (u.biggestLucky || 0) >= 50000 }

@@ -12,7 +12,8 @@
   function tone(freq, start, dur, type, vol) {
     const a = ac(); const o = a.createOscillator(); const g = a.createGain();
     o.type = type || 'sine'; o.frequency.value = freq;
-    g.gain.setValueAtTime(vol || 0.15, a.currentTime + start);
+    const v = (vol || 0.15) * (window.AWC_SPEAKER_VOL == null ? 1 : window.AWC_SPEAKER_VOL);
+    g.gain.setValueAtTime(v, a.currentTime + start);
     g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + start + dur);
     o.connect(g); g.connect(a.destination);
     o.start(a.currentTime + start); o.stop(a.currentTime + start + dur);
@@ -141,24 +142,54 @@
         const mix = a.createGain(); mix.gain.value = 0.6;
         delay.connect(mix); src.connect(a.destination); node = mix;
       }
-      node.connect(a.destination);
+      const vg = a.createGain();
+      vg.gain.value = window.AWC_SPEAKER_VOL == null ? 1 : window.AWC_SPEAKER_VOL;
+      node.connect(vg); vg.connect(a.destination);
       src.start();
-    }).catch(() => { const el = new Audio(url); el.play(); });
+    }).catch(() => { const el = new Audio(url); el.volume = (window.AWC_SPEAKER_VOL == null ? 1 : window.AWC_SPEAKER_VOL); el.play(); });
   };
 
   /* Simple voice recorder (MediaRecorder) — returns a Blob. */
   window.recordVoiceNote = function (onDone, onError) {
+    return window.recordVoiceNoteEx({}, onDone, onError);
+  };
+  /* Recorder with real voice-settings constraints + mic-volume gain.
+     opts: { echoCancellation, noiseSuppression ('standard'|'none'),
+     autoGain, deviceId, micVolume (0-100, 50 = unity gain) }.
+     Audio only — getUserMedia({ audio: ... }), never video. */
+  window.recordVoiceNoteEx = function (opts, onDone, onError) {
+    opts = opts || {};
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       onError && onError('Microphone is not available in this browser.');
       return null;
     }
-    let rec = null;
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-      rec = new MediaRecorder(stream);
+    const cons = { audio: {
+      echoCancellation: opts.echoCancellation !== false,
+      noiseSuppression: opts.noiseSuppression === 'standard',
+      autoGainControl: opts.autoGain !== false,
+      ...(opts.deviceId && opts.deviceId !== 'default' ? { deviceId: { exact: opts.deviceId } } : {})
+    } };
+    let rec = null, stream = null, actx = null;
+    navigator.mediaDevices.getUserMedia(cons).then(s => {
+      stream = s;
+      let srcStream = s;
+      const vol = (opts.micVolume == null ? 50 : opts.micVolume) / 50;
+      if (vol !== 1) {
+        try {
+          actx = new (window.AudioContext || window.webkitAudioContext)();
+          const src = actx.createMediaStreamSource(s);
+          const g = actx.createGain(); g.gain.value = vol;
+          const dest = actx.createMediaStreamDestination();
+          src.connect(g); g.connect(dest);
+          srcStream = dest.stream;
+        } catch (e) { srcStream = s; }
+      }
+      rec = new MediaRecorder(srcStream);
       const chunks = [];
       rec.ondataavailable = e => chunks.push(e.data);
       rec.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
+        if (actx) actx.close().catch(() => {});
         onDone(new Blob(chunks, { type: 'audio/webm' }));
       };
       rec.start();

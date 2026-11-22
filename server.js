@@ -103,7 +103,7 @@ function blankDb() {
   notifications: [], feedback: [], auditLog: [], settings: {
    appName: 'AZLAN WORLD CHAT', announcement: 'Welcome to AZLAN WORLD CHAT!',
    signupBonus: 1000000, masterWallet: 'unlimited',
-   controls: { animations: true, sounds: true, gifts: true, vip: true, shop: true, rooms: true, payments: true, chat: true, moments: true, luckyDraw: true, daily: true, invite: true, ai: true, events: true, giftsDisabled: [], benefitsDisabled: [], vipDisabled: [], themesDisabled: [] },
+   controls: { animations: true, sounds: true, gifts: true, vip: true, shop: true, rooms: true, payments: true, chat: true, moments: true, luckyDraw: true, daily: true, invite: true, ai: true, events: true, entryEffects: true, vipFrames: true, giftsDisabled: [], benefitsDisabled: [], vipDisabled: [], themesDisabled: [] },
    diamondStages: [
     { coins: 1000000, diamonds: 500000 },
     { coins: 5000000, diamonds: 2500000 },
@@ -125,7 +125,7 @@ db.broadcasts = db.broadcasts || [];
 db.events = db.events || [{ id: 1, name: 'AZLAN Season — Grand Opening', desc: 'Welcome to AZLAN WORLD CHAT! Join rooms, send gifts and climb the rankings.', startsAt: new Date().toISOString(), endsAt: null, members: [], createdBy: 'owner' }];
 db.tickets = db.tickets || [];
 db.reports = db.reports || [];
-if (!db.settings.controls) db.settings.controls = { animations: true, sounds: true, gifts: true, vip: true, shop: true, rooms: true, payments: true, chat: true, moments: true, luckyDraw: true, daily: true, invite: true, ai: true, events: true, giftsDisabled: [], benefitsDisabled: [], vipDisabled: [], themesDisabled: [] };
+if (!db.settings.controls) db.settings.controls = { animations: true, sounds: true, gifts: true, vip: true, shop: true, rooms: true, payments: true, chat: true, moments: true, luckyDraw: true, daily: true, invite: true, ai: true, events: true, entryEffects: true, vipFrames: true, giftsDisabled: [], benefitsDisabled: [], vipDisabled: [], themesDisabled: [] };
 // Backfill new gifts/shop items for older databases
 (function backfill() {
  const fresh = blankDb();
@@ -151,7 +151,7 @@ if (!db.users.find(u => u.email === OWNER_EMAIL)) {
   coins: 0, diamonds: 0, charm: 0, wealth: 0, vip: 0, vipUntil: null,
   level: 42, followers: [], following: [], inventory: [],
   bio: 'Owner of AZLAN WORLD CHAT', gender: 'Male', country: 'Pakistan',
-  createdAt: new Date().toISOString(), banned: false, deviceId: null,
+  createdAt: new Date().toISOString(), banned: false, deviceId: null, verified: true,
   lastDaily: null, inviteCode: 'AZLAN1', invitedBy: null, totalRecharged: 0
  });
  save();
@@ -165,7 +165,7 @@ app.use(express.json({ limit: '20mb' }));
    server/, data/ or any other backend file. */
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/icons', express.static(path.join(__dirname, 'icons')));
-const WEB_FILES = { '/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js', '/styles.css': 'styles.css', '/sounds.js': 'sounds.js', '/manifest.json': 'manifest.json', '/sw.js': 'sw.js' };
+const WEB_FILES = { '/': 'index.html', '/index.html': 'index.html', '/vip-preview.html': 'vip-preview.html', '/icon-library.html': 'icon-library.html', '/app.js': 'app.js', '/styles.css': 'styles.css', '/sounds.js': 'sounds.js', '/manifest.json': 'manifest.json', '/sw.js': 'sw.js' };
 for (const [route, file] of Object.entries(WEB_FILES)) app.get(route, (req, res) => res.sendFile(path.join(__dirname, file)));
 app.use('/uploads', express.static(UPLOAD_DIR));
 const upload = multer({ dest: UPLOAD_DIR, limits: { fileSize: 25 * 1024 * 1024 } });
@@ -191,19 +191,25 @@ function publicUser(u) {
  const { password, ...rest } = u;
  return rest;
 }
-function notify(userId, text) {
- db.notifications.unshift({ id: Date.now() + Math.random(), userId, text, at: new Date().toISOString(), read: false });
+function notify(userId, text, extra) {
+ db.notifications.unshift({ id: Date.now() + Math.random(), userId, text, at: new Date().toISOString(), read: false, ...(extra || {}) });
  save();
 }
 
 /* ---------------- auth routes ---------------- */
 app.post('/api/auth/register', (req, res) => {
- const { name, email, password, inviteCode } = req.body || {};
+ const { name, email, password, inviteCode, phone } = req.body || {};
  if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
  if (db.users.find(u => u.email === email)) return res.status(400).json({ error: 'Email already registered' });
  const bonus = db.settings.signupBonus || 1000000;
+ // Guest accounts (auto-created by Guest Mode) are verified at once — the
+ // verification rule applies to IDs created with a real email / phone.
+ const isGuest = String(email).endsWith('@guest.azlanworld.chat');
+ const code = String(Math.floor(100000 + Math.random() * 900000));
  const user = {
   id: uid(), email, name, role: 'user', password: bcrypt.hashSync(password, 10),
+  phone: phone || null,
+  verified: isGuest, verificationCode: isGuest ? null : code, verificationExpires: isGuest ? null : Date.now() + 10 * 60 * 1000,
   coins: bonus, diamonds: 0, charm: 0, wealth: 0, vip: 0, vipUntil: null,
   level: 1, followers: [], following: [], inventory: [],
   bio: '', gender: '', country: '', createdAt: new Date().toISOString(),
@@ -218,6 +224,10 @@ app.post('/api/auth/register', (req, res) => {
   if (inviter) { inviter.coins += 100000; notify(inviter.id, `Your invite earned you 100,000 coins — ${name} joined!`); save(); }
  }
  audit(user.id, 'register', name);
+ // Mandatory verification: the account cannot log in until the 6-digit code
+ // is entered. No SMS gateway is connected, so the code is shown in-app on
+ // the verification screen itself (never pretend an SMS was sent).
+ if (!user.verified) return res.json({ needsVerification: true, userId: user.id, email: user.email, code: user.verificationCode });
  res.json({ token: tokenFor(user), user: publicUser(user) });
 });
 
@@ -226,7 +236,32 @@ app.post('/api/auth/login', (req, res) => {
  const user = db.users.find(u => u.email === email);
  if (!user || !bcrypt.compareSync(password || '', user.password)) return res.status(400).json({ error: 'Wrong email or password' });
  if (user.banned || db.bans.users.includes(user.id)) return res.status(403).json({ error: 'This account is banned. Contact the owner.' });
+ // Server-enforced verification: unverified accounts cannot log in.
+ if (user.verified === false) return res.status(403).json({ error: 'Please verify your account first — enter the 6-digit code.', needsVerification: true, userId: user.id, code: user.verificationCode });
  res.json({ token: tokenFor(user), user: publicUser(user) });
+});
+
+/* Mandatory verification: 6-digit code, shown in-app (no SMS gateway).
+   Resend always works — a fresh code is generated every time. */
+app.post('/api/auth/verify', (req, res) => {
+ const { userId, code } = req.body || {};
+ const user = db.users.find(u => u.id === userId);
+ if (!user) return res.status(404).json({ error: 'Account not found' });
+ if (user.verified) return res.json({ token: tokenFor(user), user: publicUser(user) });
+ if (!user.verificationCode || String(user.verificationCode) !== String(code || '').trim()) return res.status(400).json({ error: 'Wrong code — check the 6 digits and try again, or tap Resend Code.' });
+ if (user.verificationExpires && Date.now() > user.verificationExpires) return res.status(400).json({ error: 'Code expired — tap Resend Code for a new one.' });
+ user.verified = true; user.verificationCode = null; user.verificationExpires = null; save();
+ audit(user.id, 'verify', user.name);
+ res.json({ token: tokenFor(user), user: publicUser(user) });
+});
+app.post('/api/auth/resend-code', (req, res) => {
+ const { userId } = req.body || {};
+ const user = db.users.find(u => u.id === userId);
+ if (!user) return res.status(404).json({ error: 'Account not found' });
+ if (user.verified) return res.json({ ok: true, verified: true });
+ const code = String(Math.floor(100000 + Math.random() * 900000));
+ user.verificationCode = code; user.verificationExpires = Date.now() + 10 * 60 * 1000; save();
+ res.json({ ok: true, code, expiresInMinutes: 10 });
 });
 
 /* Owner enters DIRECTLY — no login screen. Protected by OWNER_SECRET. */
@@ -253,12 +288,41 @@ app.get('/api/users', auth, (req, res) => {
  const q = (req.query.q || '').toLowerCase();
  res.json({ users: db.users.filter(u => !q || u.name.toLowerCase().includes(q) || u.id.includes(q)).slice(0, 30).map(publicUser) });
 });
+/* Follow states (TikTok-style): Follow / Following / Follow Back / Friends (mutual) */
+function followState(u, target) {
+ const following = (u.following || []).includes(target.id);
+ const followedBy = (target.following || []).includes(u.id);
+ const mutual = following && followedBy;
+ return { following, followedBy, mutual, state: mutual ? 'friends' : following ? 'following' : followedBy ? 'follow-back' : 'follow',
+  followers: (target.followers || []).length, followingCount: (target.following || []).length };
+}
 app.post('/api/users/:id/follow', auth, (req, res) => {
  const target = db.users.find(u => u.id === req.params.id);
  const u = me(req);
  if (!target || target.id === u.id) return res.status(400).json({ error: 'Cannot follow' });
  if (!u.following.includes(target.id)) { u.following.push(target.id); target.followers.push(u.id); save(); }
- res.json({ ok: true });
+ res.json({ ok: true, ...followState(u, target) });
+});
+app.post('/api/users/:id/unfollow', auth, (req, res) => {
+ const target = db.users.find(u => u.id === req.params.id);
+ const u = me(req);
+ if (!target || target.id === u.id) return res.status(400).json({ error: 'Cannot unfollow' });
+ u.following = (u.following || []).filter(id => id !== target.id);
+ target.followers = (target.followers || []).filter(id => id !== u.id);
+ save(); res.json({ ok: true, ...followState(u, target) });
+});
+app.get('/api/users/:id/follow-state', auth, (req, res) => {
+ const target = db.users.find(u => u.id === req.params.id);
+ const u = me(req);
+ if (!target) return res.status(404).json({ error: 'User not found' });
+ res.json(followState(u, target));
+});
+/* Friends = mutual follows (both follow each other) */
+app.get('/api/friends', auth, (req, res) => {
+ const u = me(req);
+ const friends = db.users.filter(x => x.id !== u.id && (u.following || []).includes(x.id) && (x.following || []).includes(u.id))
+  .map(x => ({ id: x.id, name: x.anonymous ? 'Anonymous' : x.name, vip: x.vip || 0, level: x.level || 1 }));
+ res.json({ friends });
 });
 
 /* ---------------- rooms ---------------- */
@@ -288,6 +352,9 @@ app.post('/api/rooms', auth, (req, res) => {
   id: rid(), name, topic: topic || 'Chat', isPrivate: !!isPrivate, hostId: u.id,
   admins: [u.id],
   level: 1, xp: 0, members: [u.id], seats: [{ seat: 1, userId: u.id, micOn: true }],
+  /* Normal User Voice Room: 8 mic seats (host seat 1 + mic seats 2–8).
+     Older rooms created before this change have seatCount 11. */
+  seatCount: 8, handRaised: [], micRequests: [], lockedSeats: [],
   chat: [], voiceNotes: [], music: null, createdAt: new Date().toISOString()
  };
  db.rooms.push(room); save(); audit(u.id, 'room-create', name);
@@ -299,13 +366,15 @@ app.post('/api/rooms/:id/join', auth, (req, res) => {
  if (!room) return res.status(404).json({ error: 'Room not found' });
  if (room.blocked && room.blocked.includes(u.id)) return res.status(403).json({ error: 'You are blocked from this room.' });
  if (!room.members.includes(u.id)) room.members.push(u.id);
- save(); res.json({ room: enrichRoom(room), entrance: u.vip ? { name: u.anonymous ? 'Anonymous' : u.name, vip: u.vip, emblem: require('./server/vip').VIP_LEVELS[u.vip - 1].emblem, banner: require('./server/vip').BANNERS[u.vip - 1].svg, animal: require('./server/vip').BANNERS[u.vip - 1].animal } : null });
+ save(); res.json({ room: enrichRoom(room), entrance: u.vip ? { name: u.anonymous ? 'Anonymous' : u.name, vip: u.vip, emblem: require('./server/vip').VIP_LEVELS[u.vip - 1].emblem, banner: require('./server/vip').BANNERS[u.vip - 1].svg, animal: require('./server/vip').BANNERS[u.vip - 1].animal, entry: require('./server/vip').VIP_LEVELS[u.vip - 1].entry, frame: require('./server/vip').VIP_LEVELS[u.vip - 1].frameSvg } : null });
 });
 app.post('/api/rooms/:id/seat', auth, (req, res) => {
  const room = db.rooms.find(r => r.id === req.params.id);
  const u = me(req); const { seat, micOn } = req.body || {};
  if (!room) return res.status(404).json({ error: 'Room not found' });
- if (seat < 1 || seat > 11) return res.status(400).json({ error: 'Seats are 1–11 (host seat 1 + mic seats 2–11)' });
+ const maxSeat = room.seatCount || 11; // new rooms: 8 seats; older rooms: 11
+ if (seat < 1 || seat > maxSeat) return res.status(400).json({ error: 'Seats are 1–' + maxSeat + ' in this room (host seat 1 + mic seats 2–' + maxSeat + ')' });
+ if ((room.lockedSeats || []).includes(seat)) return res.status(403).json({ error: 'That seat is locked by the host.' });
  room.seats = room.seats.filter(s => s.userId !== u.id);
  if (room.seats.find(s => s.seat === seat)) return res.status(400).json({ error: 'Seat taken' });
  room.seats.push({ seat, userId: u.id, micOn: micOn !== false });
@@ -343,19 +412,156 @@ app.post('/api/rooms/:id/music', auth, upload.single('audio'), (req, res) => {
  room.music = { url: '/uploads/' + req.file.filename, by: u.name, at: new Date().toISOString() };
  save(); res.json({ room });
 });
+/* Remove from mic / kick from room — ONLY the room owner or a room admin.
+   VIP9 and VIP10 can NEVER be removed or kicked by ANYONE (absolute protection). */
+function canRemoveFromRoom(room, u, target) {
+ if (target && (target.vip || 0) >= 9) return { ok: false, error: 'VIP9 and VIP10 users are protected — they cannot be removed from the mic or kicked from any room.' };
+ const isHost = room.hostId === u.id;
+ const isAdmin = (room.admins || []).includes(u.id);
+ const isOwner = u.role === 'owner';
+ if (!isHost && !isAdmin && !isOwner) return { ok: false, error: 'Only the room owner or a room admin can remove someone from the mic.' };
+ if (target && (target.vip || 0) >= 6 && !isOwner) return { ok: false, error: 'That user is protected from removal (VIP6+). Only the owner can remove them.' };
+ return { ok: true };
+}
 app.post('/api/rooms/:id/block', auth, (req, res) => {
  const room = db.rooms.find(r => r.id === req.params.id);
  const u = me(req); const { userId } = req.body || {};
  if (!room) return res.status(404).json({ error: 'Room not found' });
- if (room.hostId !== u.id && u.role !== 'owner') return res.status(403).json({ error: 'Only the host can block' });
- // VIP benefit: Protection from Removal from Room (VIP6+) — only the owner can remove them
  const target = db.users.find(x => x.id === userId);
- if (target && (target.vip || 0) >= 6 && u.role !== 'owner') return res.status(403).json({ error: 'That user is protected from removal (VIP6+). Only the owner can remove them.' });
+ const check = canRemoveFromRoom(room, u, target);
+ if (!check.ok) return res.status(403).json({ error: check.error });
  room.blocked = room.blocked || [];
  if (!room.blocked.includes(userId)) room.blocked.push(userId);
  room.seats = room.seats.filter(s => s.userId !== userId);
  room.members = room.members.filter(m => m !== userId);
  save(); res.json({ room });
+});
+/* Remove from the mic only (stays in the room, can take the mic again later) */
+app.post('/api/rooms/:id/remove-seat', auth, (req, res) => {
+ const room = db.rooms.find(r => r.id === req.params.id);
+ const u = me(req); const { userId } = req.body || {};
+ if (!room) return res.status(404).json({ error: 'Room not found' });
+ const target = db.users.find(x => x.id === userId);
+ const check = canRemoveFromRoom(room, u, target);
+ if (!check.ok) return res.status(403).json({ error: check.error });
+ room.seats = room.seats.filter(s => s.userId !== userId);
+ save(); res.json({ room: enrichRoom(room) });
+});
+
+/* ---- Normal User Voice Room actions: raise hand, request mic, host approval,
+   room settings, close room. All real, server-enforced. ---- */
+app.post('/api/rooms/:id/raise-hand', auth, (req, res) => {
+ const room = db.rooms.find(r => r.id === req.params.id);
+ const u = me(req);
+ if (!room) return res.status(404).json({ error: 'Room not found' });
+ room.handRaised = room.handRaised || [];
+ const i = room.handRaised.indexOf(u.id);
+ if (i >= 0) room.handRaised.splice(i, 1); else room.handRaised.push(u.id);
+ save(); res.json({ ok: true, raised: i < 0, handRaised: room.handRaised });
+});
+app.post('/api/rooms/:id/request-mic', auth, (req, res) => {
+ const room = db.rooms.find(r => r.id === req.params.id);
+ const u = me(req); const { seat } = req.body || {};
+ if (!room) return res.status(404).json({ error: 'Room not found' });
+ room.micRequests = room.micRequests || [];
+ if ((room.seats || []).find(s => s.userId === u.id)) return res.status(400).json({ error: 'You are already on a mic seat' });
+ if (room.micRequests.find(x => x.userId === u.id)) return res.status(400).json({ error: 'Your mic request is already waiting for the host' });
+ const want = seat ? Number(seat) : null;
+ if (want && (want < 1 || want > (room.seatCount || 11))) return res.status(400).json({ error: 'That seat does not exist in this room' });
+ room.micRequests.push({ userId: u.id, name: u.name, seat: want, at: new Date().toISOString() });
+ const host = db.users.find(x => x.id === room.hostId);
+ if (host) notify(host.id, `${u.name} requested the mic in "${room.name}"${want ? ' (seat ' + want + ')' : ''}.`);
+ save(); res.json({ ok: true, requests: room.micRequests });
+});
+function isRoomHostOrAdmin(room, u) { return room.hostId === u.id || (room.admins || []).includes(u.id) || u.role === 'owner'; }
+app.post('/api/rooms/:id/approve-mic', auth, (req, res) => {
+ const room = db.rooms.find(r => r.id === req.params.id);
+ const u = me(req); const { userId, seat } = req.body || {};
+ if (!room) return res.status(404).json({ error: 'Room not found' });
+ if (!isRoomHostOrAdmin(room, u)) return res.status(403).json({ error: 'Only the room host or an admin can approve mic requests' });
+ room.micRequests = room.micRequests || [];
+ const reqIdx = room.micRequests.findIndex(x => x.userId === userId);
+ if (reqIdx < 0) return res.status(400).json({ error: 'No mic request from that user' });
+ const maxSeat = room.seatCount || 11;
+ let s = seat ? Number(seat) : (room.micRequests[reqIdx].seat || null);
+ if (!s) s = Array.from({ length: maxSeat }, (_, i) => i + 1).find(n => !(room.seats || []).find(x => x.seat === n) && !(room.lockedSeats || []).includes(n));
+ if (!s || s < 1 || s > maxSeat) return res.status(400).json({ error: 'No free seat available' });
+ if ((room.seats || []).find(x => x.seat === s)) return res.status(400).json({ error: 'Seat ' + s + ' is taken' });
+ if ((room.lockedSeats || []).includes(s)) return res.status(403).json({ error: 'Seat ' + s + ' is locked' });
+ room.micRequests.splice(reqIdx, 1);
+ room.seats = (room.seats || []).filter(x => x.userId !== userId);
+ room.seats.push({ seat: s, userId, micOn: true });
+ save(); res.json({ ok: true, room: enrichRoom(room) });
+});
+app.post('/api/rooms/:id/deny-mic', auth, (req, res) => {
+ const room = db.rooms.find(r => r.id === req.params.id);
+ const u = me(req); const { userId } = req.body || {};
+ if (!room) return res.status(404).json({ error: 'Room not found' });
+ if (!isRoomHostOrAdmin(room, u)) return res.status(403).json({ error: 'Only the room host or an admin can deny mic requests' });
+ room.micRequests = (room.micRequests || []).filter(x => x.userId !== userId);
+ save(); res.json({ ok: true, requests: room.micRequests });
+});
+/* Room settings — host / admin / owner only: announcement, topic, seat locks. */
+app.post('/api/rooms/:id/settings', auth, (req, res) => {
+ const room = db.rooms.find(r => r.id === req.params.id);
+ const u = me(req); const { announce, topic, lockedSeats } = req.body || {};
+ if (!room) return res.status(404).json({ error: 'Room not found' });
+ if (!isRoomHostOrAdmin(room, u)) return res.status(403).json({ error: 'Only the room host or an admin can change room settings' });
+ if (announce !== undefined) room.announce = String(announce).slice(0, 200);
+ if (topic !== undefined) room.topic = String(topic).slice(0, 60);
+ if (Array.isArray(lockedSeats)) {
+  const maxSeat = room.seatCount || 11;
+  room.lockedSeats = lockedSeats.map(Number).filter(n => n >= 2 && n <= maxSeat);
+ }
+ save(); res.json({ ok: true, room: enrichRoom(room) });
+});
+/* Close a room — host or owner only. */
+app.delete('/api/rooms/:id', auth, (req, res) => {
+ const room = db.rooms.find(r => r.id === req.params.id);
+ const u = me(req);
+ if (!room) return res.status(404).json({ error: 'Room not found' });
+ if (room.hostId !== u.id && u.role !== 'owner') return res.status(403).json({ error: 'Only the room host or the owner can close this room' });
+ db.rooms = db.rooms.filter(r => r.id !== req.params.id);
+ save(); audit(u.id, 'room-close', room.name + ' (' + room.id + ')');
+ res.json({ ok: true });
+});
+
+/* ---------------- mic & voice settings ---------------- */
+/* Per-user voice settings, stored on the server and applied in rooms.
+   Noise suppression is the browser's own processing ("standard") or off
+   ("none"). Krisp-style AI suppression is NOT available — never pretend it is. */
+const VOICE_DEFAULTS = {
+ micOn: true, muted: false, speakerOn: true,
+ micVolume: 50, speakerVolume: 100,
+ sensitivity: 50, autoSensitivity: true,
+ noiseSuppression: 'standard', echoCancellation: true, autoGain: true,
+ voiceEnhancement: false, inputMode: 'voice',
+ inputDeviceId: 'default', outputDeviceId: 'default'
+};
+function voiceSettingsOf(u) { return { ...VOICE_DEFAULTS, ...(u.voiceSettings || {}) }; }
+function sanitizeVoiceSettings(body) {
+ const b = body || {}; const out = {};
+ if (typeof b.micOn === 'boolean') out.micOn = b.micOn;
+ if (typeof b.muted === 'boolean') out.muted = b.muted;
+ if (typeof b.speakerOn === 'boolean') out.speakerOn = b.speakerOn;
+ if (typeof b.micVolume === 'number') out.micVolume = Math.max(0, Math.min(100, Math.round(b.micVolume)));
+ if (typeof b.speakerVolume === 'number') out.speakerVolume = Math.max(0, Math.min(100, Math.round(b.speakerVolume)));
+ if (typeof b.sensitivity === 'number') out.sensitivity = Math.max(0, Math.min(100, Math.round(b.sensitivity)));
+ if (typeof b.autoSensitivity === 'boolean') out.autoSensitivity = b.autoSensitivity;
+ if (b.noiseSuppression === 'none' || b.noiseSuppression === 'standard') out.noiseSuppression = b.noiseSuppression;
+ if (typeof b.echoCancellation === 'boolean') out.echoCancellation = b.echoCancellation;
+ if (typeof b.autoGain === 'boolean') out.autoGain = b.autoGain;
+ if (typeof b.voiceEnhancement === 'boolean') out.voiceEnhancement = b.voiceEnhancement;
+ if (b.inputMode === 'voice' || b.inputMode === 'ptt') out.inputMode = b.inputMode;
+ if (typeof b.inputDeviceId === 'string') out.inputDeviceId = b.inputDeviceId.slice(0, 200);
+ if (typeof b.outputDeviceId === 'string') out.outputDeviceId = b.outputDeviceId.slice(0, 200);
+ return out;
+}
+app.get('/api/voice-settings', auth, (req, res) => res.json({ settings: voiceSettingsOf(me(req)) }));
+app.put('/api/voice-settings', auth, (req, res) => {
+ const u = me(req);
+ u.voiceSettings = { ...voiceSettingsOf(u), ...sanitizeVoiceSettings(req.body) };
+ save(); res.json({ ok: true, settings: u.voiceSettings });
 });
 
 /* ---------------- gifts ---------------- */
@@ -370,7 +576,8 @@ app.post('/api/gifts/send', auth, (req, res) => {
  const n = Math.max(1, Math.min(777, qty || 1));
  // VIP benefit: Golds Items Discount on gifts too
  const discountPct = DISCOUNTS[u.vip || 0] || 0;
- const cost = Math.floor(gift.price * n * (1 - discountPct / 100));
+ // Owner is FREE — all gifts at 0 coins (standing owner rule).
+ const cost = u.role === 'owner' ? 0 : Math.floor(gift.price * n * (1 - discountPct / 100));
  if (u.coins < cost) return res.status(400).json({ error: 'Not enough coins' });
  u.coins -= cost; u.wealth += cost; to.charm += gift.charm * n; to.wealth += cost;
  to.giftsReceived = (to.giftsReceived || 0) + n; to.giftsReceivedCoins = (to.giftsReceivedCoins || 0) + cost;
@@ -429,7 +636,7 @@ app.post('/api/vip/buy', auth, (req, res) => {
  if (!level) return res.status(400).json({ error: 'VIP must be 1–11' });
  if (!isOn(db, 'vip')) return res.status(403).json({ error: 'VIP is turned off by the owner' });
  if (!vipLevelEnabled(db, vip)) return res.status(403).json({ error: `VIP${vip} is turned off by the owner` });
- const price = (db.settings.vipPriceOverride && db.settings.vipPriceOverride[vip]) || level.price;
+ const price = u.role === 'owner' ? 0 : ((db.settings.vipPriceOverride && db.settings.vipPriceOverride[vip]) || level.price);
  if (u.coins < price) return res.status(400).json({ error: 'Not enough coins' });
  const wasVip = u.vip || 0;
  u.coins -= price; u.vip = vip;
@@ -465,7 +672,8 @@ app.post('/api/shop/buy', auth, (req, res) => {
  const vipPct = DISCOUNTS[u.vip || 0] || 0;
  const premiumPct = u.premium ? 15 : 0;
  const discountPct = u.vip ? Math.max(50, vipPct, premiumPct) : Math.max(vipPct, premiumPct);
- const price = Math.floor(item.price * (1 - discountPct / 100));
+ // Owner is FREE — all shop items at 0 coins (standing owner rule).
+ const price = u.role === 'owner' ? 0 : Math.floor(item.price * (1 - discountPct / 100));
  if (u.coins < price) return res.status(400).json({ error: 'Not enough coins' });
  u.coins -= price; u.inventory.push(item.id); save();
  res.json({ ok: true, inventory: u.inventory, paid: price, discountPct });
@@ -544,8 +752,17 @@ app.post('/api/moments/:id/comment', auth, (req, res) => {
 });
 
 /* ---------------- messaging ---------------- */
+/* Private messages need a MUTUAL follow (friends). The owner can message anyone. */
+function canDM(u, other) {
+ if (!u || !other) return false;
+ if (u.role === 'owner' || other.role === 'owner') return true;
+ return (u.following || []).includes(other.id) && (other.following || []).includes(u.id);
+}
 app.get('/api/messages/:userId', auth, (req, res) => {
  const u = me(req);
+ const other = db.users.find(x => x.id === req.params.userId);
+ if (!other) return res.status(404).json({ error: 'User not found' });
+ if (!canDM(u, other)) return res.status(403).json({ error: 'Private messages unlock only when you follow each other — follow this user and wait for a follow-back.', locked: true });
  const list = db.messages.filter(m => (m.from === u.id && m.to === req.params.userId) || (m.from === req.params.userId && m.to === u.id));
  res.json({ messages: list });
 });
@@ -553,6 +770,9 @@ app.post('/api/messages', auth, (req, res) => {
  const u = me(req); const { to, text } = req.body || {};
  if (!isOn(db, 'chat')) return res.status(403).json({ error: 'Messages are turned off by the owner' });
  if (!to || !text) return res.status(400).json({ error: 'Missing recipient or text' });
+ const other = db.users.find(x => x.id === to);
+ if (!other) return res.status(404).json({ error: 'User not found' });
+ if (!canDM(u, other)) return res.status(403).json({ error: 'Private messages unlock only when you follow each other — follow this user and wait for a follow-back.', locked: true });
  const m = { id: Date.now(), from: u.id, to, text, at: new Date().toISOString() };
  db.messages.push(m); save(); notify(to, `New message from ${u.name}`);
  res.json({ message: m });
@@ -615,6 +835,52 @@ app.get('/api/notifications', auth, (req, res) => {
 app.get('/api/settings', auth, (req, res) => res.json({ settings: db.settings }));
 
 /* ---------------- OWNER PORTAL ---------------- */
+/* Owner Portal: pending verification codes (accounts waiting to verify) */
+app.get('/api/owner/verification-codes', auth, ownerOnly, (req, res) => {
+ const pending = db.users.filter(u => u.verified === false).map(u => ({ id: u.id, name: u.name, email: u.email, phone: u.phone || null, code: u.verificationCode, expiresAt: u.verificationExpires ? new Date(u.verificationExpires).toISOString() : null, createdAt: u.createdAt }));
+ res.json({ pending });
+});
+/* -------- Owner VIP Admin Panel (VIP 1–12) -------- */
+app.get('/api/owner/vip/list', auth, ownerOnly, (req, res) => {
+ const vips = db.users.filter(u => (u.vip || 0) > 0).map(u => ({ id: u.id, name: u.name, email: u.email, vip: u.vip, vipUntil: u.vipUntil || null }));
+ res.json({ vips });
+});
+app.post('/api/owner/vip/set', auth, ownerOnly, (req, res) => {
+ const { userId, vip, days } = req.body || {};
+ const target = db.users.find(u => u.id === String(userId));
+ if (!target) return res.status(400).json({ error: 'User not found' });
+ const v = Number(vip);
+ if (isNaN(v) || v < 0 || v > 12) return res.status(400).json({ error: 'VIP must be 0–12 (0 removes VIP)' });
+ const d = Math.max(1, Number(days) || 31);
+ target.vip = v;
+ target.vipUntil = v > 0 ? new Date(Date.now() + d * 24 * 3600 * 1000).toISOString() : null;
+ if (v > 0) { const lvl = require('./server/vip').VIP_LEVELS[v - 1]; target.vipPoints = Math.max(target.vipPoints || 0, lvl.points); }
+ save(); audit(req.user.id, 'owner-vip-set', `VIP${v} to ${target.name} (${target.id}) for ${d} days`);
+ res.json({ ok: true, user: publicUser(target) });
+});
+app.post('/api/owner/vip/reward', auth, ownerOnly, (req, res) => {
+ const { userId, coins, diamonds, bonusPoints } = req.body || {};
+ const target = db.users.find(u => u.id === String(userId));
+ if (!target) return res.status(400).json({ error: 'User not found' });
+ if (coins) target.coins = Math.max(0, (target.coins || 0) + Number(coins));
+ if (diamonds) target.diamonds = Math.max(0, (target.diamonds || 0) + Number(diamonds));
+ if (bonusPoints) target.bonusPoints = Math.max(0, (target.bonusPoints || 0) + Number(bonusPoints));
+ save(); audit(req.user.id, 'owner-vip-reward', `Reward to ${target.name} (${target.id}): ${coins || 0} coins, ${diamonds || 0} diamonds, ${bonusPoints || 0} bonus points`);
+ res.json({ ok: true, user: publicUser(target) });
+});
+app.post('/api/owner/vip/price', auth, ownerOnly, (req, res) => {
+ const { vip, price } = req.body || {};
+ const v = Number(vip), p = Number(price);
+ if (isNaN(v) || v < 1 || v > 12 || !p || p < 0) return res.status(400).json({ error: 'VIP must be 1–12 and price a positive number' });
+ db.settings.vipPriceOverride = db.settings.vipPriceOverride || {};
+ db.settings.vipPriceOverride[v] = p;
+ save(); audit(req.user.id, 'owner-vip-price', `VIP${v} price = ${p}`);
+ res.json({ ok: true, vip: v, price: p });
+});
+app.get('/api/owner/vip/preview', auth, ownerOnly, (req, res) => {
+ const { VIP_LEVELS } = require('./server/vip');
+ res.json({ levels: VIP_LEVELS.map(l => ({ vip: l.vip, emblem: l.emblem, svg: l.svg, color: l.color, color2: l.color2, theme: l.theme, themeBg: l.themeBg, effect: l.effect, entry: l.entry, frameSvg: l.frameSvg, price: l.price, points: l.points, totalBenefits: l.totalBenefits, discountPct: l.discountPct })) });
+});
 app.get('/api/owner/stats', auth, ownerOnly, (req, res) => {
  res.json({
   totalUsers: db.users.length, totalRooms: db.rooms.length,

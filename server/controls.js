@@ -13,6 +13,7 @@ const DEFAULT_CONTROLS = {
   animations: true, sounds: true, gifts: true, vip: true, shop: true,
   rooms: true, payments: true, chat: true, moments: true, luckyDraw: true,
   daily: true, invite: true, ai: true, events: true,
+  entryEffects: true, vipFrames: true,
   giftsDisabled: [], benefitsDisabled: [], vipDisabled: [], themesDisabled: []
 };
 

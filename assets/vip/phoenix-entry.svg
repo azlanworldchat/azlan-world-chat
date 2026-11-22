@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><defs>
+<linearGradient id="pf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe600"/><stop offset=".45" stop-color="#ff7a1a"/><stop offset="1" stop-color="#e63946"/></linearGradient>
+<linearGradient id="pw" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff2d55"/><stop offset=".5" stop-color="#ff7a1a"/><stop offset="1" stop-color="#ffd24a"/></linearGradient>
+<radialGradient id="pg" cx=".5" cy=".55" r=".55"><stop offset="0" stop-color="#ffd24a" stop-opacity=".9"/><stop offset="1" stop-color="#ff7a1a" stop-opacity="0"/></radialGradient>
+</defs>
+<ellipse cx="200" cy="110" rx="180" ry="70" fill="url(#pg)"/>
+<path d="M200 196 L168 158 L232 158 Z" fill="#7a5a28" opacity=".55"/>
+<path d="M200 196 L186 162 L214 162 Z" fill="#ffd24a" opacity=".8"/>
+<g fill="url(#pw)">
+<path d="M196 108 Q120 30 30 44 Q96 58 118 84 Q66 74 22 96 Q84 96 122 108 Q70 112 40 128 Q96 128 140 122 Q104 134 84 146 Q140 140 188 124 Z"/>
+<path d="M204 108 Q280 30 370 44 Q304 58 282 84 Q334 74 378 96 Q316 96 278 108 Q330 112 360 128 Q304 128 260 122 Q296 134 316 146 Q260 140 212 124 Z"/>
+</g>
+<g fill="url(#pf)">
+<path d="M196 100 Q150 52 96 56 Q140 66 158 88 Q120 84 92 98 Q140 100 168 106 Z"/>
+<path d="M204 100 Q250 52 304 56 Q260 66 242 88 Q280 84 308 98 Q260 100 232 106 Z"/>
+</g>
+<path d="M200 62 Q190 84 196 112 Q200 132 204 112 Q210 84 200 62 Z" fill="url(#pf)"/>
+<path d="M200 62 Q196 50 200 40 Q204 50 200 62 Z" fill="#ffd24a"/>
+<path d="M192 78 Q188 70 194 68 Q196 74 192 78 Z" fill="#ffd24a"/>
+<path d="M208 78 Q212 70 206 68 Q204 74 208 78 Z" fill="#ffd24a"/>
+<path d="M196 112 Q188 136 192 158 Q200 146 204 158 Q208 136 204 112 Z" fill="url(#pf)"/>
+<circle cx="60" cy="40" r="3" fill="#ffd24a"/><circle cx="340" cy="40" r="3" fill="#ffd24a"/>
+<circle cx="110" cy="24" r="2.5" fill="#ff7a1a"/><circle cx="290" cy="24" r="2.5" fill="#ff7a1a"/>
+<circle cx="30" cy="120" r="2.5" fill="#ffd24a"/><circle cx="370" cy="120" r="2.5" fill="#ffd24a"/>
+<circle cx="150" cy="150" r="2.5" fill="#ff7a1a"/><circle cx="250" cy="150" r="2.5" fill="#ff7a1a"/>
+</svg>

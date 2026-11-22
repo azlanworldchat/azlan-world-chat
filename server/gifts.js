@@ -39,10 +39,16 @@ module.exports = function (ctx) {
   const notes = db.notifications.filter(n => n.text.includes(' sent ')).slice(0, 20);
   res.json({ broadcasts: notes });
  });
+ // Live gift feed for a room — everyone in the room sees every gift sent there
+ router.get('/room-feed', (req, res) => {
+  const roomId = req.query.roomId;
+  const feed = (db.roomGiftFeed && db.roomGiftFeed[roomId]) || [];
+  res.json({ events: feed.slice(0, 20) });
+ });
  // Send a gift with a custom animation + message
  router.post('/send', (req, res) => {
   const u = db.users.find(x => x.id === req.user.id);
-  const { giftId, toUserId, qty, message } = req.body || {};
+  const { giftId, toUserId, qty, message, roomId } = req.body || {};
   const gift = db.gifts.find(g => g.id === giftId);
   const to = db.users.find(x => x.id === toUserId);
   if (!gift || !to) return res.status(400).json({ error: 'Gift or user not found' });
@@ -52,7 +58,8 @@ module.exports = function (ctx) {
   const n = Math.max(1, Math.min(777, qty || 1));
   const { DISCOUNTS } = require('./vip');
   const discountPct = DISCOUNTS[u.vip || 0] || 0;
-  const cost = Math.floor(gift.price * n * (1 - discountPct / 100));
+  // Owner is FREE — all gifts at 0 coins (standing owner rule).
+  const cost = u.role === 'owner' ? 0 : Math.floor(gift.price * n * (1 - discountPct / 100));
   if (u.coins < cost) return res.status(400).json({ error: 'Not enough coins' });
   u.coins -= cost; u.wealth += cost; to.charm += gift.charm * n; to.wealth += cost;
   to.giftsReceived = (to.giftsReceived || 0) + n; to.giftsReceivedCoins = (to.giftsReceivedCoins || 0) + cost;
@@ -60,13 +67,25 @@ module.exports = function (ctx) {
   u.giftsSent = (u.giftsSent || 0) + n; u.biggestGift = Math.max(u.biggestGift || 0, cost);
   const broadcast = cost >= 100000;
   save();
+  // Gift event: visible in the room for everyone, and notifies the recipient.
+  const event = { id: Date.now() + '' + Math.floor(Math.random() * 1000), roomId: roomId || null,
+   fromId: u.id, fromName: u.anonymous ? 'Anonymous' : u.name, fromVip: u.vip || 0,
+   toId: to.id, toName: to.name, giftId: gift.id, giftName: gift.name, giftSvg: gift.svg,
+   giftAnim: gift.anim, giftSound: gift.sound, qty: n, cost, at: new Date().toISOString() };
+  if (roomId) {
+   db.roomGiftFeed = db.roomGiftFeed || {};
+   db.roomGiftFeed[roomId] = db.roomGiftFeed[roomId] || [];
+   db.roomGiftFeed[roomId].unshift(event);
+   if (db.roomGiftFeed[roomId].length > 20) db.roomGiftFeed[roomId] = db.roomGiftFeed[roomId].slice(0, 20);
+  }
+  const giftExtra = { kind: 'gift', giftEventId: event.id, gift: { id: gift.id, name: gift.name, svg: gift.svg, anim: gift.anim, sound: gift.sound }, from: event.fromName, fromId: u.id, to: to.name, qty: n, cost };
   const text = broadcast
-   ? `${u.name} sent ${gift.name} x${n} to ${to.name} — ${cost.toLocaleString()} coins!`
-   : `${u.name} sent you ${gift.icon} ${gift.name} x${n}${message ? ': ' + message : ''}`;
-  if (broadcast) { db.broadcasts = db.broadcasts || []; db.broadcasts.unshift({ id: Date.now(), text, kind: 'gift', at: new Date().toISOString() }); db.users.forEach(x => notify(x.id, text)); }
-  else notify(to.id, text);
+   ? `${event.fromName} sent ${gift.name} x${n} to ${to.name} — ${cost.toLocaleString()} coins!`
+   : `${event.fromName} sent you ${gift.name} x${n}${message ? ': ' + message : ''} — you received a gift!`;
+  if (broadcast) { db.broadcasts = db.broadcasts || []; db.broadcasts.unshift({ id: Date.now(), text, kind: 'gift', at: new Date().toISOString() }); db.users.forEach(x => notify(x.id, text, giftExtra)); }
+  else notify(to.id, text, giftExtra);
   save();
-  res.json({ ok: true, broadcast, animation: gift.price >= 5000 ? 'huge' : gift.price >= 500 ? 'big' : 'small', coins: u.coins, gift: { id: gift.id, name: gift.name, svg: gift.svg, anim: gift.anim, sound: gift.sound, icon: gift.icon } });
+  res.json({ ok: true, broadcast, broadcastText: text, animation: gift.price >= 5000 ? 'huge' : gift.price >= 500 ? 'big' : 'small', coins: u.coins, fromName: event.fromName, toName: to.name, event, gift: { id: gift.id, name: gift.name, svg: gift.svg, anim: gift.anim, sound: gift.sound, icon: gift.icon, price: gift.price } });
  });
  return router;
 };

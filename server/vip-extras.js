@@ -148,9 +148,11 @@ module.exports = function (ctx) {
   const to = db.users.find(x => x.id === toUserId);
   if (!item) return res.status(400).json({ error: 'Item not found' });
   if (!to) return res.status(400).json({ error: 'Choose a friend to send it to' });
-  if (!confirm) return res.json({ ok: true, needsConfirm: true, confirmText: `Confirm to pay ${item.price.toLocaleString()} golds to ${item.name}`, item, to: { id: to.id, name: to.name } });
-  if (u.coins < item.price) return res.status(400).json({ error: 'Not enough golds (coins)' });
-  u.coins -= item.price;
+  // Owner is FREE — theme gifts at 0 coins (standing owner rule).
+  const price = u.role === 'owner' ? 0 : item.price;
+  if (!confirm) return res.json({ ok: true, needsConfirm: true, confirmText: `Confirm to pay ${price.toLocaleString()} golds to ${item.name}`, item, to: { id: to.id, name: to.name } });
+  if (u.coins < price) return res.status(400).json({ error: 'Not enough golds (coins)' });
+  u.coins -= price;
   to.inventory = to.inventory || []; to.inventory.push(item.id);
   notify(to.id, `${u.name} sent you ${item.icon} ${item.name} — choose the item you like from the store and send it to your friends to show your love!`);
   save();
@@ -178,7 +180,7 @@ module.exports = function (ctx) {
   const { newId } = req.body || {};
   if (!newId || !/^\d{2,8}$/.test(String(newId))) return res.status(400).json({ error: 'ID must be 2–8 digits' });
   if (db.users.find(x => x.id === String(newId))) return res.status(400).json({ error: 'That ID is already taken' });
-  const cost = Math.max(0, 100000 - amount);
+  const cost = u.role === 'owner' ? 0 : Math.max(0, 100000 - amount);
   if (u.coins < cost) return res.status(400).json({ error: `Custom ID costs 100,000 golds — your coupon covers ${amount.toLocaleString()}, you still need ${cost.toLocaleString()}` });
   u.coins -= cost; u.id = String(newId); u.couponUsed = u.vipUntil; save();
   res.json({ ok: true, newId: u.id, saved: amount, paid: cost });

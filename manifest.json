@@ -1,5 +1,5 @@
 {
-  "background_color": "#1e0b3d",
+  "background_color": "#ffffff",
   "description": "AZLAN WORLD CHAT \u2014 voice rooms, gifts, VIP, friends. Original work.",
   "display": "standalone",
   "icons": [
@@ -25,6 +25,6 @@
   "name": "AZLAN WORLD CHAT",
   "short_name": "Azlan World",
   "start_url": "index.html",
-  "theme_color": "#1e0b3d",
+  "theme_color": "#ffffff",
   "scope": "./"
 }
